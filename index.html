@@ -233,7 +233,7 @@ details.avanzado summary{font-size:12.5px}
           <select id="tipo" data-k="tipo"><option>Pintura interior</option><option>Pintura exterior</option><option>Pintura interior y exterior</option><option>Impermeabilización</option><option>Otro</option></select></div>
         <div class="campo"><label for="servicio">Descripción del servicio</label><textarea id="servicio" data-k="servicio" placeholder="Qué se va a pintar: áreas y alcance del trabajo"></textarea></div>
         <div class="campo"><label for="p-marca">Marca de la pintura</label><select id="p-marca" data-k="pint.marca"></select></div>
-        <div class="campo"><label for="p-calidad">Calidad o línea</label><select id="p-calidad" data-k="pint.calidad"></select></div>
+        <div class="campo"><span class="etq" id="p-acab-etq">Acabado (puedes elegir varios)</span><div class="chips" id="p-acab" role="group" aria-labelledby="p-acab-etq"></div></div>
         <div class="campo"><label for="p-color">Color o código de la pintura</label><input id="p-color" data-k="pint.color" placeholder="Color o código de la pintura"></div>
         <div class="campo"><label for="incluye">Incluye (una línea por concepto)</label><textarea id="incluye" data-lista="incluye"></textarea></div>
         <div class="campo"><label for="noincluye">No incluye (una línea por concepto)</label><textarea id="noincluye" data-lista="noIncluye" placeholder="Lo que no se pinta o no se hace (una línea por concepto)"></textarea></div>
@@ -374,7 +374,7 @@ details.avanzado summary{font-size:12.5px}
 
 <div class="modal" id="modal-fact" hidden role="dialog" aria-modal="true" aria-labelledby="mfa-tit">
   <div class="caja">
-    <h2 id="mfa-tit" style="font-size:30px;margin-bottom:8px">Excel para facturar</h2>
+    <h2 id="mfa-tit" style="font-size:30px;margin-bottom:8px">Datos para facturar</h2>
     <p class="nota" id="mfa-resumen" style="margin:0 0 12px"></p>
     <div class="campo"><label for="mfa-tipo">Tipo de CFDI</label>
       <select id="mfa-tipo"><option>I - Ingreso</option><option>E - Egreso</option><option>P - Pago</option><option>T - Traslado</option></select></div>
@@ -386,7 +386,7 @@ details.avanzado summary{font-size:12.5px}
     <div class="aviso mal" id="mfa-aviso" hidden></div>
     <div class="acciones" style="grid-template-columns:1fr 1fr">
       <button class="btn" id="mfa-cancela" type="button">Cancelar</button>
-      <button class="btn p" id="mfa-ok" type="button">Generar Excel</button>
+      <button class="btn p" id="mfa-ok" type="button">Enviar Excel y constancia</button>
     </div>
   </div>
 </div>
@@ -449,7 +449,7 @@ var foliosListos = false;
 function nueva() {
   return {
     id: aId(), folio: folioTxt(ajustes.folio), fecha: hoyISO(), vigencia: ajustes.vigencia,
-    cliente: { nombre: '', tel: '', dom: '' }, tipo: 'Pintura interior', servicio: '', marca: '', pint: { marca: '', calidad: '', color: '' },
+    cliente: { nombre: '', tel: '', dom: '' }, tipo: 'Pintura interior', servicio: '', marca: '', pint: { marca: '', acab: [], color: '' },
     incluye: ['Materiales y mano de obra', 'Protección de pisos y muebles', 'Limpieza final'], noIncluye: ['Cielos'],
     partidas: [{ c: 'Mano de obra', n: 1, p: 0 }], factura: false, anticipo: ajustes.anticipo, inicio: '', hora: '09:00', dias: '',
     cond: { garantia: ajustes.garantia, multa: ajustes.multa, iva: ajustes.iva, isr: ajustes.isr },
@@ -649,7 +649,8 @@ function setPath(o, p, v) { var ks = p.split('.'), l = ks.pop(); var t = ks.redu
 
 function llenaForma() {
   if (!q.hora) q.hora = '09:00';
-  if (!q.pint) q.pint = { marca: '', calidad: '', color: q.marca || '' };
+  if (!q.pint) q.pint = { marca: '', acab: [], color: q.marca || '' };
+  if (!Array.isArray(q.pint.acab)) { q.pint.acab = []; if (q.pint.calidad) q.pint.color = [q.pint.calidad, q.pint.color].filter(Boolean).join(' · '); delete q.pint.calidad; }
   $$('[data-k]').forEach(function (el) {
     var v = getPath(q, el.getAttribute('data-k'));
     if (el.type === 'checkbox') el.checked = !!v; else el.value = v == null ? '' : v;
@@ -721,7 +722,7 @@ function cambioForma(e) {
     var k = el.getAttribute('data-k'), v = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? (el.value === '' ? '' : num(el.value)) : el.value);
     setPath(q, k, v);
     if (k === 'cliente.nombre') autollenaCliente();
-    if (k.indexOf('pint.') === 0) { if (k === 'pint.marca') { q.pint.calidad = ''; llenaCalidad(); } q.marca = marcaTexto(q.pint); }
+    if (k.indexOf('pint.') === 0) q.marca = marcaTexto(q.pint);
   } else if (el.hasAttribute('data-lista')) {
     q[el.getAttribute('data-lista')] = el.value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
   } else if (el.hasAttribute('data-f')) {
@@ -1043,35 +1044,66 @@ function nuevaPara(id) {
 }
 function csvDe(filas) { return '﻿' + filas.map(function (r) { return r.map(function (v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }).join(','); }).join('\n'); }
 function csvClientes() {
-  return csvDe([['Nombre', 'Teléfono', 'Domicilio', 'Notas', 'Cotizaciones', 'Aceptadas', 'Terminadas', 'No aceptadas', 'Monto aceptado', 'RFC', 'Razón social']].concat(clientes.map(function (c) { var r = resumenCliente(c); return [c.nombre, c.tel, c.dom, c.notas, r.n, r.ace, r.ter, r.no, r.monto, c.rfc || '', c.razon || '']; })));
+  return csvDe([['Nombre', 'Teléfono', 'Domicilio', 'Notas', 'Cotizaciones', 'Aceptadas', 'Terminadas', 'No aceptadas', 'Monto aceptado', 'Correo para factura', 'Constancia cargada']].concat(clientes.map(function (c) { var r = resumenCliente(c); return [c.nombre, c.tel, c.dom, c.notas, r.n, r.ace, r.ter, r.no, r.monto, c.correoFact || '', c.csf ? 'Sí' : 'No']; })));
 }
 
 /* ---------- pintura, facturacion y Excel ---------- */
-var MARCAS = { 'Behr': ['Premium Plus', 'Premium Plus Ultra', 'Marquee'], 'Comex': ['Vinimex', 'Comex Total', 'Pro 1000'], 'Sherwin-Williams': ['Duration', 'SuperPaint', 'ProMar 200', 'Emerald'], 'Sayer': [], 'Berel': [], 'American Paint': [], 'Otra marca': [] };
-var NIVELES = ['Económica', 'Media', 'Premium', 'Alta gama (lavable)'];
-function marcaTexto(pt) { var m = [pt.marca, pt.calidad].filter(Boolean).join(' '); return [m, pt.color ? 'color ' + pt.color : ''].filter(Boolean).join(', '); }
-function llenaCalidad() {
-  var ls = (MARCAS[q.pint.marca] || []).concat(NIVELES);
-  if (q.pint.calidad && ls.indexOf(q.pint.calidad) < 0) ls.push(q.pint.calidad);
-  $('#p-calidad').innerHTML = '<option value="">Elige la calidad</option>' + ls.map(function (l) { return '<option' + (q.pint.calidad === l ? ' selected' : '') + '>' + esc(l) + '</option>'; }).join('');
+var MARCAS = ['Behr', 'Comex', 'Sherwin-Williams', 'Sayer', 'Berel', 'American Paint', 'Otra marca'];
+var ACABADOS = ['Mate', 'Satinada', 'Gloss o esmalte', 'Primer', 'Primer anti salitre'];
+function marcaTexto(pt) {
+  var a = (pt.acab || []).join(', '), m = pt.marca ? pt.marca + (a ? ' (' + a + ')' : '') : a;
+  return [m, pt.color ? 'color ' + pt.color : ''].filter(Boolean).join(', ');
 }
 function pintaPintura() {
-  $('#p-marca').innerHTML = '<option value="">Elige la marca</option>' + Object.keys(MARCAS).map(function (m) { return '<option' + (q.pint.marca === m ? ' selected' : '') + '>' + esc(m) + '</option>'; }).join('');
-  llenaCalidad(); $('#p-color').value = q.pint.color || '';
+  $('#p-marca').innerHTML = '<option value="">Elige la marca</option>' + MARCAS.map(function (m) { return '<option' + (q.pint.marca === m ? ' selected' : '') + '>' + esc(m) + '</option>'; }).join('');
+  $('#p-acab').innerHTML = ACABADOS.map(function (a) { return '<button class="chip" type="button" data-acab="' + esc(a) + '" aria-pressed="' + (q.pint.acab.indexOf(a) >= 0) + '">' + esc(a) + '</button>'; }).join('');
+  $('#p-color').value = q.pint.color || '';
 }
-var REGIMENES = ['601 - General de Ley Personas Morales', '603 - Personas Morales con Fines no Lucrativos', '605 - Sueldos y Salarios e Ingresos Asimilados a Salarios', '606 - Arrendamiento', '612 - Personas Físicas con Actividades Empresariales y Profesionales', '616 - Sin obligaciones fiscales', '621 - Incorporación Fiscal', '625 - Actividades Empresariales con ingresos a través de Plataformas Tecnológicas', '626 - Régimen Simplificado de Confianza'];
 var USOS = ['G01 - Adquisición de mercancías', 'G02 - Devoluciones, descuentos o bonificaciones', 'G03 - Gastos en general', 'I01 - Construcciones', 'I02 - Mobiliario y equipo de oficina por inversiones', 'S01 - Sin efectos fiscales', 'CP01 - Pagos'];
-var RFC_OK = /^[A-ZÑ&]{3,4}\d{6}[A-Z\d]{3}$/;
-function opcionesSel(lista, val, vacio) { return '<option value="">' + esc(vacio) + '</option>' + lista.map(function (o) { return '<option' + (o === val ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join(''); }
+var idbP = null, pendienteCsf = false;
+function idb() {
+  if (idbP) return idbP;
+  idbP = new Promise(function (ok, no) {
+    try { var r = indexedDB.open('pjq-archivos', 1); r.onupgradeneeded = function () { r.result.createObjectStore('f', { keyPath: 'id' }); }; r.onsuccess = function () { ok(r.result); }; r.onerror = function () { no(r.error); }; } catch (e) { no(e); }
+  });
+  return idbP;
+}
+function idbOp(modo, fn) {
+  return idb().then(function (db) { return new Promise(function (ok, no) { var tx = db.transaction('f', modo), rq = fn(tx.objectStore('f')); tx.oncomplete = function () { ok(rq && rq.result); }; tx.onerror = tx.onabort = function () { no(tx.error); }; }); });
+}
+function guardaArchivo(id, buf, nombre) { return idbOp('readwrite', function (s) { return s.put({ id: id, buf: buf, nombre: nombre }); }); }
+function leeArchivo(id) { return idbOp('readonly', function (s) { return s.get(id); }); }
+function borraArchivo(id) { return idbOp('readwrite', function (s) { return s.delete(id); }); }
 function facturaHtml(c, r) {
   if (r.ace + r.ter === 0) return '<p class="nota">Los datos de facturación aparecen aquí cuando el cliente acepta una cotización.</p>';
-  return '<h2 style="margin:22px 0 10px;font-size:24px">Datos de facturación</h2>' +
-    '<div class="campo"><label for="cd-rfc">RFC</label><input id="cd-rfc" data-cd="rfc" maxlength="13" autocapitalize="characters" style="text-transform:uppercase" value="' + esc(c.rfc || '') + '" placeholder="RFC del cliente (12 o 13 caracteres)"></div>' +
-    '<div class="campo"><label for="cd-razon">Nombre o razón social</label><input id="cd-razon" data-cd="razon" value="' + esc(c.razon || '') + '" placeholder="Como aparece en su constancia de situación fiscal"></div>' +
-    '<div class="campo"><label for="cd-regimen">Régimen fiscal</label><select id="cd-regimen" data-cd="regimen">' + opcionesSel(REGIMENES, c.regimen, 'Elige el régimen fiscal') + '</select></div>' +
-    '<div class="campo"><label for="cd-cp">Código postal fiscal</label><input id="cd-cp" data-cd="cp" inputmode="numeric" maxlength="5" value="' + esc(c.cp || '') + '" placeholder="Código postal de su constancia fiscal"></div>' +
-    '<div class="campo"><label for="cd-uso">Uso de CFDI</label><select id="cd-uso" data-cd="uso">' + opcionesSel(USOS, c.uso, 'Elige el uso de CFDI') + '</select></div>' +
-    '<div class="campo"><label for="cd-correof">Correo para enviar la factura</label><input id="cd-correof" data-cd="correoFact" type="email" value="' + esc(c.correoFact || '') + '" placeholder="Correo donde se envía la factura"></div>';
+  var csf = c.csf
+    ? '<div class="dato"><span>Constancia</span><span>' + esc(c.csf.nombre) + '</span></div><p class="nota" style="margin:8px 0 12px">Subida el ' + esc(fechaLarga(c.csf.fecha)) + '. Se manda junto con el Excel al facturar.</p>' +
+      '<div class="acciones" style="margin-top:0"><button class="btn chico" type="button" data-csf-ver>Ver constancia</button><button class="btn chico" type="button" data-csf>Reemplazar constancia</button><button class="btn chico" type="button" data-csf-quitar>Quitar constancia</button></div>'
+    : '<button class="btn" type="button" data-csf style="width:100%">Subir constancia de situación fiscal (PDF)</button><p class="nota" style="margin:8px 0 0">El PDF se guarda en este teléfono y se manda junto con el Excel cuando haya que facturar.</p>';
+  return '<h2 style="margin:22px 0 10px;font-size:24px">Datos de facturación</h2>' + csf + '<input type="file" id="cd-csf" accept="application/pdf,.pdf" hidden>' +
+    '<div class="campo" style="margin-top:14px"><label for="cd-correof">Correo para enviar la factura</label><input id="cd-correof" data-cd="correoFact" type="email" value="' + esc(c.correoFact || '') + '" placeholder="Correo donde se envía la factura"></div>';
+}
+async function guardaCsf(file) {
+  var c = clientes.find(function (z) { return z.id === clienteAbierto; }); if (!c) return;
+  if (!/pdf$/i.test(file.name) && file.type !== 'application/pdf') { aviso('Sube la constancia en formato PDF.'); return; }
+  if (file.size > 8 * 1024 * 1024) { aviso('Ese PDF pesa demasiado (máximo 8 MB).'); return; }
+  try { await guardaArchivo('csf-' + c.id, await file.arrayBuffer(), file.name); }
+  catch (e) { aviso('Este navegador no permite guardar el archivo. Prueba abrir la app desde Safari o Chrome.'); return; }
+  c.csf = { nombre: file.name, fecha: hoyISO(), tam: file.size }; escribir(K_CLI, clientes); renderCliente(c); aviso('Constancia guardada.');
+}
+async function verCsf() {
+  var c = clientes.find(function (z) { return z.id === clienteAbierto; }); if (!c) return;
+  try {
+    var reg = await leeArchivo('csf-' + c.id); if (!reg) { aviso('No encontré el archivo en este teléfono. Súbelo otra vez.'); return; }
+    var u = URL.createObjectURL(new Blob([reg.buf], { type: 'application/pdf' })), w = null; try { w = window.open(u, '_blank'); } catch (e) {}
+    if (!w) descargaSync(new Blob([reg.buf], { type: 'application/pdf' }), reg.nombre || 'Constancia.pdf');
+  } catch (e) { aviso('No se pudo abrir la constancia.'); }
+}
+async function quitaCsf() {
+  var c = clientes.find(function (z) { return z.id === clienteAbierto; }); if (!c) return;
+  if (!pendienteCsf) { pendienteCsf = true; aviso('Toca “Quitar constancia” otra vez para confirmar.'); setTimeout(function () { pendienteCsf = false; }, 4000); return; }
+  pendienteCsf = false; try { await borraArchivo('csf-' + c.id); } catch (e) {}
+  delete c.csf; escribir(K_CLI, clientes); renderCliente(c); aviso('Constancia quitada.');
 }
 var factId = null, factDisp = null;
 function abreFact(id) {
@@ -1080,12 +1112,10 @@ function abreFact(id) {
   factId = id; factDisp = document.activeElement;
   $('#mfa-uso').innerHTML = USOS.map(function (u) { return '<option>' + esc(u) + '</option>'; }).join('');
   $('#mfa-tipo').value = f.tipo || 'I - Ingreso'; $('#mfa-metodo').value = f.metodo || 'PUE - Pago en una sola exhibición';
-  $('#mfa-forma').value = f.forma || '03 - Transferencia electrónica de fondos'; $('#mfa-uso').value = f.uso || c.uso || 'G03 - Gastos en general';
-  var falta = [];
-  if (!c.rfc) falta.push('RFC'); else if (!RFC_OK.test(c.rfc)) falta.push('un RFC válido');
-  if (!c.razon) falta.push('razón social'); if (!c.regimen) falta.push('régimen fiscal'); if (!c.cp) falta.push('código postal fiscal');
-  var av = $('#mfa-aviso'); av.hidden = !falta.length; av.textContent = falta.length ? 'En la ficha del cliente falta: ' + falta.join(', ') + '. Puedes generar el Excel y completarlo después.' : '';
-  $('#mfa-resumen').textContent = h.folio + ' · ' + (h.cliente || '') + ' · ' + money(h.total);
+  $('#mfa-forma').value = f.forma || '03 - Transferencia electrónica de fondos'; $('#mfa-uso').value = f.uso || 'G03 - Gastos en general';
+  var av = $('#mfa-aviso'); av.hidden = !!c.csf;
+  av.textContent = c.csf ? '' : 'Este cliente no tiene constancia de situación fiscal cargada. Súbela en su ficha (pestaña Clientes) para mandarla junto con el Excel; si no, se envía solo el Excel.';
+  $('#mfa-resumen').textContent = h.folio + ' · ' + (h.cliente || '') + ' · ' + money(h.total) + (c.csf ? ' · constancia lista para enviar' : '');
   $('#modal-fact').hidden = false; document.body.style.overflow = 'hidden'; setTimeout(function () { $('#mfa-tipo').focus(); }, 30);
 }
 function cierraFact() { $('#modal-fact').hidden = true; document.body.style.overflow = ''; if (factDisp && factDisp.focus) { try { factDisp.focus(); } catch (e) {} } }
@@ -1097,8 +1127,8 @@ function xlsxFactura(h, o) {
   var d = h.datos, c = calc(d), cli = clientes.find(function (z) { return z.id === d.clienteId; }) || {};
   var aoa = [
     ['DATOS PARA FACTURACIÓN'], ['Cotización', d.folio], ['Fecha de la cotización', fechaLarga(d.fecha)], [],
-    ['RECEPTOR'], ['Nombre o razón social', cli.razon || d.cliente.nombre || ''], ['RFC', cli.rfc || ''], ['Régimen fiscal', cli.regimen || ''],
-    ['Código postal fiscal', cli.cp || ''], ['Uso de CFDI', o.uso], ['Correo para enviar la factura', cli.correoFact || ''], ['Teléfono', d.cliente.tel || ''], [],
+    ['RECEPTOR'], ['Nombre del cliente', d.cliente.nombre || ''], ['Datos fiscales (RFC, razón social, régimen y código postal)', cli.csf ? 'Ver la constancia de situación fiscal (PDF) enviada junto con este Excel' : 'Pendiente: falta la constancia de situación fiscal'],
+    ['Uso de CFDI', o.uso], ['Correo para enviar la factura', cli.correoFact || ''], ['Teléfono', d.cliente.tel || ''], [],
     ['COMPROBANTE'], ['Tipo de CFDI', o.tipo], ['Método de pago', o.metodo], ['Forma de pago', o.forma], ['Moneda', 'MXN - Peso Mexicano'], [],
     ['CONCEPTOS'], ['Cantidad', 'Unidad', 'Descripción', 'Valor unitario', 'Importe', 'Clave prod/serv SAT']
   ];
@@ -1120,8 +1150,19 @@ async function generaFact() {
   if (!window.XLSX) { aviso('No cargó el generador de Excel. Revisa tu conexión e intenta otra vez.'); return; }
   var o = { tipo: $('#mfa-tipo').value, metodo: $('#mfa-metodo').value, forma: $('#mfa-forma').value, uso: $('#mfa-uso').value };
   h.datos.fact = o; escribir(K_HIST, historial); cierraFact();
-  var r = await entregar(xlsxFactura(h, o), nombreDe(h.datos, 'xlsx', 'Factura'), 'Datos para facturar ' + h.folio);
-  aviso(r === 'cancelado' ? 'Se canceló.' : r === 'error' ? 'No se pudo generar el Excel.' : 'Excel de facturación listo.');
+  var cli = clientes.find(function (z) { return z.id === h.datos.clienteId; }) || {};
+  var lista = [{ blob: xlsxFactura(h, o), nombre: nombreDe(h.datos, 'xlsx', 'Factura') }];
+  if (cli.csf) {
+    try { var reg = await leeArchivo('csf-' + cli.id); if (reg && reg.buf) lista.push({ blob: new Blob([reg.buf], { type: 'application/pdf' }), nombre: nombreDe(h.datos, 'pdf', 'Constancia-fiscal') }); } catch (e) {}
+  }
+  var files = lista.map(function (x) { try { return new File([x.blob], x.nombre, { type: x.blob.type }); } catch (e) { return null; } }).filter(Boolean);
+  var texto = 'Datos para facturar la cotización ' + h.folio + (h.cliente ? ' de ' + h.cliente : '') + ' por ' + money(h.total) + '.';
+  if (files.length === lista.length && navigator.canShare && navigator.canShare({ files: files })) {
+    try { await navigator.share({ files: files, text: texto, title: 'Facturar ' + h.folio }); aviso(lista.length > 1 ? 'Excel y constancia enviados.' : 'Excel enviado (sin constancia).'); return; }
+    catch (e) { if (e && e.name === 'AbortError') { aviso('Se canceló.'); return; } }
+  }
+  lista.forEach(function (x, i) { setTimeout(function () { descargaSync(x.blob, x.nombre); }, i * 700); });
+  aviso(lista.length > 1 ? 'Se guardaron el Excel y la constancia. Adjúntalos juntos al enviarlos.' : 'Se guardó el Excel. Este cliente no tiene constancia cargada.');
 }
 
 /* ---------- navegación y ajustes ---------- */
@@ -1159,6 +1200,14 @@ function arranca() {
   $('#btn-firma').addEventListener('click', abreFirma);
   $('#btn-pdf').addEventListener('click', accionPdf);
   $('#btn-comp').addEventListener('click', accionCompartir);
+  $('#p-acab').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-acab]'); if (!b || b.disabled) return;
+    var a = b.getAttribute('data-acab'), i = q.pint.acab.indexOf(a);
+    if (i >= 0) q.pint.acab.splice(i, 1); else q.pint.acab.push(a);
+    q.pint.acab = ACABADOS.filter(function (x) { return q.pint.acab.indexOf(x) >= 0; });
+    b.setAttribute('aria-pressed', String(i < 0)); q.marca = marcaTexto(q.pint); pintaResumen();
+    clearTimeout(temporizador); temporizador = setTimeout(function () { escribir(K_BOR, q); autoguarda(); pintar(); }, 250);
+  });
   
   
   $('#btn-copia').addEventListener('click', function () { if (!q.guardada) guardar(true); duplica(q.id); });
@@ -1180,6 +1229,7 @@ function arranca() {
   });
   $('#c-buscar').addEventListener('input', pintaClientes);
   $('#vista-clientes').addEventListener('change', function (e) { if (e.target.tagName === 'SELECT') e.target.dispatchEvent(new Event('input', { bubbles: true })); });
+  $('#vista-clientes').addEventListener('change', function (e) { if (e.target.id === 'cd-csf' && e.target.files[0]) { guardaCsf(e.target.files[0]); e.target.value = ''; } });
   $('#mfa-ok').addEventListener('click', generaFact); $('#mfa-cancela').addEventListener('click', cierraFact);
   document.addEventListener('keydown', function (e) {
     var m = $('#modal-fact'); if (m.hidden) return;
@@ -1193,11 +1243,14 @@ function arranca() {
     var b = e.target.closest('button'); if (!b) return;
     if (b.hasAttribute('data-cli-abrir')) { clienteAbierto = b.getAttribute('data-cli-abrir'); pintaClientes(); window.scrollTo(0, 0); }
     else if (b.hasAttribute('data-cli-volver')) { clienteAbierto = null; pintaClientes(); }
+    else if (b.hasAttribute('data-csf-ver')) verCsf();
+    else if (b.hasAttribute('data-csf-quitar')) quitaCsf();
+    else if (b.hasAttribute('data-csf')) $('#cd-csf').click();
     else if (b.hasAttribute('data-nueva-cli')) nuevaPara(b.getAttribute('data-nueva-cli'));
     else if (b.hasAttribute('data-borrar-cli')) {
       var id = b.getAttribute('data-borrar-cli');
       if (pendienteCli !== id) { pendienteCli = id; aviso('Toca “Eliminar ficha” otra vez para confirmar. Las cotizaciones se quedan en el historial.'); setTimeout(function () { pendienteCli = null; }, 4000); return; }
-      clientes = clientes.filter(function (z) { return z.id !== id; }); escribir(K_CLI, clientes); pendienteCli = null; clienteAbierto = null; pintaClientes(); aviso('Ficha eliminada.');
+      clientes = clientes.filter(function (z) { return z.id !== id; }); escribir(K_CLI, clientes); borraArchivo('csf-' + id).catch(function () {}); pendienteCli = null; clienteAbierto = null; pintaClientes(); aviso('Ficha eliminada.');
     } else accionLista(e);
   });
   $('#vista-clientes').addEventListener('input', function (e) {
