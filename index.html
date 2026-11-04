@@ -18,6 +18,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 /* Marca v2: oscuro primero, acero como señal. Cotizadora de Pintores Juárez para celular. */
 :root{
@@ -159,6 +160,33 @@ details.avanzado summary{cursor:pointer;font:500 11px var(--mono);letter-spacing
 .d-firma .peq{font:500 9.5px var(--mono);letter-spacing:.06em;color:#4b5a69;text-transform:uppercase}
 .d-acept.grande .d-firma{min-height:230px}.d-acept.grande .trazo{height:130px}.d-acept.grande .trazo img{max-height:126px}
 .d-cod{display:flex;justify-content:space-between;gap:10px;padding:7px 14px;border-top:1px solid #cfd6de;font:500 9.5px var(--mono);letter-spacing:.08em;color:#4b5a69;text-transform:uppercase}
+/* texto un poco mas grande */
+body{font-size:17.5px}
+.campo label,.etq{font-size:12.5px}
+.campo input,.campo select,.campo textarea{font-size:17px}
+.nota{font-size:14.5px}
+.tab{font-size:11.5px}
+.chip{font-size:12.5px}
+.interruptor{font-size:17px}
+.resumen .l{font-size:12.5px}
+.btn{font-size:22px}
+.btn.chico{font-size:18px}
+.item .cab b{font-size:24px}
+.item .meta{font-size:13.5px}
+.item .motivo{font-size:14.5px}
+.sello{font-size:12px}
+.dato span:first-child{font-size:12.5px}
+.aviso{font-size:15.5px}
+.toast{font-size:17px}
+.panel>h2{font-size:28px}
+.panel>h2 i{font-size:12.5px}
+details.avanzado summary{font-size:12.5px}
+.partida{grid-template-columns:96px 1fr 44px}
+.partida select{width:100%;background:var(--panel);border:1px solid var(--edge);border-radius:0;padding:10px;min-height:46px;font-size:17px}
+.partida select,.partida .otro,.partida .importe{grid-column:1/-1}
+.partida input{font-size:17px;min-height:46px}
+.partida .importe{font-size:13.5px}
+.quita{width:44px;height:46px}
 </style>
 </head>
 <body>
@@ -204,7 +232,9 @@ details.avanzado summary{cursor:pointer;font:500 11px var(--mono);letter-spacing
         <div class="campo"><label for="tipo">Tipo de trabajo</label>
           <select id="tipo" data-k="tipo"><option>Pintura interior</option><option>Pintura exterior</option><option>Pintura interior y exterior</option><option>Impermeabilización</option><option>Otro</option></select></div>
         <div class="campo"><label for="servicio">Descripción del servicio</label><textarea id="servicio" data-k="servicio" placeholder="Qué se va a pintar: áreas y alcance del trabajo"></textarea></div>
-        <div class="campo"><label for="marca">Pintura (marca, tipo y color)</label><input id="marca" data-k="marca" placeholder="Marca, tipo y color de la pintura"></div>
+        <div class="campo"><label for="p-marca">Marca de la pintura</label><select id="p-marca" data-k="pint.marca"></select></div>
+        <div class="campo"><label for="p-calidad">Calidad o línea</label><select id="p-calidad" data-k="pint.calidad"></select></div>
+        <div class="campo"><label for="p-color">Color o código de la pintura</label><input id="p-color" data-k="pint.color" placeholder="Color o código de la pintura"></div>
         <div class="campo"><label for="incluye">Incluye (una línea por concepto)</label><textarea id="incluye" data-lista="incluye"></textarea></div>
         <div class="campo"><label for="noincluye">No incluye (una línea por concepto)</label><textarea id="noincluye" data-lista="noIncluye" placeholder="Lo que no se pinta o no se hace (una línea por concepto)"></textarea></div>
       </div>
@@ -245,6 +275,7 @@ details.avanzado summary{cursor:pointer;font:500 11px var(--mono);letter-spacing
       <div class="acciones">
         <button class="btn p" id="btn-firma" type="button">Firmar con el cliente</button>
         <button class="btn c" id="btn-pdf" type="button">Enviar PDF por WhatsApp</button>
+        <button class="btn chico" id="btn-comp" type="button">Compartir PDF con el menú</button>
         <a class="btn" id="btn-wa" target="_blank" rel="noopener" href="https://wa.me/">Abrir chat de WhatsApp</a>
         <div id="cal-links" class="acciones" style="margin-top:0"></div>
         <button class="btn" id="btn-no" type="button">Marcar como no aceptada</button>
@@ -341,6 +372,25 @@ details.avanzado summary{cursor:pointer;font:500 11px var(--mono);letter-spacing
   </div>
 </div>
 
+<div class="modal" id="modal-fact" hidden role="dialog" aria-modal="true" aria-labelledby="mfa-tit">
+  <div class="caja">
+    <h2 id="mfa-tit" style="font-size:30px;margin-bottom:8px">Excel para facturar</h2>
+    <p class="nota" id="mfa-resumen" style="margin:0 0 12px"></p>
+    <div class="campo"><label for="mfa-tipo">Tipo de CFDI</label>
+      <select id="mfa-tipo"><option>I - Ingreso</option><option>E - Egreso</option><option>P - Pago</option><option>T - Traslado</option></select></div>
+    <div class="campo"><label for="mfa-metodo">Método de pago</label>
+      <select id="mfa-metodo"><option>PUE - Pago en una sola exhibición</option><option>PPD - Pago en parcialidades o diferido</option></select></div>
+    <div class="campo"><label for="mfa-forma">Forma de pago</label>
+      <select id="mfa-forma"><option>01 - Efectivo</option><option>02 - Cheque nominativo</option><option>03 - Transferencia electrónica de fondos</option><option>04 - Tarjeta de crédito</option><option>28 - Tarjeta de débito</option><option>99 - Por definir</option></select></div>
+    <div class="campo"><label for="mfa-uso">Uso de CFDI</label><select id="mfa-uso"></select></div>
+    <div class="aviso mal" id="mfa-aviso" hidden></div>
+    <div class="acciones" style="grid-template-columns:1fr 1fr">
+      <button class="btn" id="mfa-cancela" type="button">Cancelar</button>
+      <button class="btn p" id="mfa-ok" type="button">Generar Excel</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="modal-no" hidden role="dialog" aria-modal="true" aria-labelledby="mn-tit">
   <div class="caja">
     <h2 id="mn-tit" style="font-size:30px;margin-bottom:12px">Marcar como no aceptada</h2>
@@ -399,7 +449,7 @@ var foliosListos = false;
 function nueva() {
   return {
     id: aId(), folio: folioTxt(ajustes.folio), fecha: hoyISO(), vigencia: ajustes.vigencia,
-    cliente: { nombre: '', tel: '', dom: '' }, tipo: 'Pintura interior', servicio: '', marca: '',
+    cliente: { nombre: '', tel: '', dom: '' }, tipo: 'Pintura interior', servicio: '', marca: '', pint: { marca: '', calidad: '', color: '' },
     incluye: ['Materiales y mano de obra', 'Protección de pisos y muebles', 'Limpieza final'], noIncluye: ['Cielos'],
     partidas: [{ c: 'Mano de obra', n: 1, p: 0 }], factura: false, anticipo: ajustes.anticipo, inicio: '', hora: '09:00', dias: '',
     cond: { garantia: ajustes.garantia, multa: ajustes.multa, iva: ajustes.iva, isr: ajustes.isr },
@@ -599,20 +649,28 @@ function setPath(o, p, v) { var ks = p.split('.'), l = ks.pop(); var t = ks.redu
 
 function llenaForma() {
   if (!q.hora) q.hora = '09:00';
+  if (!q.pint) q.pint = { marca: '', calidad: '', color: q.marca || '' };
   $$('[data-k]').forEach(function (el) {
     var v = getPath(q, el.getAttribute('data-k'));
     if (el.type === 'checkbox') el.checked = !!v; else el.value = v == null ? '' : v;
   });
   $('#incluye').value = q.incluye.join('\n'); $('#noincluye').value = q.noIncluye.join('\n');
   $('#folio-etq').textContent = q.folio;
-  pintaPartidas(); pintaResumen();
+  pintaPintura(); pintaPartidas(); pintaResumen();
 }
+var CONCEPTOS = ['Mano de obra', 'Materiales', 'Pintura', 'Sellador', 'Primer anti salitre', 'Resane', 'Impermeabilizante', 'Pared de otro tono', 'Protección y limpieza'];
 function pintaPartidas() {
   $('#partidas').innerHTML = q.partidas.map(function (p, i) {
-    return '<div class="partida" data-i="' + i + '"><input aria-label="Concepto" data-f="c" value="' + esc(p.c) + '" placeholder="Descripción del concepto">' +
-      '<input aria-label="Cantidad" data-f="n" type="number" inputmode="decimal" min="0" step="any" value="' + esc(p.n) + '">' +
+    var enLista = CONCEPTOS.indexOf(p.c) >= 0, otro = !enLista && (p.otro || p.c), val = enLista ? p.c : (otro ? '__otro' : '');
+    var ops = '<option value=""' + (val === '' ? ' selected' : '') + '>Elige el concepto</option>' +
+      CONCEPTOS.map(function (c) { return '<option' + (val === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') +
+      '<option value="__otro"' + (val === '__otro' ? ' selected' : '') + '>Otro (escribir)</option>';
+    return '<div class="partida" data-i="' + i + '"><select aria-label="Concepto" data-f="c">' + ops + '</select>' +
+      '<input aria-label="Cantidad" data-f="n" type="number" inputmode="decimal" min="0" step="any" value="' + esc(p.n) + '" placeholder="Cant.">' +
       '<input aria-label="Precio" data-f="p" type="number" inputmode="decimal" min="0" step="any" value="' + esc(p.p === 0 ? '' : p.p) + '" placeholder="Precio">' +
-      '<button class="quita" type="button" aria-label="Quitar partida" data-q="' + i + '">✕</button><div class="importe" data-imp="' + i + '">' + money(r2(num(p.n) * num(p.p))) + '</div></div>';
+      '<button class="quita" type="button" aria-label="Quitar partida" data-q="' + i + '">✕</button>' +
+      (val === '__otro' ? '<input class="otro" aria-label="Descripción del concepto" data-f="c" value="' + esc(p.c) + '" placeholder="Descripción del concepto">' : '') +
+      '<div class="importe" data-imp="' + i + '">' + money(r2(num(p.n) * num(p.p))) + '</div></div>';
   }).join('');
 }
 function pintaResumen() {
@@ -643,8 +701,8 @@ function pintaResumen() {
   if (!q.cliente.nombre.trim()) faltan.push('el nombre del cliente');
   if (c.sub <= 0) faltan.push('al menos una partida con precio');
   var f = $('#faltan'); f.hidden = !faltan.length; f.textContent = faltan.length ? 'Falta ' + faltan.join(' y ') + '.' : '';
-  actualizaWa(c); actualizaGcal();
-  $('#ayuda-envio').textContent = 'Enviar PDF por WhatsApp: abre el menú de compartir del teléfono. Elige WhatsApp y el contacto, y el archivo viaja junto con el mensaje. “Abrir chat de WhatsApp” solo te lleva a la conversación con el cliente.';
+  actualizaWa(c); actualizaGcal(); etiquetaPdf();
+  $('#ayuda-envio').textContent = 'Enviar PDF por WhatsApp: guarda el PDF y abre el chat del cliente con el mensaje escrito; ahí adjuntas el archivo con el clip (Documento). “Compartir PDF con el menú” adjunta el archivo directo, pero tú eliges el contacto. WhatsApp no deja que una página adjunte archivos en un chat concreto.';
 }
 function mensajeWa(c) {
   var nombre = q.cliente.nombre.trim() || 'cliente';
@@ -663,11 +721,15 @@ function cambioForma(e) {
     var k = el.getAttribute('data-k'), v = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? (el.value === '' ? '' : num(el.value)) : el.value);
     setPath(q, k, v);
     if (k === 'cliente.nombre') autollenaCliente();
+    if (k.indexOf('pint.') === 0) { if (k === 'pint.marca') { q.pint.calidad = ''; llenaCalidad(); } q.marca = marcaTexto(q.pint); }
   } else if (el.hasAttribute('data-lista')) {
     q[el.getAttribute('data-lista')] = el.value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
   } else if (el.hasAttribute('data-f')) {
     var i = +el.closest('.partida').getAttribute('data-i'), f = el.getAttribute('data-f');
-    q.partidas[i][f] = f === 'c' ? el.value : (el.value === '' ? 0 : num(el.value));
+    if (f === 'c' && el.tagName === 'SELECT') {
+      if (el.value === '__otro') { q.partidas[i].c = ''; q.partidas[i].otro = true; pintaPartidas(); var oi = $('[data-i="' + i + '"] .otro'); if (oi) oi.focus(); }
+      else { q.partidas[i].c = el.value; q.partidas[i].otro = false; pintaPartidas(); }
+    } else q.partidas[i][f] = f === 'c' ? el.value : (el.value === '' ? 0 : num(el.value));
     var imp = $('[data-imp="' + i + '"]'); if (imp) imp.textContent = money(r2(num(q.partidas[i].n) * num(q.partidas[i].p)));
   } else return;
   pintaResumen();
@@ -753,30 +815,36 @@ function llaveQ() { return JSON.stringify(q) + '|' + (ajustes.firma ? ajustes.fi
 function archivoParaCompartir(blob, nombre) {
   try { var f = new File([blob], nombre, { type: blob.type }); return navigator.canShare && navigator.canShare({ files: [f] }) ? f : null; } catch (e) { return null; }
 }
+function enlaceChat(texto) { var d = soloDigitos(q.cliente.tel); if (d.length === 10) d = '52' + d; return 'https://wa.me/' + d + (texto ? '?text=' + encodeURIComponent(texto) : ''); }
+function etiquetaPdf() { var b = $('#btn-pdf'); if (b && !b.disabled) b.textContent = pdfCache.key === llaveQ() ? 'PDF listo: toca para abrir el chat' : 'Enviar PDF por WhatsApp'; }
+async function preparaPdf() {
+  if (pdfCache.key === llaveQ()) return true;
+  var b1 = $('#btn-pdf'), b2 = $('#btn-comp'); b1.disabled = true; b2.disabled = true; b1.textContent = 'Preparando PDF…';
+  try { guardar(true); var k = llaveQ(); pdfCache = { key: k, blob: await generaPdf() }; }
+  catch (e) { b1.disabled = false; b2.disabled = false; etiquetaPdf(); aviso('No se pudo generar el PDF. Revisa tu conexión e intenta otra vez.'); return null; }
+  b1.disabled = false; b2.disabled = false; etiquetaPdf(); return false;
+}
+function descargaSync(blob, nombre) {
+  var u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function () { URL.revokeObjectURL(u); }, 30000);
+}
 async function accionPdf() {
   if (!validaParaEnviar()) return;
-  var b = $('#btn-pdf'); if (!b.dataset.t) b.dataset.t = b.textContent;
-  var k = llaveQ(), nombre = nombreArchivo('pdf'), texto = mensajeWa(calc(q));
-  if (pdfCache.key !== k) {
-    b.disabled = true; b.textContent = 'Preparando PDF…';
-    try { guardar(true); pdfCache = { key: k, blob: await generaPdf() }; }
-    catch (e) { b.disabled = false; b.textContent = b.dataset.t; aviso('No se pudo generar el PDF. Revisa tu conexión e intenta otra vez.'); return; }
-    b.disabled = false;
-  }
-  var f = archivoParaCompartir(pdfCache.blob, nombre);
-  if (f) {
-    try { await navigator.share({ files: [f], text: texto, title: 'Cotización ' + q.folio }); b.textContent = b.dataset.t; terminaEnvio(); return; }
-    catch (e) {
-      if (e && e.name === 'AbortError') { b.textContent = b.dataset.t; aviso('Se canceló.'); return; }
-      b.textContent = 'PDF listo: toca otra vez para enviarlo';
-      aviso('El PDF está listo. Toca el botón otra vez y elige WhatsApp y el contacto.'); return;
-    }
-  }
-  var r = await entregar(pdfCache.blob, nombre, texto);
-  b.textContent = b.dataset.t;
-  if (r === 'cancelado') { aviso('Se canceló.'); return; }
-  if (r === 'error') { aviso('No se pudo guardar el PDF.'); return; }
-  terminaEnvio('Se guardó el PDF: adjúntalo en WhatsApp con el clip (Documento).');
+  var pre = await preparaPdf(); if (pre === null) return;
+  if (pre === false) { aviso('PDF listo. Toca el botón otra vez: se guarda el archivo y se abre el chat del cliente.'); return; }
+  var url = enlaceChat(mensajeWa(calc(q)));
+  descargaSync(pdfCache.blob, nombreArchivo('pdf'));
+  terminaEnvio('En WhatsApp adjunta el PDF con el clip (Documento).');
+  var w = null; try { w = window.open(url, '_blank'); } catch (e) {}
+  if (!w) location.href = url;
+}
+async function accionCompartir() {
+  if (!validaParaEnviar()) return;
+  var pre = await preparaPdf(); if (pre === null) return;
+  var f = archivoParaCompartir(pdfCache.blob, nombreArchivo('pdf'));
+  if (!f) { aviso('Tu teléfono no permite compartir archivos desde aquí. Usa “Enviar PDF por WhatsApp”.'); return; }
+  try { await navigator.share({ files: [f], text: mensajeWa(calc(q)), title: 'Cotización ' + q.folio }); terminaEnvio(); }
+  catch (e) { aviso(e && e.name === 'AbortError' ? 'Se canceló.' : 'El PDF está listo. Toca otra vez “Compartir PDF con el menú”.'); }
 }
 function csvTexto() {
   var cab = ['Folio', 'Fecha', 'Cliente', 'Teléfono', 'Domicilio', 'Tipo', 'Subtotal', 'IVA', 'ISR', 'Total', 'Anticipo', 'Saldo', 'Con factura', 'Estado', 'Motivo', 'Fecha del estado', 'Firmada'];
@@ -888,6 +956,7 @@ function filaCot(h) {
   var btns = '<button class="btn chico" data-abrir="' + id + '" type="button">Abrir</button><button class="btn chico" data-pdf="' + id + '" type="button">Enviar PDF</button>'
     + (e === 'borrador' || e === 'aceptada' ? '<button class="btn chico" data-no="' + id + '" type="button">No aceptada</button>' : '')
     + (e === 'aceptada' ? '<button class="btn chico" data-ter="' + id + '" type="button">Terminado</button>' : '')
+    + (e === 'aceptada' || e === 'terminada' ? '<button class="btn chico" data-fact="' + id + '" type="button">Datos de factura</button>' : '')
     + (e === 'no_aceptada' ? '<button class="btn chico" data-reabrir="' + id + '" type="button">Reabrir</button>' : '')
     + '<button class="btn chico" data-borrar="' + id + '" type="button">Eliminar</button>';
   return '<div class="item"><div class="cab"><b>' + esc(h.folio) + ' · ' + esc(h.cliente || 'Sin nombre') + '</b><span class="sello' + clase + '">' + ETQ[e] + '</span></div><div class="meta">' + meta + '</div>' + extra + '<div class="acc">' + btns + '</div></div>';
@@ -929,6 +998,7 @@ function accionLista(e) {
   else if (a.hasAttribute('data-ter')) marcaEstado(a.getAttribute('data-ter'), 'terminada');
   else if (a.hasAttribute('data-reabrir')) marcaEstado(a.getAttribute('data-reabrir'), estadoReabrir(a.getAttribute('data-reabrir')));
   else if (a.hasAttribute('data-pdf')) { abre(a.getAttribute('data-pdf')); accionPdf(); }
+  else if (a.hasAttribute('data-fact')) abreFact(a.getAttribute('data-fact'));
 }
 
 function resumenCliente(c) {
@@ -959,7 +1029,7 @@ function renderCliente(c) {
     '<div class="campo"><label for="cd-nombre">Nombre</label><input id="cd-nombre" data-cd="nombre" value="' + esc(c.nombre) + '"></div>' +
     '<div class="campo"><label for="cd-tel">Teléfono o WhatsApp</label><input id="cd-tel" data-cd="tel" type="tel" inputmode="tel" value="' + esc(c.tel) + '"></div>' +
     '<div class="campo"><label for="cd-dom">Domicilio principal</label><input id="cd-dom" data-cd="dom" value="' + esc(c.dom) + '"></div>' +
-    '<div class="campo"><label for="cd-notas">Notas</label><textarea id="cd-notas" data-cd="notas" placeholder="Preferencias, colores que le gustan, referencias…">' + esc(c.notas) + '</textarea></div>' +
+    '<div class="campo"><label for="cd-notas">Notas</label><textarea id="cd-notas" data-cd="notas" placeholder="Preferencias, colores que le gustan, referencias…">' + esc(c.notas) + '</textarea></div>' + facturaHtml(c, r) +
     dato('Cotizaciones', r.n) + dato('Aceptadas', r.ace) + dato('Trabajos terminados', r.ter) + dato('No aceptadas', r.no) + dato('Monto aceptado', money(r.monto)) +
     '<div class="acciones"><button class="btn p" type="button" data-nueva-cli="' + esc(c.id) + '">Nueva cotización para este cliente</button>' +
     (d ? '<a class="btn" target="_blank" rel="noopener" href="https://wa.me/' + d + '">Abrir chat de WhatsApp</a>' : '') +
@@ -973,7 +1043,85 @@ function nuevaPara(id) {
 }
 function csvDe(filas) { return '﻿' + filas.map(function (r) { return r.map(function (v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }).join(','); }).join('\n'); }
 function csvClientes() {
-  return csvDe([['Nombre', 'Teléfono', 'Domicilio', 'Notas', 'Cotizaciones', 'Aceptadas', 'Terminadas', 'No aceptadas', 'Monto aceptado']].concat(clientes.map(function (c) { var r = resumenCliente(c); return [c.nombre, c.tel, c.dom, c.notas, r.n, r.ace, r.ter, r.no, r.monto]; })));
+  return csvDe([['Nombre', 'Teléfono', 'Domicilio', 'Notas', 'Cotizaciones', 'Aceptadas', 'Terminadas', 'No aceptadas', 'Monto aceptado', 'RFC', 'Razón social']].concat(clientes.map(function (c) { var r = resumenCliente(c); return [c.nombre, c.tel, c.dom, c.notas, r.n, r.ace, r.ter, r.no, r.monto, c.rfc || '', c.razon || '']; })));
+}
+
+/* ---------- pintura, facturacion y Excel ---------- */
+var MARCAS = { 'Behr': ['Premium Plus', 'Premium Plus Ultra', 'Marquee'], 'Comex': ['Vinimex', 'Comex Total', 'Pro 1000'], 'Sherwin-Williams': ['Duration', 'SuperPaint', 'ProMar 200', 'Emerald'], 'Sayer': [], 'Berel': [], 'American Paint': [], 'Otra marca': [] };
+var NIVELES = ['Económica', 'Media', 'Premium', 'Alta gama (lavable)'];
+function marcaTexto(pt) { var m = [pt.marca, pt.calidad].filter(Boolean).join(' '); return [m, pt.color ? 'color ' + pt.color : ''].filter(Boolean).join(', '); }
+function llenaCalidad() {
+  var ls = (MARCAS[q.pint.marca] || []).concat(NIVELES);
+  if (q.pint.calidad && ls.indexOf(q.pint.calidad) < 0) ls.push(q.pint.calidad);
+  $('#p-calidad').innerHTML = '<option value="">Elige la calidad</option>' + ls.map(function (l) { return '<option' + (q.pint.calidad === l ? ' selected' : '') + '>' + esc(l) + '</option>'; }).join('');
+}
+function pintaPintura() {
+  $('#p-marca').innerHTML = '<option value="">Elige la marca</option>' + Object.keys(MARCAS).map(function (m) { return '<option' + (q.pint.marca === m ? ' selected' : '') + '>' + esc(m) + '</option>'; }).join('');
+  llenaCalidad(); $('#p-color').value = q.pint.color || '';
+}
+var REGIMENES = ['601 - General de Ley Personas Morales', '603 - Personas Morales con Fines no Lucrativos', '605 - Sueldos y Salarios e Ingresos Asimilados a Salarios', '606 - Arrendamiento', '612 - Personas Físicas con Actividades Empresariales y Profesionales', '616 - Sin obligaciones fiscales', '621 - Incorporación Fiscal', '625 - Actividades Empresariales con ingresos a través de Plataformas Tecnológicas', '626 - Régimen Simplificado de Confianza'];
+var USOS = ['G01 - Adquisición de mercancías', 'G02 - Devoluciones, descuentos o bonificaciones', 'G03 - Gastos en general', 'I01 - Construcciones', 'I02 - Mobiliario y equipo de oficina por inversiones', 'S01 - Sin efectos fiscales', 'CP01 - Pagos'];
+var RFC_OK = /^[A-ZÑ&]{3,4}\d{6}[A-Z\d]{3}$/;
+function opcionesSel(lista, val, vacio) { return '<option value="">' + esc(vacio) + '</option>' + lista.map(function (o) { return '<option' + (o === val ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join(''); }
+function facturaHtml(c, r) {
+  if (r.ace + r.ter === 0) return '<p class="nota">Los datos de facturación aparecen aquí cuando el cliente acepta una cotización.</p>';
+  return '<h2 style="margin:22px 0 10px;font-size:24px">Datos de facturación</h2>' +
+    '<div class="campo"><label for="cd-rfc">RFC</label><input id="cd-rfc" data-cd="rfc" maxlength="13" autocapitalize="characters" style="text-transform:uppercase" value="' + esc(c.rfc || '') + '" placeholder="RFC del cliente (12 o 13 caracteres)"></div>' +
+    '<div class="campo"><label for="cd-razon">Nombre o razón social</label><input id="cd-razon" data-cd="razon" value="' + esc(c.razon || '') + '" placeholder="Como aparece en su constancia de situación fiscal"></div>' +
+    '<div class="campo"><label for="cd-regimen">Régimen fiscal</label><select id="cd-regimen" data-cd="regimen">' + opcionesSel(REGIMENES, c.regimen, 'Elige el régimen fiscal') + '</select></div>' +
+    '<div class="campo"><label for="cd-cp">Código postal fiscal</label><input id="cd-cp" data-cd="cp" inputmode="numeric" maxlength="5" value="' + esc(c.cp || '') + '" placeholder="Código postal de su constancia fiscal"></div>' +
+    '<div class="campo"><label for="cd-uso">Uso de CFDI</label><select id="cd-uso" data-cd="uso">' + opcionesSel(USOS, c.uso, 'Elige el uso de CFDI') + '</select></div>' +
+    '<div class="campo"><label for="cd-correof">Correo para enviar la factura</label><input id="cd-correof" data-cd="correoFact" type="email" value="' + esc(c.correoFact || '') + '" placeholder="Correo donde se envía la factura"></div>';
+}
+var factId = null, factDisp = null;
+function abreFact(id) {
+  var h = historial.find(function (x) { return x.id === id; }); if (!h) return;
+  var c = clientes.find(function (z) { return z.id === h.datos.clienteId; }) || {}, f = h.datos.fact || {};
+  factId = id; factDisp = document.activeElement;
+  $('#mfa-uso').innerHTML = USOS.map(function (u) { return '<option>' + esc(u) + '</option>'; }).join('');
+  $('#mfa-tipo').value = f.tipo || 'I - Ingreso'; $('#mfa-metodo').value = f.metodo || 'PUE - Pago en una sola exhibición';
+  $('#mfa-forma').value = f.forma || '03 - Transferencia electrónica de fondos'; $('#mfa-uso').value = f.uso || c.uso || 'G03 - Gastos en general';
+  var falta = [];
+  if (!c.rfc) falta.push('RFC'); else if (!RFC_OK.test(c.rfc)) falta.push('un RFC válido');
+  if (!c.razon) falta.push('razón social'); if (!c.regimen) falta.push('régimen fiscal'); if (!c.cp) falta.push('código postal fiscal');
+  var av = $('#mfa-aviso'); av.hidden = !falta.length; av.textContent = falta.length ? 'En la ficha del cliente falta: ' + falta.join(', ') + '. Puedes generar el Excel y completarlo después.' : '';
+  $('#mfa-resumen').textContent = h.folio + ' · ' + (h.cliente || '') + ' · ' + money(h.total);
+  $('#modal-fact').hidden = false; document.body.style.overflow = 'hidden'; setTimeout(function () { $('#mfa-tipo').focus(); }, 30);
+}
+function cierraFact() { $('#modal-fact').hidden = true; document.body.style.overflow = ''; if (factDisp && factDisp.focus) { try { factDisp.focus(); } catch (e) {} } }
+function nombreDe(d, ext, pre) {
+  var n = (d.cliente.nombre || 'cliente').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return (pre || 'Cotizacion') + '-' + d.folio + '-' + n + '.' + ext;
+}
+function xlsxFactura(h, o) {
+  var d = h.datos, c = calc(d), cli = clientes.find(function (z) { return z.id === d.clienteId; }) || {};
+  var aoa = [
+    ['DATOS PARA FACTURACIÓN'], ['Cotización', d.folio], ['Fecha de la cotización', fechaLarga(d.fecha)], [],
+    ['RECEPTOR'], ['Nombre o razón social', cli.razon || d.cliente.nombre || ''], ['RFC', cli.rfc || ''], ['Régimen fiscal', cli.regimen || ''],
+    ['Código postal fiscal', cli.cp || ''], ['Uso de CFDI', o.uso], ['Correo para enviar la factura', cli.correoFact || ''], ['Teléfono', d.cliente.tel || ''], [],
+    ['COMPROBANTE'], ['Tipo de CFDI', o.tipo], ['Método de pago', o.metodo], ['Forma de pago', o.forma], ['Moneda', 'MXN - Peso Mexicano'], [],
+    ['CONCEPTOS'], ['Cantidad', 'Unidad', 'Descripción', 'Valor unitario', 'Importe', 'Clave prod/serv SAT']
+  ];
+  d.partidas.filter(function (p) { return p.c || num(p.p); }).forEach(function (p) {
+    aoa.push([num(p.n) || 0, 'E48 - Unidad de servicio', p.c, num(p.p), r2(num(p.n) * num(p.p)), '']);
+  });
+  aoa.push([], ['', '', '', 'Subtotal', c.sub]);
+  if (d.factura) { aoa.push(['', '', '', 'IVA ' + num(d.cond.iva) + ' %', c.iva], ['', '', '', 'ISR ' + num(d.cond.isr) + ' % (según cotización)', c.isr]); }
+  else aoa.push(['', '', '', 'Cotización sin factura', 0]);
+  aoa.push(['', '', '', 'Total', c.total], [], ['Descripción del servicio', d.servicio || ''], ['Pintura', d.marca || ''], ['Domicilio de la obra', d.cliente.dom || '']);
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  Object.keys(ws).forEach(function (k) { if (k[0] !== '!' && typeof ws[k].v === 'number' && k.charCodeAt(0) >= 68) ws[k].z = '"$"#,##0.00'; });
+  ws['!cols'] = [{ wch: 34 }, { wch: 28 }, { wch: 46 }, { wch: 30 }, { wch: 16 }, { wch: 24 }];
+  var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Factura');
+  return new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+async function generaFact() {
+  var h = historial.find(function (x) { return x.id === factId; }); if (!h) { cierraFact(); return; }
+  if (!window.XLSX) { aviso('No cargó el generador de Excel. Revisa tu conexión e intenta otra vez.'); return; }
+  var o = { tipo: $('#mfa-tipo').value, metodo: $('#mfa-metodo').value, forma: $('#mfa-forma').value, uso: $('#mfa-uso').value };
+  h.datos.fact = o; escribir(K_HIST, historial); cierraFact();
+  var r = await entregar(xlsxFactura(h, o), nombreDe(h.datos, 'xlsx', 'Factura'), 'Datos para facturar ' + h.folio);
+  aviso(r === 'cancelado' ? 'Se canceló.' : r === 'error' ? 'No se pudo generar el Excel.' : 'Excel de facturación listo.');
 }
 
 /* ---------- navegación y ajustes ---------- */
@@ -1010,6 +1158,7 @@ function arranca() {
   $('#btn-partida').addEventListener('click', function () { q.partidas.push({ c: '', n: 1, p: 0 }); pintaPartidas(); var ins = $$('#partidas .partida input[data-f="c"]'); if (ins.length) ins[ins.length - 1].focus(); });
   $('#btn-firma').addEventListener('click', abreFirma);
   $('#btn-pdf').addEventListener('click', accionPdf);
+  $('#btn-comp').addEventListener('click', accionCompartir);
   
   
   $('#btn-copia').addEventListener('click', function () { if (!q.guardada) guardar(true); duplica(q.id); });
@@ -1030,6 +1179,16 @@ function arranca() {
     if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); } else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); }
   });
   $('#c-buscar').addEventListener('input', pintaClientes);
+  $('#vista-clientes').addEventListener('change', function (e) { if (e.target.tagName === 'SELECT') e.target.dispatchEvent(new Event('input', { bubbles: true })); });
+  $('#mfa-ok').addEventListener('click', generaFact); $('#mfa-cancela').addEventListener('click', cierraFact);
+  document.addEventListener('keydown', function (e) {
+    var m = $('#modal-fact'); if (m.hidden) return;
+    if (e.key === 'Escape') { cierraFact(); return; }
+    if (e.key !== 'Tab') return;
+    var f = $$('button,select', m).filter(function (el) { return !el.disabled && el.offsetParent !== null; }); if (!f.length) return;
+    var a = f[0], z = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); } else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); }
+  });
   $('#vista-clientes').addEventListener('click', function (e) {
     var b = e.target.closest('button'); if (!b) return;
     if (b.hasAttribute('data-cli-abrir')) { clienteAbierto = b.getAttribute('data-cli-abrir'); pintaClientes(); window.scrollTo(0, 0); }
@@ -1044,7 +1203,7 @@ function arranca() {
   $('#vista-clientes').addEventListener('input', function (e) {
     var k = e.target.getAttribute('data-cd'); if (!k) return;
     var c = clientes.find(function (z) { return z.id === clienteAbierto; }); if (!c) return;
-    c[k] = e.target.value; if (k === 'nombre' || k === 'tel') c.clave = claveCliente(c); escribir(K_CLI, clientes);
+    c[k] = k === 'rfc' ? e.target.value.toUpperCase().replace(/\s/g, '') : e.target.value; if (k === 'nombre' || k === 'tel') c.clave = claveCliente(c); escribir(K_CLI, clientes);
   });
   $('#btn-csv-cli').addEventListener('click', async function () { var r = await entregar(new Blob([csvClientes()], { type: 'text/csv' }), 'Clientes-Pintores-Juarez.csv'); aviso(r === 'cancelado' ? 'Se canceló.' : 'Listo.'); });
   $('#btn-imp').addEventListener('click', function () { $('#f-resp').click(); });
