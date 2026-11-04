@@ -274,8 +274,7 @@ details.avanzado summary{font-size:12.5px}
       <div class="aviso mal" id="faltan" hidden></div>
       <div class="acciones">
         <button class="btn p" id="btn-firma" type="button">Firmar con el cliente</button>
-        <button class="btn c" id="btn-pdf" type="button">Enviar PDF por WhatsApp</button>
-        <button class="btn chico" id="btn-comp" type="button">Compartir PDF con el menú</button>
+        <button class="btn c" id="btn-pdf" type="button">Compartir PDF con el menú</button>
         <a class="btn" id="btn-wa" target="_blank" rel="noopener" href="https://wa.me/">Abrir chat de WhatsApp</a>
         <div id="cal-links" class="acciones" style="margin-top:0"></div>
         <button class="btn" id="btn-no" type="button">Marcar como no aceptada</button>
@@ -703,7 +702,7 @@ function pintaResumen() {
   if (c.sub <= 0) faltan.push('al menos una partida con precio');
   var f = $('#faltan'); f.hidden = !faltan.length; f.textContent = faltan.length ? 'Falta ' + faltan.join(' y ') + '.' : '';
   actualizaWa(c); actualizaGcal(); etiquetaPdf();
-  $('#ayuda-envio').textContent = 'Enviar PDF por WhatsApp: guarda el PDF y abre el chat del cliente con el mensaje escrito; ahí adjuntas el archivo con el clip (Documento). “Compartir PDF con el menú” adjunta el archivo directo, pero tú eliges el contacto. WhatsApp no deja que una página adjunte archivos en un chat concreto.';
+  $('#ayuda-envio').textContent = 'Compartir PDF con el menú: se abre el menú del teléfono; elige WhatsApp y el contacto, y el PDF viaja junto con el mensaje. Si tu teléfono pide otro toque, el botón dice “PDF listo: toca para compartir”. “Abrir chat de WhatsApp” solo te lleva a la conversación con el cliente.';
 }
 function mensajeWa(c) {
   var nombre = q.cliente.nombre.trim() || 'cliente';
@@ -817,10 +816,10 @@ function archivoParaCompartir(blob, nombre) {
   try { var f = new File([blob], nombre, { type: blob.type }); return navigator.canShare && navigator.canShare({ files: [f] }) ? f : null; } catch (e) { return null; }
 }
 function enlaceChat(texto) { var d = soloDigitos(q.cliente.tel); if (d.length === 10) d = '52' + d; return 'https://wa.me/' + d + (texto ? '?text=' + encodeURIComponent(texto) : ''); }
-function etiquetaPdf() { var b = $('#btn-pdf'); if (b && !b.disabled) b.textContent = pdfCache.key === llaveQ() ? 'PDF listo: toca para abrir el chat' : 'Enviar PDF por WhatsApp'; }
+function etiquetaPdf() { var b = $('#btn-pdf'); if (b && !b.disabled) b.textContent = pdfCache.key === llaveQ() ? 'PDF listo: toca para compartir' : 'Compartir PDF con el menú'; }
 async function preparaPdf() {
   if (pdfCache.key === llaveQ()) return true;
-  var b1 = $('#btn-pdf'), b2 = $('#btn-comp'); b1.disabled = true; b2.disabled = true; b1.textContent = 'Preparando PDF…';
+  var b1 = $('#btn-pdf'), b2 = b1; b1.disabled = true; b1.textContent = 'Preparando PDF…';
   try { guardar(true); var k = llaveQ(); pdfCache = { key: k, blob: await generaPdf() }; }
   catch (e) { b1.disabled = false; b2.disabled = false; etiquetaPdf(); aviso('No se pudo generar el PDF. Revisa tu conexión e intenta otra vez.'); return null; }
   b1.disabled = false; b2.disabled = false; etiquetaPdf(); return false;
@@ -829,21 +828,11 @@ function descargaSync(blob, nombre) {
   var u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(function () { URL.revokeObjectURL(u); }, 30000);
 }
-async function accionPdf() {
-  if (!validaParaEnviar()) return;
-  var pre = await preparaPdf(); if (pre === null) return;
-  if (pre === false) { aviso('PDF listo. Toca el botón otra vez: se guarda el archivo y se abre el chat del cliente.'); return; }
-  var url = enlaceChat(mensajeWa(calc(q)));
-  descargaSync(pdfCache.blob, nombreArchivo('pdf'));
-  terminaEnvio('En WhatsApp adjunta el PDF con el clip (Documento).');
-  var w = null; try { w = window.open(url, '_blank'); } catch (e) {}
-  if (!w) location.href = url;
-}
 async function accionCompartir() {
   if (!validaParaEnviar()) return;
   var pre = await preparaPdf(); if (pre === null) return;
   var f = archivoParaCompartir(pdfCache.blob, nombreArchivo('pdf'));
-  if (!f) { aviso('Tu teléfono no permite compartir archivos desde aquí. Usa “Enviar PDF por WhatsApp”.'); return; }
+  if (!f) { descargaSync(pdfCache.blob, nombreArchivo('pdf')); terminaEnvio('Este navegador no permite el menú de compartir: se guardó el PDF para que lo adjuntes.'); return; }
   try { await navigator.share({ files: [f], text: mensajeWa(calc(q)), title: 'Cotización ' + q.folio }); terminaEnvio(); }
   catch (e) { aviso(e && e.name === 'AbortError' ? 'Se canceló.' : 'El PDF está listo. Toca otra vez “Compartir PDF con el menú”.'); }
 }
@@ -954,7 +943,7 @@ function filaCot(h) {
   var meta = esc(fechaLarga(h.fecha)) + ' · ' + money(h.total) + (d.cliente && d.cliente.dom ? ' · ' + esc(d.cliente.dom) : '');
   var extra = e === 'no_aceptada' ? '<div class="motivo">No aceptada' + (d.fechaEstado ? ' el ' + esc(fechaLarga(d.fechaEstado)) : '') + (d.motivo ? ' · ' + esc(d.motivo) : '') + '</div>'
     : e === 'terminada' && d.fechaEstado ? '<div class="motivo">Trabajo terminado el ' + esc(fechaLarga(d.fechaEstado)) + '</div>' : '';
-  var btns = '<button class="btn chico" data-abrir="' + id + '" type="button">Abrir</button><button class="btn chico" data-pdf="' + id + '" type="button">Enviar PDF</button>'
+  var btns = '<button class="btn chico" data-abrir="' + id + '" type="button">Abrir</button><button class="btn chico" data-pdf="' + id + '" type="button">Compartir PDF</button>'
     + (e === 'borrador' || e === 'aceptada' ? '<button class="btn chico" data-no="' + id + '" type="button">No aceptada</button>' : '')
     + (e === 'aceptada' ? '<button class="btn chico" data-ter="' + id + '" type="button">Terminado</button>' : '')
     + (e === 'aceptada' || e === 'terminada' ? '<button class="btn chico" data-fact="' + id + '" type="button">Datos de factura</button>' : '')
@@ -998,7 +987,7 @@ function accionLista(e) {
   else if (a.hasAttribute('data-no')) abreNo(a.getAttribute('data-no'));
   else if (a.hasAttribute('data-ter')) marcaEstado(a.getAttribute('data-ter'), 'terminada');
   else if (a.hasAttribute('data-reabrir')) marcaEstado(a.getAttribute('data-reabrir'), estadoReabrir(a.getAttribute('data-reabrir')));
-  else if (a.hasAttribute('data-pdf')) { abre(a.getAttribute('data-pdf')); accionPdf(); }
+  else if (a.hasAttribute('data-pdf')) { abre(a.getAttribute('data-pdf')); accionCompartir(); }
   else if (a.hasAttribute('data-fact')) abreFact(a.getAttribute('data-fact'));
 }
 
@@ -1198,8 +1187,7 @@ function arranca() {
   $('#chips').addEventListener('click', function (e) { var b = e.target.closest('[data-chip]'); if (!b || q.estado === 'aceptada') return; var vacia = q.partidas.length === 1 && !q.partidas[0].c && !num(q.partidas[0].p); var p = { c: b.getAttribute('data-chip'), n: 1, p: 0 }; if (vacia || (q.partidas.length === 1 && q.partidas[0].c === 'Mano de obra' && !num(q.partidas[0].p) && p.c !== 'Mano de obra')) { q.partidas = [p]; } else { q.partidas.push(p); } pintaPartidas(); pintaResumen(); escribir(K_BOR, q); pintar(); });
   $('#btn-partida').addEventListener('click', function () { q.partidas.push({ c: '', n: 1, p: 0 }); pintaPartidas(); var ins = $$('#partidas .partida input[data-f="c"]'); if (ins.length) ins[ins.length - 1].focus(); });
   $('#btn-firma').addEventListener('click', abreFirma);
-  $('#btn-pdf').addEventListener('click', accionPdf);
-  $('#btn-comp').addEventListener('click', accionCompartir);
+  $('#btn-pdf').addEventListener('click', accionCompartir);
   $('#p-acab').addEventListener('click', function (e) {
     var b = e.target.closest('[data-acab]'); if (!b || b.disabled) return;
     var a = b.getAttribute('data-acab'), i = q.pint.acab.indexOf(a);
