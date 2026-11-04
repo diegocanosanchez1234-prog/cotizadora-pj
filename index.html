@@ -206,7 +206,7 @@ details.avanzado summary{cursor:pointer;font:500 11px var(--mono);letter-spacing
           <div class="campo"><label for="anticipo">Anticipo (%)</label><input id="anticipo" data-k="anticipo" type="number" inputmode="decimal" min="0" max="100" step="1"></div>
           <div class="campo"><label for="dias">Días de trabajo</label><input id="dias" data-k="dias" type="number" inputmode="numeric" min="1" placeholder="5"></div>
         </div>
-        <div class="campo"><label for="inicio">Fecha de inicio</label><input id="inicio" data-k="inicio" type="date"></div>
+        <div class="fila"><div class="campo"><label for="inicio">Fecha de inicio</label><input id="inicio" data-k="inicio" type="date"></div><div class="campo"><label for="hora">Hora de inicio</label><input id="hora" data-k="hora" type="time"></div></div>
         <p class="nota" id="entrega-nota"></p>
         <details class="avanzado"><summary>Condiciones de esta cotización</summary>
           <div class="fila3">
@@ -228,6 +228,8 @@ details.avanzado summary{cursor:pointer;font:500 11px var(--mono);letter-spacing
         <button class="btn p" id="btn-firma" type="button">Firmar con el cliente</button>
         <button class="btn c" id="btn-pdf" type="button">Guardar o enviar PDF</button>
         <a class="btn" id="btn-wa" target="_blank" rel="noopener" href="https://wa.me/">Abrir WhatsApp con el mensaje</a>
+        <button class="btn" id="btn-cal" type="button">Agregar al calendario con recordatorios</button>
+        <a class="btn chico" id="btn-gcal" target="_blank" rel="noopener" href="https://calendar.google.com/">Abrir en Google Calendar</a>
         <button class="btn" id="btn-guardar" type="button">Guardar en el historial</button>
         <button class="btn chico" id="btn-nueva" type="button">Nueva cotización en blanco</button>
       </div>
@@ -351,7 +353,7 @@ function nueva() {
     id: aId(), folio: folioTxt(ajustes.folio), fecha: hoyISO(), vigencia: ajustes.vigencia,
     cliente: { nombre: '', tel: '', dom: '' }, tipo: 'Pintura interior', servicio: '', marca: '',
     incluye: ['Materiales y mano de obra', 'Protección de pisos y muebles', 'Limpieza final'], noIncluye: ['Cielos'],
-    partidas: [{ c: 'Mano de obra', n: 1, p: 0 }], factura: false, anticipo: ajustes.anticipo, inicio: '', dias: '',
+    partidas: [{ c: 'Mano de obra', n: 1, p: 0 }], factura: false, anticipo: ajustes.anticipo, inicio: '', hora: '09:00', dias: '',
     cond: { garantia: ajustes.garantia, multa: ajustes.multa, iva: ajustes.iva, isr: ajustes.isr },
     estado: 'borrador', guardada: false, firmaCliente: null, creada: new Date().toISOString()
   };
@@ -468,7 +470,7 @@ function hojaCotizacion(x, c) {
   return '<section class="hoja">' + topDoc('Cotización', 'Folio ' + x.folio + ' · ' + fechaLarga(x.fecha) + ' · Vigencia ' + num(x.vigencia) + ' días') +
     '<div class="d-cuerpo">' +
     '<div class="d-dos"><div><div class="d-mono">Cliente</div><div><b>' + esc(x.cliente.nombre || '—') + '</b></div><div>' + esc(x.cliente.dom || '') + '</div><div>' + esc(x.cliente.tel || '') + '</div></div>' +
-    '<div><div class="d-mono">Trabajo</div><div><b>' + esc(x.tipo) + '</b></div><div>Inicio: ' + (x.inicio ? esc(fechaLarga(x.inicio)) : 'por acordar') + '</div><div>' + (num(x.dias) ? 'Duración estimada: ' + num(x.dias) + ' días de trabajo' : '') + (ent ? '<br>Entrega estimada: ' + esc(fechaLarga(ent)) : '') + '</div></div></div>' +
+    '<div><div class="d-mono">Trabajo</div><div><b>' + esc(x.tipo) + '</b></div><div>Inicio: ' + (x.inicio ? esc(fechaLarga(x.inicio)) + (x.hora ? ', ' + esc(x.hora) + ' h' : '') : 'por acordar') + '</div><div>' + (num(x.dias) ? 'Duración estimada: ' + num(x.dias) + ' días de trabajo' : '') + (ent ? '<br>Entrega estimada: ' + esc(fechaLarga(ent)) : '') + '</div></div></div>' +
     '<div><div class="d-mono">Descripción del servicio</div><div>' + esc(x.servicio || '—').replace(/\n/g, '<br>') + '</div>' + (x.marca ? '<div style="margin-top:4px"><b>Pintura:</b> ' + esc(x.marca) + '</div>' : '') + '</div>' +
     '<div class="d-dos"><div><div class="d-mono">Incluye</div>' + lista(x.incluye) + '</div><div><div class="d-mono">No incluye</div>' + lista(x.noIncluye) + '</div></div>' +
     '<table class="d-tabla"><thead><tr><th>CONCEPTO</th><th class="n" style="width:60px">CANT.</th><th class="n" style="width:110px">PRECIO</th><th class="n" style="width:120px">IMPORTE</th></tr></thead><tbody>' + filas + '</tbody></table>' +
@@ -548,6 +550,7 @@ function getPath(o, p) { return p.split('.').reduce(function (a, k) { return a =
 function setPath(o, p, v) { var ks = p.split('.'), l = ks.pop(); var t = ks.reduce(function (a, k) { return a[k]; }, o); t[l] = v; }
 
 function llenaForma() {
+  if (!q.hora) q.hora = '09:00';
   $$('[data-k]').forEach(function (el) {
     var v = getPath(q, el.getAttribute('data-k'));
     if (el.type === 'checkbox') el.checked = !!v; else el.value = v == null ? '' : v;
@@ -584,7 +587,7 @@ function pintaResumen() {
   if (!q.cliente.nombre.trim()) faltan.push('el nombre del cliente');
   if (c.sub <= 0) faltan.push('al menos una partida con precio');
   var f = $('#faltan'); f.hidden = !faltan.length; f.textContent = faltan.length ? 'Falta ' + faltan.join(' y ') + '.' : '';
-  actualizaWa(c);
+  actualizaWa(c); actualizaGcal();
   $('#ayuda-envio').textContent = 'Guardar o enviar PDF: en el celular abre el menú para compartir; si no aparece, se guarda el archivo y lo adjuntas en WhatsApp. El botón de WhatsApp abre el chat con el mensaje ya escrito.';
 }
 function mensajeWa(c) {
@@ -750,6 +753,51 @@ async function aceptaFirma() {
   $('#vista-doc').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+/* ---------- calendario ---------- */
+function p2(n) { return String(n).padStart(2, '0'); }
+function dtLocal(iso, hhmm, masMin) {
+  var f = new Date(iso + 'T' + (hhmm || '09:00') + ':00'); f.setMinutes(f.getMinutes() + (masMin || 0));
+  return f.getFullYear() + p2(f.getMonth() + 1) + p2(f.getDate()) + 'T' + p2(f.getHours()) + p2(f.getMinutes()) + '00';
+}
+function soloFecha(iso, masDias) { var f = new Date(iso + 'T12:00:00'); f.setDate(f.getDate() + (masDias || 0)); return f.getFullYear() + p2(f.getMonth() + 1) + p2(f.getDate()); }
+function icsEsc(s) { return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n'); }
+function icsLinea(l) { var o = [], b = l; while (b.length > 73) { o.push(b.slice(0, 73)); b = ' ' + b.slice(73); } o.push(b); return o.join('\r\n'); }
+function eventosCal(x) {
+  var c = calc(x), ev = [], nom = x.cliente.nombre || 'Cliente';
+  var det = 'Cotización ' + x.folio + ' · ' + x.tipo + '\nCliente: ' + nom + (x.cliente.tel ? ' · ' + x.cliente.tel : '') + '\nTotal ' + money(c.total) + ' · Anticipo ' + money(c.anticipo) + ' · Saldo al terminar ' + money(c.saldo);
+  if (x.inicio) ev.push({ uid: x.id + '-inicio', t: 'Inicio de pintura · ' + nom, ini: dtLocal(x.inicio, x.hora), fin: dtLocal(x.inicio, x.hora, 60), dia: false, d: det + (num(x.dias) ? '\nDuración estimada: ' + num(x.dias) + ' días de trabajo' : ''), alarmas: ['-P1D', '-PT2H'] });
+  var e = entrega(x);
+  if (e) ev.push({ uid: x.id + '-entrega', t: 'Entrega y liquidación · ' + nom, ini: soloFecha(e), fin: soloFecha(e, 1), dia: true, d: det + '\nEl saldo se paga el día que se termina el trabajo; después hay multa de ' + num(x.cond.multa) + ' % por día.', alarmas: ['-PT15H', 'PT8H'] });
+  return ev;
+}
+function icsTexto(x) {
+  var n = new Date(), st = n.getUTCFullYear() + p2(n.getUTCMonth() + 1) + p2(n.getUTCDate()) + 'T' + p2(n.getUTCHours()) + p2(n.getUTCMinutes()) + p2(n.getUTCSeconds()) + 'Z';
+  var L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Pintores Juarez//Cotizadora//ES', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
+  eventosCal(x).forEach(function (e) {
+    L.push('BEGIN:VEVENT', 'UID:' + e.uid + '@pintoresjuarez', 'DTSTAMP:' + st);
+    L.push(e.dia ? 'DTSTART;VALUE=DATE:' + e.ini : 'DTSTART:' + e.ini, e.dia ? 'DTEND;VALUE=DATE:' + e.fin : 'DTEND:' + e.fin);
+    L.push('SUMMARY:' + icsEsc(e.t), 'DESCRIPTION:' + icsEsc(e.d));
+    if (x.cliente.dom) L.push('LOCATION:' + icsEsc(x.cliente.dom));
+    L.push('STATUS:CONFIRMED', 'TRANSP:OPAQUE');
+    e.alarmas.forEach(function (a) { L.push('BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsEsc(e.t), 'TRIGGER:' + a, 'END:VALARM'); });
+    L.push('END:VEVENT');
+  });
+  L.push('END:VCALENDAR');
+  return L.map(icsLinea).join('\r\n') + '\r\n';
+}
+function actualizaGcal() {
+  var a = $('#btn-gcal'), ev = eventosCal(q)[0], url = 'https://calendar.google.com/';
+  if (ev && q.inicio) url = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(ev.t) + '&dates=' + ev.ini + '/' + ev.fin + '&ctz=America%2FCiudad_Juarez&details=' + encodeURIComponent(ev.d) + (q.cliente.dom ? '&location=' + encodeURIComponent(q.cliente.dom) : '');
+  a.setAttribute('href', url);
+}
+async function accionCal() {
+  if (!q.inicio) { aviso('Pon la fecha de inicio para crear la cita.'); return; }
+  if (!validaParaEnviar()) return;
+  guardar(true);
+  var r = await entregar(new Blob([icsTexto(q)], { type: 'text/calendar' }), nombreArchivo('ics'), 'Cita ' + q.folio);
+  aviso(r === 'cancelado' ? 'Se canceló.' : r === 'error' ? 'No se pudo crear la cita.' : 'Cita lista: ábrela para agregarla a tu calendario con sus recordatorios.');
+}
+
 /* ---------- navegación y ajustes ---------- */
 function cambiaTab(n) {
   ['nueva', 'historial', 'ajustes'].forEach(function (t) { $('#vista-' + t).hidden = t !== n; $('#tab-' + t).setAttribute('aria-selected', t === n ? 'true' : 'false'); });
@@ -782,6 +830,7 @@ function arranca() {
   $('#btn-partida').addEventListener('click', function () { q.partidas.push({ c: '', n: 1, p: 0 }); pintaPartidas(); var ins = $$('#partidas .partida input[data-f="c"]'); if (ins.length) ins[ins.length - 1].focus(); });
   $('#btn-firma').addEventListener('click', abreFirma);
   $('#btn-pdf').addEventListener('click', accionPdf);
+  $('#btn-cal').addEventListener('click', accionCal);
   $('#btn-guardar').addEventListener('click', function () { if (!validaParaEnviar()) return; guardar(false); });
   $('#btn-nueva').addEventListener('click', function () { q = nueva(); escribir(K_BOR, q); llenaForma(); pintar(); window.scrollTo(0, 0); aviso('Cotización nueva en blanco.'); });
   $('#btn-copia').addEventListener('click', function () { if (!q.guardada) guardar(true); duplica(q.id); });
