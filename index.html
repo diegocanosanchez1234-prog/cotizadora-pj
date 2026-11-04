@@ -190,9 +190,9 @@ details.avanzado summary{cursor:pointer;font:500 11px var(--mono);letter-spacing
     <fieldset id="campos" style="border:0;margin:0;padding:0;min-width:0">
       <div class="panel">
         <h2>Cliente <i id="folio-etq">PJ-0001</i></h2>
-        <div class="campo"><label for="cli-nombre">Nombre del cliente</label><input id="cli-nombre" data-k="cliente.nombre" placeholder="Crystal Ibarra" autocapitalize="words" list="lista-clientes"><datalist id="lista-clientes"></datalist></div>
-        <div class="campo"><label for="cli-tel">Teléfono o WhatsApp</label><input id="cli-tel" data-k="cliente.tel" type="tel" inputmode="tel" placeholder="656 000 0000"></div>
-        <div class="campo"><label for="cli-dom">Domicilio de la obra</label><input id="cli-dom" data-k="cliente.dom" placeholder="Calle, número y colonia" autocapitalize="sentences"></div>
+        <div class="campo"><label for="cli-nombre">Nombre del cliente</label><input id="cli-nombre" data-k="cliente.nombre" placeholder="Nombre completo del cliente" autocapitalize="words" list="lista-clientes"><datalist id="lista-clientes"></datalist></div>
+        <div class="campo"><label for="cli-tel">Teléfono o WhatsApp</label><input id="cli-tel" data-k="cliente.tel" type="tel" inputmode="tel" placeholder="Teléfono del cliente (10 dígitos)"></div>
+        <div class="campo"><label for="cli-dom">Domicilio de la obra</label><input id="cli-dom" data-k="cliente.dom" placeholder="Calle, número y colonia donde se va a pintar" autocapitalize="sentences"></div>
         <div class="fila">
           <div class="campo" style="margin:0"><label for="fecha">Fecha</label><input id="fecha" data-k="fecha" type="date"></div>
           <div class="campo" style="margin:0"><label for="vigencia">Vigencia (días)</label><input id="vigencia" data-k="vigencia" type="number" inputmode="numeric" min="1"></div>
@@ -203,10 +203,10 @@ details.avanzado summary{cursor:pointer;font:500 11px var(--mono);letter-spacing
         <h2>Trabajo</h2>
         <div class="campo"><label for="tipo">Tipo de trabajo</label>
           <select id="tipo" data-k="tipo"><option>Pintura interior</option><option>Pintura exterior</option><option>Pintura interior y exterior</option><option>Impermeabilización</option><option>Otro</option></select></div>
-        <div class="campo"><label for="servicio">Descripción del servicio</label><textarea id="servicio" data-k="servicio" placeholder="Pintura interior planta baja sin cocina"></textarea></div>
-        <div class="campo"><label for="marca">Pintura (marca, tipo y color)</label><input id="marca" data-k="marca" placeholder="Behr Premium, blanco"></div>
+        <div class="campo"><label for="servicio">Descripción del servicio</label><textarea id="servicio" data-k="servicio" placeholder="Qué se va a pintar: áreas y alcance del trabajo"></textarea></div>
+        <div class="campo"><label for="marca">Pintura (marca, tipo y color)</label><input id="marca" data-k="marca" placeholder="Marca, tipo y color de la pintura"></div>
         <div class="campo"><label for="incluye">Incluye (una línea por concepto)</label><textarea id="incluye" data-lista="incluye"></textarea></div>
-        <div class="campo"><label for="noincluye">No incluye (una línea por concepto)</label><textarea id="noincluye" data-lista="noIncluye" placeholder="Cielos"></textarea></div>
+        <div class="campo"><label for="noincluye">No incluye (una línea por concepto)</label><textarea id="noincluye" data-lista="noIncluye" placeholder="Lo que no se pinta o no se hace (una línea por concepto)"></textarea></div>
       </div>
 
       <div class="panel">
@@ -222,7 +222,7 @@ details.avanzado summary{cursor:pointer;font:500 11px var(--mono);letter-spacing
         <label class="interruptor" for="factura"><input type="checkbox" id="factura" data-k="factura"><span><b>Con factura</b><br><span class="nota" style="margin:0" id="factura-nota"></span></span></label>
         <div class="fila" style="margin-top:14px">
           <div class="campo"><label for="anticipo">Anticipo (%)</label><input id="anticipo" data-k="anticipo" type="number" inputmode="decimal" min="0" max="100" step="1"></div>
-          <div class="campo"><label for="dias">Días de trabajo</label><input id="dias" data-k="dias" type="number" inputmode="numeric" min="1" placeholder="5"></div>
+          <div class="campo"><label for="dias">Días de trabajo</label><input id="dias" data-k="dias" type="number" inputmode="numeric" min="1" placeholder="Días de trabajo estimados"></div>
         </div>
         <div class="fila"><div class="campo"><label for="inicio">Fecha de inicio</label><input id="inicio" data-k="inicio" type="date"></div><div class="campo"><label for="hora">Hora de inicio</label><input id="hora" data-k="hora" type="time"></div></div>
         <p class="nota" id="entrega-nota"></p>
@@ -245,11 +245,10 @@ details.avanzado summary{cursor:pointer;font:500 11px var(--mono);letter-spacing
       <div class="acciones">
         <button class="btn p" id="btn-firma" type="button">Firmar con el cliente</button>
         <button class="btn c" id="btn-pdf" type="button">Enviar PDF por WhatsApp</button>
-        <a class="btn" id="btn-wa" target="_blank" rel="noopener" href="https://wa.me/">Solo abrir el chat con el mensaje</a>
+        <a class="btn" id="btn-wa" target="_blank" rel="noopener" href="https://wa.me/">Abrir chat de WhatsApp</a>
         <div id="cal-links" class="acciones" style="margin-top:0"></div>
-        <button class="btn" id="btn-guardar" type="button">Guardar en el historial</button>
         <button class="btn" id="btn-no" type="button">Marcar como no aceptada</button>
-        <button class="btn chico" id="btn-nueva" type="button">Nueva cotización en blanco</button>
+        
       </div>
       <p class="nota" style="margin-top:14px" id="ayuda-envio"></p>
     </div>
@@ -348,7 +347,7 @@ details.avanzado summary{cursor:pointer;font:500 11px var(--mono);letter-spacing
     <p class="nota" style="margin:0 0 12px">Se queda en el historial y en la ficha del cliente, por si vuelve a cotizar.</p>
     <div class="campo"><label for="mn-motivo">Motivo</label>
       <select id="mn-motivo"><option value="">Sin motivo</option><option>Precio</option><option>Eligió a otro pintor</option><option>Lo va a pensar</option><option>Sin respuesta</option><option>Pospuso el trabajo</option><option>Otro</option></select></div>
-    <div class="campo"><label for="mn-nota">Nota (opcional)</label><input id="mn-nota" placeholder="Ej. pidió bajar el precio"></div>
+    <div class="campo"><label for="mn-nota">Nota (opcional)</label><input id="mn-nota" placeholder="Detalle del motivo"></div>
     <div class="acciones" style="grid-template-columns:1fr 1fr">
       <button class="btn" id="mn-cancela" type="button">Cancelar</button>
       <button class="btn p" id="mn-ok" type="button">Marcar</button>
@@ -610,7 +609,7 @@ function llenaForma() {
 }
 function pintaPartidas() {
   $('#partidas').innerHTML = q.partidas.map(function (p, i) {
-    return '<div class="partida" data-i="' + i + '"><input aria-label="Concepto" data-f="c" value="' + esc(p.c) + '" placeholder="Concepto">' +
+    return '<div class="partida" data-i="' + i + '"><input aria-label="Concepto" data-f="c" value="' + esc(p.c) + '" placeholder="Descripción del concepto">' +
       '<input aria-label="Cantidad" data-f="n" type="number" inputmode="decimal" min="0" step="any" value="' + esc(p.n) + '">' +
       '<input aria-label="Precio" data-f="p" type="number" inputmode="decimal" min="0" step="any" value="' + esc(p.p === 0 ? '' : p.p) + '" placeholder="Precio">' +
       '<button class="quita" type="button" aria-label="Quitar partida" data-q="' + i + '">✕</button><div class="importe" data-imp="' + i + '">' + money(r2(num(p.n) * num(p.p))) + '</div></div>';
@@ -645,7 +644,7 @@ function pintaResumen() {
   if (c.sub <= 0) faltan.push('al menos una partida con precio');
   var f = $('#faltan'); f.hidden = !faltan.length; f.textContent = faltan.length ? 'Falta ' + faltan.join(' y ') + '.' : '';
   actualizaWa(c); actualizaGcal();
-  $('#ayuda-envio').textContent = 'Enviar PDF por WhatsApp: abre el menú de compartir del teléfono. Elige WhatsApp y el contacto, y el archivo viaja junto con el mensaje. El botón de abajo solo abre el chat con el texto, sin archivo (WhatsApp no permite adjuntar desde una página web).';
+  $('#ayuda-envio').textContent = 'Enviar PDF por WhatsApp: abre el menú de compartir del teléfono. Elige WhatsApp y el contacto, y el archivo viaja junto con el mensaje. “Abrir chat de WhatsApp” solo te lleva a la conversación con el cliente.';
 }
 function mensajeWa(c) {
   var nombre = q.cliente.nombre.trim() || 'cliente';
@@ -653,7 +652,7 @@ function mensajeWa(c) {
 }
 function actualizaWa(c) {
   var d = soloDigitos(q.cliente.tel); if (d.length === 10) d = '52' + d;
-  var url = 'https://wa.me/' + d + '?text=' + encodeURIComponent(mensajeWa(c || calc(q)));
+  var url = 'https://wa.me/' + d;
   $('#btn-wa').setAttribute('href', url);
 }
 
@@ -673,7 +672,7 @@ function cambioForma(e) {
   } else return;
   pintaResumen();
   clearTimeout(temporizador);
-  temporizador = setTimeout(function () { escribir(K_BOR, q); pintar(); }, 250);
+  temporizador = setTimeout(function () { escribir(K_BOR, q); autoguarda(); pintar(); }, 250);
 }
 var CHIPS = ['Pintura', 'Materiales', 'Primer anti salitre', 'Mano de obra', 'Resane', 'Pared de otro tono', 'Impermeabilizante'];
 function pintaChips() {
@@ -694,17 +693,17 @@ function guardar(silencio) {
 }
 function abre(id) {
   var h = historial.find(function (x) { return x.id === id; }); if (!h) return;
-  q = copia(h.datos); escribir(K_BOR, q); llenaForma(); pintar(); cambiaTab('nueva'); window.scrollTo(0, 0);
+  q = copia(h.datos); escribir(K_BOR, q); llenaForma(); pintar(); cambiaTab('nueva', true); window.scrollTo(0, 0);
 }
 function duplica(id) {
   var h = historial.find(function (x) { return x.id === id; }); if (!h) return;
   q = copia(h.datos); q.id = aId(); q.folio = folioTxt(ajustes.folio); q.fecha = hoyISO(); q.estado = 'borrador'; q.motivo = ''; q.fechaEstado = null; q.guardada = false; q.firmaCliente = null; q.creada = new Date().toISOString();
-  escribir(K_BOR, q); llenaForma(); pintar(); cambiaTab('nueva'); window.scrollTo(0, 0); aviso('Cotización duplicada con folio nuevo.');
+  escribir(K_BOR, q); llenaForma(); pintar(); cambiaTab('nueva', true); window.scrollTo(0, 0); aviso('Cotización duplicada con folio nuevo.');
 }
 var pendienteBorrar = null;
 function borra(id) {
   if (pendienteBorrar !== id) { pendienteBorrar = id; aviso('Toca “Eliminar” otra vez para confirmar.'); setTimeout(function () { pendienteBorrar = null; }, 4000); return; }
-  historial = historial.filter(function (x) { return x.id !== id; }); escribir(K_HIST, historial); pendienteBorrar = null; pintaHistorial(); pintaClientes(); aviso('Cotización eliminada.');
+  historial = historial.filter(function (x) { return x.id !== id; }); escribir(K_HIST, historial); pendienteBorrar = null; if (q && q.id === id) resetea(); pintaHistorial(); pintaClientes(); aviso('Cotización eliminada.');
 }
 
 /* ---------- entrega de archivos ---------- */
@@ -766,7 +765,7 @@ async function accionPdf() {
   }
   var f = archivoParaCompartir(pdfCache.blob, nombre);
   if (f) {
-    try { await navigator.share({ files: [f], text: texto, title: 'Cotización ' + q.folio }); b.textContent = b.dataset.t; aviso('Listo.'); return; }
+    try { await navigator.share({ files: [f], text: texto, title: 'Cotización ' + q.folio }); b.textContent = b.dataset.t; terminaEnvio(); return; }
     catch (e) {
       if (e && e.name === 'AbortError') { b.textContent = b.dataset.t; aviso('Se canceló.'); return; }
       b.textContent = 'PDF listo: toca otra vez para enviarlo';
@@ -775,7 +774,9 @@ async function accionPdf() {
   }
   var r = await entregar(pdfCache.blob, nombre, texto);
   b.textContent = b.dataset.t;
-  aviso(r === 'cancelado' ? 'Se canceló.' : r === 'error' ? 'No se pudo guardar el PDF.' : 'Tu teléfono no permite compartir el archivo desde aquí. Se guardó el PDF: adjúntalo en WhatsApp con el clip (Documento).');
+  if (r === 'cancelado') { aviso('Se canceló.'); return; }
+  if (r === 'error') { aviso('No se pudo guardar el PDF.'); return; }
+  terminaEnvio('Se guardó el PDF: adjúntalo en WhatsApp con el clip (Documento).');
 }
 function csvTexto() {
   var cab = ['Folio', 'Fecha', 'Cliente', 'Teléfono', 'Domicilio', 'Tipo', 'Subtotal', 'IVA', 'ISR', 'Total', 'Anticipo', 'Saldo', 'Con factura', 'Estado', 'Motivo', 'Fecha del estado', 'Firmada'];
@@ -817,8 +818,7 @@ async function aceptaFirma() {
   var falla = !$('#mf-acepto').checked ? 'El cliente debe marcar que leyó y acepta.' : !nombre ? 'Escribe el nombre de quien firma.' : padCli.vacio() ? 'Falta la firma con el dedo.' : '';
   if (falla) { err.textContent = falla; err.hidden = false; return; }
   q.firmaCliente = { nombre: nombre, trazos: padCli.trazos(), fecha: new Date().toISOString(), codigo: await codigoVerif(q) };
-  q.estado = 'aceptada'; guardar(true); cierraFirma(); pintaResumen(); await pintar(); aviso('Cotización firmada. Ahora guarda o envía el PDF.');
-  $('#vista-doc').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  q.estado = 'aceptada'; guardar(true); cierraFirma(); resetea(); cambiaTab('historial'); aviso('Cotización firmada y guardada en el historial. Ahí puedes enviar el PDF.');
 }
 
 /* ---------- calendario ---------- */
@@ -852,12 +852,21 @@ function norm(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '
 function claveCliente(c) { var d = soloDigitos(c.tel); return d.length >= 10 ? 't' + d.slice(-10) : 'n' + norm(c.nombre); }
 function upsertCliente(x) {
   if (!x.cliente || !(x.cliente.nombre || '').trim()) return;
-  var k = claveCliente(x.cliente), c = clientes.find(function (z) { return z.clave === k; });
+  var k = claveCliente(x.cliente), cur = x.clienteId ? clientes.find(function (z) { return z.id === x.clienteId; }) : null;
+  if (cur && cur.origen === x.id) {
+    cur.nombre = x.cliente.nombre.trim(); cur.tel = x.cliente.tel || ''; cur.dom = x.cliente.dom || ''; cur.clave = k;
+    escribir(K_CLI, clientes); return;
+  }
+  var c = clientes.find(function (z) { return z.clave === k; });
   if (!c && k.charAt(0) === 't') { var kn = 'n' + norm(x.cliente.nombre); c = clientes.find(function (z) { return z.clave === kn; }); if (c) c.clave = k; }
-  if (!c) { c = { id: aId(), clave: k, nombre: x.cliente.nombre.trim(), tel: x.cliente.tel || '', dom: x.cliente.dom || '', notas: '', creado: hoyISO() }; clientes.unshift(c); }
+  if (!c) { c = { id: aId(), clave: k, nombre: x.cliente.nombre.trim(), tel: x.cliente.tel || '', dom: x.cliente.dom || '', notas: '', creado: hoyISO(), origen: x.id }; clientes.unshift(c); }
   else { if (!c.tel && x.cliente.tel) c.tel = x.cliente.tel; if (!c.dom && x.cliente.dom) c.dom = x.cliente.dom; }
   x.clienteId = c.id; escribir(K_CLI, clientes);
 }
+function autoguarda() { if ((q.estado || 'borrador') === 'borrador' && q.cliente.nombre.trim() && calc(q).sub > 0) guardar(true); }
+function resetea() { q = nueva(); escribir(K_BOR, q); llenaForma(); pintar(); window.scrollTo(0, 0); }
+function terminaEnvio(extra) { guardar(true); resetea(); cambiaTab('historial'); aviso('Enviada y guardada en el historial.' + (extra ? ' ' + extra : '')); }
+function estadoReabrir(id) { var h = historial.find(function (x) { return x.id === id; }); return h && h.datos.firmaCliente ? 'aceptada' : 'borrador'; }
 function backfillClientes() {
   var cambio = false;
   historial.forEach(function (h) { if (!h.datos.clienteId && h.datos.cliente && (h.datos.cliente.nombre || '').trim()) { upsertCliente(h.datos); cambio = true; } });
@@ -876,8 +885,8 @@ function filaCot(h) {
   var meta = esc(fechaLarga(h.fecha)) + ' · ' + money(h.total) + (d.cliente && d.cliente.dom ? ' · ' + esc(d.cliente.dom) : '');
   var extra = e === 'no_aceptada' ? '<div class="motivo">No aceptada' + (d.fechaEstado ? ' el ' + esc(fechaLarga(d.fechaEstado)) : '') + (d.motivo ? ' · ' + esc(d.motivo) : '') + '</div>'
     : e === 'terminada' && d.fechaEstado ? '<div class="motivo">Trabajo terminado el ' + esc(fechaLarga(d.fechaEstado)) + '</div>' : '';
-  var btns = '<button class="btn chico" data-abrir="' + id + '" type="button">Abrir</button><button class="btn chico" data-dup="' + id + '" type="button">Duplicar</button>'
-    + (e === 'borrador' ? '<button class="btn chico" data-no="' + id + '" type="button">No aceptada</button>' : '')
+  var btns = '<button class="btn chico" data-abrir="' + id + '" type="button">Abrir</button><button class="btn chico" data-pdf="' + id + '" type="button">Enviar PDF</button>'
+    + (e === 'borrador' || e === 'aceptada' ? '<button class="btn chico" data-no="' + id + '" type="button">No aceptada</button>' : '')
     + (e === 'aceptada' ? '<button class="btn chico" data-ter="' + id + '" type="button">Terminado</button>' : '')
     + (e === 'no_aceptada' ? '<button class="btn chico" data-reabrir="' + id + '" type="button">Reabrir</button>' : '')
     + '<button class="btn chico" data-borrar="' + id + '" type="button">Eliminar</button>';
@@ -898,7 +907,10 @@ function marcaEstado(id, estado, motivo) {
   var h = historial.find(function (x) { return x.id === id; }); if (!h) return;
   h.estado = estado; h.datos.estado = estado; h.datos.motivo = motivo || ''; h.datos.fechaEstado = estado === 'borrador' ? null : hoyISO();
   escribir(K_HIST, historial);
-  if (q && q.id === id) { q = copia(h.datos); escribir(K_BOR, q); llenaForma(); pintar(); }
+  if (q && q.id === id) {
+    if (estado === 'no_aceptada') { resetea(); cambiaTab('historial'); }
+    else { q = copia(h.datos); escribir(K_BOR, q); llenaForma(); pintar(); }
+  }
   pintaHistorial(); pintaClientes();
   aviso(estado === 'no_aceptada' ? 'Marcada como no aceptada. Sigue en el historial.' : estado === 'terminada' ? 'Trabajo marcado como terminado.' : 'Cotización reabierta como borrador.');
 }
@@ -915,7 +927,8 @@ function accionLista(e) {
   else if (a.hasAttribute('data-borrar')) borra(a.getAttribute('data-borrar'));
   else if (a.hasAttribute('data-no')) abreNo(a.getAttribute('data-no'));
   else if (a.hasAttribute('data-ter')) marcaEstado(a.getAttribute('data-ter'), 'terminada');
-  else if (a.hasAttribute('data-reabrir')) marcaEstado(a.getAttribute('data-reabrir'), 'borrador');
+  else if (a.hasAttribute('data-reabrir')) marcaEstado(a.getAttribute('data-reabrir'), estadoReabrir(a.getAttribute('data-reabrir')));
+  else if (a.hasAttribute('data-pdf')) { abre(a.getAttribute('data-pdf')); accionPdf(); }
 }
 
 function resumenCliente(c) {
@@ -956,7 +969,7 @@ function renderCliente(c) {
 function nuevaPara(id) {
   var c = clientes.find(function (z) { return z.id === id; }); if (!c) return;
   q = nueva(); q.cliente = { nombre: c.nombre, tel: c.tel, dom: c.dom }; q.clienteId = c.id;
-  escribir(K_BOR, q); llenaForma(); pintar(); cambiaTab('nueva'); window.scrollTo(0, 0); aviso('Cotización nueva para ' + c.nombre + '.');
+  escribir(K_BOR, q); llenaForma(); pintar(); cambiaTab('nueva', true); window.scrollTo(0, 0); aviso('Cotización nueva para ' + c.nombre + '.');
 }
 function csvDe(filas) { return '﻿' + filas.map(function (r) { return r.map(function (v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }).join(','); }).join('\n'); }
 function csvClientes() {
@@ -964,7 +977,8 @@ function csvClientes() {
 }
 
 /* ---------- navegación y ajustes ---------- */
-function cambiaTab(n) {
+function cambiaTab(n, conservar) {
+  if (n === 'nueva' && !conservar && q && q.guardada && (q.estado || 'borrador') !== 'borrador') resetea();
   ['nueva', 'historial', 'clientes', 'ajustes'].forEach(function (t) { $('#vista-' + t).hidden = t !== n; $('#tab-' + t).setAttribute('aria-selected', t === n ? 'true' : 'false'); });
   if (n === 'historial') pintaHistorial();
   if (n === 'clientes') { clienteAbierto = null; pintaClientes(); }
@@ -984,7 +998,7 @@ function cambioAjuste(e) {
 function arranca() {
   $('#logo-app').src = LOGO_BLANCO;
   var bor = leer(K_BOR, null);
-  q = bor && bor.partidas ? bor : nueva();
+  q = bor && bor.partidas && (bor.estado || 'borrador') === 'borrador' ? bor : nueva();
   pintaChips();
   padCli = lienzo($('#lienzo-cli')); padPj = lienzo($('#lienzo-pj'));
   backfillClientes(); llenaForma(); llenaAjustes(); pintaHistorial(); pintaClientes(); pintar();
@@ -996,8 +1010,8 @@ function arranca() {
   $('#btn-partida').addEventListener('click', function () { q.partidas.push({ c: '', n: 1, p: 0 }); pintaPartidas(); var ins = $$('#partidas .partida input[data-f="c"]'); if (ins.length) ins[ins.length - 1].focus(); });
   $('#btn-firma').addEventListener('click', abreFirma);
   $('#btn-pdf').addEventListener('click', accionPdf);
-  $('#btn-guardar').addEventListener('click', function () { if (!validaParaEnviar()) return; guardar(false); });
-  $('#btn-nueva').addEventListener('click', function () { q = nueva(); escribir(K_BOR, q); llenaForma(); pintar(); window.scrollTo(0, 0); aviso('Cotización nueva en blanco.'); });
+  
+  
   $('#btn-copia').addEventListener('click', function () { if (!q.guardada) guardar(true); duplica(q.id); });
   $('#mf-ok').addEventListener('click', aceptaFirma); $('#mf-cancela').addEventListener('click', cierraFirma); $('#mf-limpia').addEventListener('click', function () { padCli.limpia(); });
   $('#hist-lista').addEventListener('click', accionLista);
@@ -1005,7 +1019,7 @@ function arranca() {
   $('#h-buscar').addEventListener('input', function (e) { buscaH = e.target.value; pintaHistorial(); });
   $('#btn-no').addEventListener('click', function () { if (!q.cliente.nombre.trim()) { aviso('Escribe el nombre del cliente.'); return; } guardar(true); abreNo(q.id); });
   $('#btn-terminado').addEventListener('click', function () { marcaEstado(q.id, 'terminada'); });
-  $('#btn-reabrir').addEventListener('click', function () { marcaEstado(q.id, 'borrador'); });
+  $('#btn-reabrir').addEventListener('click', function () { marcaEstado(q.id, estadoReabrir(q.id)); });
   $('#mn-ok').addEventListener('click', aceptaNo); $('#mn-cancela').addEventListener('click', cierraNo);
   document.addEventListener('keydown', function (e) {
     var m = $('#modal-no'); if (m.hidden) return;
