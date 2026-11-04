@@ -262,7 +262,7 @@ details.avanzado summary{font-size:12.5px}
             <div class="campo"><label for="c-multa">Multa (% diario)</label><input id="c-multa" data-k="cond.multa" type="number" inputmode="decimal" min="0" step="0.1"></div>
             <div class="campo"><label for="c-iva">IVA (%)</label><input id="c-iva" data-k="cond.iva" type="number" inputmode="decimal" min="0" step="0.1"></div>
           </div>
-          <div class="campo" style="max-width:50%"><label for="c-isr">ISR (%)</label><input id="c-isr" data-k="cond.isr" type="number" inputmode="decimal" min="0" step="0.01"></div>
+          <div class="campo" style="max-width:50%"><label for="c-isr">ISR retenido (%)</label><input id="c-isr" data-k="cond.isr" type="number" inputmode="decimal" min="0" step="0.01"></div>
         </details>
       </div>
     </fieldset>
@@ -334,7 +334,7 @@ details.avanzado summary{font-size:12.5px}
         <div class="campo"><label for="a-gar">Garantía (meses)</label><input id="a-gar" data-a="garantia" type="number" inputmode="numeric" min="1"></div>
         <div class="campo"><label for="a-mul">Multa por día (% del saldo)</label><input id="a-mul" data-a="multa" type="number" inputmode="decimal" min="0" step="0.1"></div>
         <div class="campo"><label for="a-iva">IVA con factura (%)</label><input id="a-iva" data-a="iva" type="number" inputmode="decimal" min="0" step="0.1"></div>
-        <div class="campo"><label for="a-isr">ISR con factura (%)</label><input id="a-isr" data-a="isr" type="number" inputmode="decimal" min="0" step="0.01"></div>
+        <div class="campo"><label for="a-isr">ISR retenido con factura (%)</label><input id="a-isr" data-a="isr" type="number" inputmode="decimal" min="0" step="0.01"></div>
       </div>
       <div class="campo"><label for="a-msi">Meses sin intereses (condiciones)</label><textarea id="a-msi" data-a="msi"></textarea></div>
     </div>
@@ -460,7 +460,7 @@ function calc(x) {
   var sub = r2(x.partidas.reduce(function (a, p) { return a + num(p.n) * num(p.p); }, 0));
   var iva = x.factura ? r2(sub * num(x.cond.iva) / 100) : 0;
   var isr = x.factura ? r2(sub * num(x.cond.isr) / 100) : 0;
-  var total = r2(sub + iva + isr);
+  var total = r2(sub + iva - isr);
   var anticipo = r2(total * num(x.anticipo) / 100);
   return { sub: sub, iva: iva, isr: isr, total: total, anticipo: anticipo, saldo: r2(total - anticipo) };
 }
@@ -493,7 +493,7 @@ function clausulas(x, c) {
   var g = mesesTxt(x.cond.garantia), m = num(x.cond.multa), ini = fechaLarga(x.inicio) || 'la fecha que se acuerde', dias = num(x.dias);
   var duracion = dias ? 'se estima en ' + dias + (dias === 1 ? ' día' : ' días') + ' de trabajo (no se cuentan domingos)' : 'tendrá la duración de trabajo que se acuerde (no se cuentan domingos)';
   var fac = x.factura
-    ? 'Esta cotización incluye factura: se suman IVA (' + num(x.cond.iva) + ' %) e ISR (' + num(x.cond.isr) + ' %). Solicítela con sus datos fiscales al pagar el anticipo.'
+    ? 'Esta cotización incluye factura: se suma el IVA (' + num(x.cond.iva) + ' %) y se descuenta el ISR retenido (' + num(x.cond.isr) + ' %). Solicítela con sus datos fiscales al pagar el anticipo.'
     : 'Esta cotización es sin factura y no suma impuestos.';
   return [
     ['Qué es este documento', 'Esta cotización describe el trabajo, el precio y las condiciones. Cuando usted la firma, queda aceptada y obliga a ambas partes como contrato de prestación de servicios.'],
@@ -572,7 +572,7 @@ function hojaCotizacion(x, c) {
     '<div class="d-dos"><div><div class="d-mono">Incluye</div>' + lista(x.incluye) + '</div><div><div class="d-mono">No incluye</div>' + lista(x.noIncluye) + '</div></div>' +
     '<table class="d-tabla"><thead><tr><th>CONCEPTO</th><th class="n" style="width:60px">CANT.</th><th class="n" style="width:110px">PRECIO</th><th class="n" style="width:120px">IMPORTE</th></tr></thead><tbody>' + filas + '</tbody></table>' +
     '<div class="d-tot"><div><span>Subtotal</span><span>' + money(c.sub) + '</span></div>' +
-    (x.factura ? '<div><span>IVA ' + num(x.cond.iva) + ' %</span><span>' + money(c.iva) + '</span></div><div><span>ISR ' + num(x.cond.isr) + ' %</span><span>' + money(c.isr) + '</span></div>' : '<div><span>Sin factura</span><span>sin impuestos</span></div>') +
+    (x.factura ? '<div><span>IVA ' + num(x.cond.iva) + ' %</span><span>' + money(c.iva) + '</span></div><div><span>ISR retenido ' + num(x.cond.isr) + ' %</span><span>' + money(-c.isr) + '</span></div>' : '<div><span>Sin factura</span><span>sin impuestos</span></div>') +
     '<div class="g"><span>Total</span><span>' + money(c.total) + '</span></div></div>' +
     '<div class="d-pago"><div><div class="d-mono">Anticipo ' + num(x.anticipo) + ' %</div><strong>' + money(c.anticipo) + '</strong><div>Para apartar la fecha</div></div>' +
     '<div><div class="d-mono">Saldo</div><strong>' + money(c.saldo) + '</strong><div>El día que se termine el trabajo</div></div>' +
@@ -676,13 +676,13 @@ function pintaPartidas() {
 function pintaResumen() {
   var c = calc(q), ent = entrega(q);
   var filas = [['Subtotal', money(c.sub)]];
-  if (q.factura) { filas.push(['IVA ' + num(q.cond.iva) + ' %', money(c.iva)]); filas.push(['ISR ' + num(q.cond.isr) + ' %', money(c.isr)]); }
+  if (q.factura) { filas.push(['IVA ' + num(q.cond.iva) + ' %', money(c.iva)]); filas.push(['ISR retenido ' + num(q.cond.isr) + ' %', money(-c.isr)]); }
   var h = filas.map(function (f) { return '<span class="l">' + f[0] + '</span><span class="v">' + f[1] + '</span>'; }).join('');
   h += '<hr><span class="l">Total</span><span class="t v">' + money(c.total) + '</span>';
   h += '<span class="l">Anticipo ' + num(q.anticipo) + ' %</span><span class="v">' + money(c.anticipo) + '</span>';
   h += '<span class="l">Saldo al terminar</span><span class="v">' + money(c.saldo) + '</span>';
   $('#resumen').innerHTML = h;
-  $('#factura-nota').textContent = q.factura ? 'Se suman IVA ' + num(q.cond.iva) + ' % e ISR ' + num(q.cond.isr) + ' %.' : 'Sin factura no se suman impuestos.';
+  $('#factura-nota').textContent = q.factura ? 'Se suma el IVA ' + num(q.cond.iva) + ' % y se resta el ISR retenido ' + num(q.cond.isr) + ' %.' : 'Sin factura no se suman impuestos.';
   $('#entrega-nota').textContent = ent ? 'Entrega estimada: ' + fechaLarga(ent) + ' (no cuenta domingos; se recorre por clima).' : 'Con fecha de inicio y días de trabajo se calcula la entrega estimada.';
   var est = q.estado || 'borrador', firmada = est === 'aceptada' || est === 'terminada', bloqueada = firmada || est === 'no_aceptada';
   $('#campos').disabled = bloqueada;
@@ -837,7 +837,7 @@ async function accionCompartir() {
   catch (e) { aviso(e && e.name === 'AbortError' ? 'Se canceló.' : 'El PDF está listo. Toca otra vez “Compartir PDF con el menú”.'); }
 }
 function csvTexto() {
-  var cab = ['Folio', 'Fecha', 'Cliente', 'Teléfono', 'Domicilio', 'Tipo', 'Subtotal', 'IVA', 'ISR', 'Total', 'Anticipo', 'Saldo', 'Con factura', 'Estado', 'Motivo', 'Fecha del estado', 'Firmada'];
+  var cab = ['Folio', 'Fecha', 'Cliente', 'Teléfono', 'Domicilio', 'Tipo', 'Subtotal', 'IVA', 'ISR retenido', 'Total', 'Anticipo', 'Saldo', 'Con factura', 'Estado', 'Motivo', 'Fecha del estado', 'Firmada'];
   var f = historial.map(function (h) { var d = h.datos, c = calc(d); return [d.folio, d.fecha, d.cliente.nombre, d.cliente.tel, d.cliente.dom, d.tipo, c.sub, c.iva, c.isr, c.total, c.anticipo, c.saldo, d.factura ? 'Sí' : 'No', d.estado, d.motivo || '', d.fechaEstado || '', d.firmaCliente ? d.firmaCliente.fecha : '']; });
   return '﻿' + [cab].concat(f).map(function (r) { return r.map(function (v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }).join(','); }).join('\n');
 }
@@ -925,6 +925,11 @@ function autoguarda() { if ((q.estado || 'borrador') === 'borrador' && q.cliente
 function resetea() { q = nueva(); escribir(K_BOR, q); llenaForma(); pintar(); window.scrollTo(0, 0); }
 function terminaEnvio(extra) { guardar(true); resetea(); cambiaTab('historial'); aviso('Enviada y guardada en el historial.' + (extra ? ' ' + extra : '')); }
 function estadoReabrir(id) { var h = historial.find(function (x) { return x.id === id; }); return h && h.datos.firmaCliente ? 'aceptada' : 'borrador'; }
+function recalculaTotales() {
+  var cambio = false;
+  historial.forEach(function (h) { var tt = calc(h.datos).total; if (h.total !== tt) { h.total = tt; cambio = true; } });
+  if (cambio) escribir(K_HIST, historial);
+}
 function backfillClientes() {
   var cambio = false;
   historial.forEach(function (h) { if (!h.datos.clienteId && h.datos.cliente && (h.datos.cliente.nombre || '').trim()) { upsertCliente(h.datos); cambio = true; } });
@@ -1125,7 +1130,7 @@ function xlsxFactura(h, o) {
     aoa.push([num(p.n) || 0, 'E48 - Unidad de servicio', p.c, num(p.p), r2(num(p.n) * num(p.p)), '']);
   });
   aoa.push([], ['', '', '', 'Subtotal', c.sub]);
-  if (d.factura) { aoa.push(['', '', '', 'IVA ' + num(d.cond.iva) + ' %', c.iva], ['', '', '', 'ISR ' + num(d.cond.isr) + ' % (según cotización)', c.isr]); }
+  if (d.factura) { aoa.push(['', '', '', 'IVA ' + num(d.cond.iva) + ' %', c.iva], ['', '', '', 'ISR retenido ' + num(d.cond.isr) + ' %', -c.isr]); }
   else aoa.push(['', '', '', 'Cotización sin factura', 0]);
   aoa.push(['', '', '', 'Total', c.total], [], ['Descripción del servicio', d.servicio || ''], ['Pintura', d.marca || ''], ['Domicilio de la obra', d.cliente.dom || '']);
   var ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -1179,7 +1184,7 @@ function arranca() {
   q = bor && bor.partidas && (bor.estado || 'borrador') === 'borrador' ? bor : nueva();
   pintaChips();
   padCli = lienzo($('#lienzo-cli')); padPj = lienzo($('#lienzo-pj'));
-  backfillClientes(); llenaForma(); llenaAjustes(); pintaHistorial(); pintaClientes(); pintar();
+  backfillClientes(); recalculaTotales(); llenaForma(); llenaAjustes(); pintaHistorial(); pintaClientes(); pintar();
 
   ['nueva', 'historial', 'clientes', 'ajustes'].forEach(function (t) { $('#tab-' + t).addEventListener('click', function () { cambiaTab(t); }); });
   $('#forma').addEventListener('input', cambioForma); $('#forma').addEventListener('change', cambioForma);
