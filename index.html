@@ -802,8 +802,20 @@ async function accionCal() {
   if (!q.inicio) { aviso('Pon la fecha de inicio para crear la cita.'); return; }
   if (!validaParaEnviar()) return;
   guardar(true);
-  var r = await entregar(new Blob([icsTexto(q)], { type: 'text/calendar' }), nombreArchivo('ics'), 'Cita ' + q.folio);
-  aviso(r === 'cancelado' ? 'Se canceló.' : r === 'error' ? 'No se pudo crear la cita.' : 'Cita lista: ábrela para agregarla a tu calendario con sus recordatorios.');
+  var ics = icsTexto(q);
+  var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var app = window.navigator.standalone === true || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  if (ios && !app) {
+    aviso('Se abrirá la cita: toca “Agregar todos” abajo para guardarla en tu calendario.');
+    setTimeout(function () { location.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics); }, 500);
+    return;
+  }
+  var r = await entregar(new Blob([ics], { type: 'text/calendar' }), nombreArchivo('ics'), 'Cita ' + q.folio);
+  aviso(r === 'cancelado' ? 'Se canceló.'
+    : r === 'error' ? 'No se pudo crear la cita.'
+    : r === 'compartido' ? 'Elige Calendario si aparece; si no, toca Guardar en Archivos y ábrelo desde ahí para tocar “Agregar todos”.'
+    : ios ? 'Se guardó el archivo de la cita. Ábrelo desde la app Archivos (Descargas) y toca “Agregar todos”.'
+    : 'Se descargó el archivo de la cita. Ábrelo para agregarla a tu calendario.');
 }
 
 /* ---------- navegación y ajustes ---------- */
