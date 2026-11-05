@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="pj-build" content="44bed6d33f">
+<meta name="pj-fecha" content="2026-11-05 00:07">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -201,6 +203,13 @@ details.avanzado summary{font-size:12.5px}
 .sello.hecho{color:#fff}
 .quita,.firma-lienzo{background:#fff}
 .partida select{background:#fff}
+html{overscroll-behavior-y:contain}
+/* jalar para actualizar */
+#ptr{position:fixed;top:0;left:0;right:0;height:0;overflow:hidden;z-index:80;background:#1D2D3D;color:#F2F2F3;display:flex;align-items:center;justify-content:center;gap:10px;font:500 12.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;transition:height .18s ease;white-space:nowrap}
+#ptr .ptr-i{width:16px;height:16px;border:2px solid #94BCE3;border-top-color:transparent;border-radius:50%;flex:none}
+#ptr.gira .ptr-i{animation:ptrgira .8s linear infinite}
+@keyframes ptrgira{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){#ptr.gira .ptr-i{animation:none}#ptr{transition:none}}
 
 /* ===== Finanzas: estilo claro del dashboard (tarjetas plano, barras rayadas, tarjeta oscura) ===== */
 body.fin-claro{background:#f2f2f3}
@@ -480,6 +489,12 @@ body.fin-claro{background:#f2f2f3}
       <div class="campo"><label for="a-msi">Meses sin intereses (condiciones)</label><textarea id="a-msi" data-a="msi"></textarea></div>
     </div>
     <div class="panel">
+      <h2>Versión de la app</h2>
+      <p class="nota" id="ver-txt"></p>
+      <p class="nota">Para estar seguro de tener la última versión, jala la pantalla hacia abajo desde arriba, o toca el botón.</p>
+      <button class="btn chico" id="btn-actualiza" type="button">Buscar actualización</button>
+    </div>
+    <div class="panel">
       <h2>Firma de la empresa</h2>
       <p class="nota">Dibújala una sola vez; saldrá en todas las cotizaciones firmadas.</p>
       <canvas class="firma-lienzo" id="lienzo-pj" width="600" height="220" aria-label="Firma de la empresa"></canvas>
@@ -555,6 +570,8 @@ body.fin-claro{background:#f2f2f3}
     </div>
   </div>
 </div>
+
+<div id="ptr" role="status" aria-live="polite"><span class="ptr-i" aria-hidden="true"></span><span id="ptr-t"></span></div>
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 <div class="oculto-export" id="oculto-export" aria-hidden="true"></div>
@@ -1738,6 +1755,80 @@ function fInit() {
   });
 }
 
+/* ---------- actualización: jalar la pantalla hacia abajo para buscar la versión más nueva ---------- */
+var actUltima = 0, actOcupada = false;
+function actVersion() { var m = document.querySelector('meta[name="pj-build"]'); return m ? m.getAttribute('content') : ''; }
+function actFecha() { var m = document.querySelector('meta[name="pj-fecha"]'); return m ? m.getAttribute('content') : ''; }
+
+/* compara la versión de esta pantalla con la que está publicada: 'nueva' | 'igual' | 'sin-red' | 'local' */
+function actBusca() {
+  var actual = actVersion();
+  if (!actual) return Promise.resolve('local');
+  return fetch(location.pathname + '?comprobar=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : Promise.reject(new Error('http')); }).then(function (t) {
+    var m = t.match(/<meta name="pj-build" content="([^"]+)"/);
+    actUltima = Date.now();
+    return m && m[1] !== actual ? 'nueva' : 'igual';
+  }).catch(function () { return 'sin-red'; });
+}
+/* se guarda el borrador y se recarga con la copia nueva */
+function actAplica() {
+  try { escribir(K_BOR, q); autoguarda(); } catch (e) {}
+  return fetch(location.pathname, { cache: 'reload' }).catch(function () {}).then(function () { location.reload(); });
+}
+function actPinta(alto, txt, girando, arrastrando) {
+  var el = $('#ptr'); if (!el) return;
+  el.style.transition = arrastrando ? 'none' : ''; el.style.height = alto + 'px'; el.className = girando ? 'gira' : ''; $('#ptr-t').textContent = txt;
+}
+function actRevisa() {
+  if (actOcupada) return Promise.resolve();
+  actOcupada = true;
+  actPinta(64, 'Buscando actualización…', true);
+  var ini = Date.now();
+  return actBusca().then(function (r) {
+    return new Promise(function (ok) { setTimeout(function () { ok(r); }, Math.max(0, 700 - (Date.now() - ini))); });
+  }).then(function (r) {
+    if (r === 'nueva') { actPinta(64, 'Versión nueva. Actualizando…', true); return actAplica(); }
+    actPinta(64, r === 'igual' ? 'Ya tienes la última versión' : r === 'sin-red' ? 'Sin conexión. Intenta otra vez' : 'Esta copia no se actualiza sola', false);
+    return new Promise(function (ok) { setTimeout(function () { actPinta(0, '', false); actOcupada = false; ok(); }, 1400); });
+  });
+}
+function actGesto() {
+  var y0 = 0, x0 = 0, activo = false, dy = 0, UMBRAL = 56;
+  document.addEventListener('touchstart', function (e) {
+    activo = false; dy = 0;
+    if (actOcupada || e.touches.length !== 1) return;
+    if ((window.pageYOffset || document.documentElement.scrollTop) > 0) return;
+    if (document.querySelector('.modal:not([hidden])')) return;
+    if (e.target.closest && e.target.closest('canvas, input, textarea, select, .vista-doc')) return;
+    y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; activo = true;
+  }, { passive: true });
+  document.addEventListener('touchmove', function (e) {
+    if (!activo) return;
+    var t = e.touches[0]; dy = t.clientY - y0;
+    if (dy <= 0) { activo = false; actPinta(0, '', false); return; }
+    if (Math.abs(t.clientX - x0) > dy) return;
+    if (e.cancelable) e.preventDefault();
+    var h = Math.min(dy * 0.5, 80);
+    actPinta(h, h >= UMBRAL ? 'Suelta para actualizar' : 'Jala para actualizar', false, true);
+  }, { passive: false });
+  document.addEventListener('touchend', function () {
+    if (!activo) return; activo = false;
+    if (dy * 0.5 >= UMBRAL) actRevisa(); else actPinta(0, '', false);
+  }, { passive: true });
+}
+/* al abrir la app o volver a ella, avisa si hay una versión nueva (sin recargar sola) */
+function actAuto() {
+  if (actOcupada || Date.now() - actUltima < 300000) return;
+  actBusca().then(function (r) { if (r === 'nueva') aviso('Hay una versión nueva. Jala la pantalla hacia abajo para actualizar.'); });
+}
+function actInit() {
+  actGesto();
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') actAuto(); });
+  var v = $('#ver-txt'); if (v) v.textContent = actFecha() ? 'Versión del ' + actFecha() : 'Copia local: no se actualiza sola';
+  var b = $('#btn-actualiza'); if (b) b.addEventListener('click', function () { window.scrollTo(0, 0); actRevisa(); });
+  setTimeout(actAuto, 4000);
+}
+
 
 /* ---------- navegación y ajustes ---------- */
 function cambiaTab(n, conservar) {
@@ -1766,7 +1857,7 @@ function arranca() {
   q = bor && bor.partidas && (bor.estado || 'borrador') === 'borrador' ? bor : nueva();
   pintaChips();
   padCli = lienzo($('#lienzo-cli')); padPj = lienzo($('#lienzo-pj'));
-  backfillClientes(); recalculaTotales(); llenaForma(); llenaAjustes(); pintaHistorial(); pintaClientes(); pintar(); fInit();
+  backfillClientes(); recalculaTotales(); llenaForma(); llenaAjustes(); pintaHistorial(); pintaClientes(); pintar(); fInit(); actInit();
 
   ['nueva', 'historial', 'clientes', 'fin', 'ajustes'].forEach(function (t) { $('#tab-' + t).addEventListener('click', function () { cambiaTab(t); }); });
   $('#forma').addEventListener('input', cambioForma); $('#forma').addEventListener('change', cambioForma);
