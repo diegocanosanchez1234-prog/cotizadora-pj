@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="cbf26f8e0e">
-<meta name="pj-fecha" content="2026-11-05 00:33">
+<meta name="pj-build" content="4dce73b9ab">
+<meta name="pj-fecha" content="2026-11-05 00:42">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -212,6 +212,7 @@ html{overscroll-behavior-y:contain}
 @media (prefers-reduced-motion:reduce){#ptr.gira .ptr-i{animation:none}#ptr{transition:none}}
 .campo[hidden]{display:none}
 #modal-fin .f-scan{border:1px dashed #5980A6;padding:12px;margin-bottom:16px;background:#fff}
+#modal-fin .btn[aria-pressed="true"]{background:#1D2D3D;border-color:#1D2D3D;color:#f2f2f3}
 
 /* ===== Finanzas: estilo claro del dashboard (tarjetas plano, barras rayadas, tarjeta oscura) ===== */
 body.fin-claro{background:#f2f2f3}
@@ -1688,7 +1689,7 @@ function fFormGasto() {
     '<p class="nota" style="margin:8px 0 0">Con factura cuenta el IVA y baja lo que pagas de IVA. Sin factura es no deducible: baja tu neto, pero no baja impuestos.</p></div>' +
     '<div class="campo"><label for="fm-obra">Obra (opcional)</label><select id="fm-obra">' + fOpcObras('') + '</select></div>' +
     '<div class="campo"><label for="fm-total">Total pagado (con IVA)</label><input id="fm-total" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Lo que dice el ticket"></div>' +
-    '<div class="campo" id="fm-ivabox" hidden><label for="fm-iva">IVA de la factura</label><input id="fm-iva" type="number" inputmode="decimal" min="0" step="0.01" placeholder="IVA que viene en la factura"><button type="button" class="btn chico" data-iva8="1" style="margin-top:8px">Calcular IVA al ' + (num(ajustes.iva) || 8) + ' %</button></div>' +
+    '<div class="campo" id="fm-ivabox" hidden><label for="fm-iva">IVA de la factura</label><input id="fm-iva" type="number" inputmode="decimal" min="0" step="0.01" placeholder="IVA que viene en la factura"><div class="f-dos" style="margin-top:8px"><button type="button" class="btn chico" data-iva="8" aria-pressed="false">Calcular IVA al 8 %</button><button type="button" class="btn chico" data-iva="16" aria-pressed="false">Calcular IVA al 16 %</button></div></div>' +
     '<input type="hidden" id="fm-uuid">';
   fAbreModal('Registrar gasto', cuerpo, 'Guardar gasto', function () {
     var total = num(fv('total')); if (!(total > 0)) { aviso('Escribe el total pagado.'); return false; }
@@ -1759,7 +1760,8 @@ function fInit() {
     var c = e.target.closest('.f-ch2 button');
     if (c) { var g = c.parentNode; if (g.hasAttribute('data-multi')) c.setAttribute('aria-pressed', c.getAttribute('aria-pressed') === 'true' ? 'false' : 'true'); else { $$('button', g).forEach(function (x) { x.setAttribute('aria-pressed', 'false'); }); c.setAttribute('aria-pressed', 'true'); }
       if (g.getAttribute('data-grupo') === 'fac') { var box = $('#fm-ivabox'); if (box) box.hidden = c.getAttribute('data-v') !== 'si'; } return; }
-    if (e.target.closest('[data-iva8]')) { var t = num(fv('total')), r = (num(ajustes.iva) || 8) / 100; if (t > 0) $('#fm-iva').value = r2(t - t / (1 + r)); else aviso('Primero escribe el total.'); }
+    var bi = e.target.closest('[data-iva]');
+    if (bi) { if (!(num(fv('total')) > 0)) { aviso('Primero escribe el total.'); return; } fMarcaTasa(+bi.getAttribute('data-iva')); }
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('#modal-fin').hidden) fCierraModal(); });
   $('#fm-cancela').addEventListener('click', fCierraModal);
@@ -1845,7 +1847,7 @@ function fFechaValida(y, m, d) {
   return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
 }
 function fParseTicket(texto) {
-  var lineas = String(texto || '').split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean), r = { total: 0, iva: 0, fecha: '', proveedor: '' };
+  var lineas = String(texto || '').split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean), r = { total: 0, iva: 0, fecha: '', proveedor: '', tasa: 0 };
   var todos = [], conTotal = [];
   lineas.forEach(function (l) {
     var ms = fMontos(l); todos = todos.concat(ms);
@@ -1856,6 +1858,10 @@ function fParseTicket(texto) {
   lineas.forEach(function (l) { if (/\bi\.?\s?v\.?\s?a\b/i.test(l)) ivas = ivas.concat(fMontos(l)); });
   ivas = ivas.filter(function (v) { return r.total && v < r.total * 0.25 && v !== r.total; });
   r.iva = ivas.length ? ivas[ivas.length - 1] : 0;
+  /* tasa: la que diga el ticket junto a IVA (8 % o 16 %); si no la dice, se deduce del IVA contra el total */
+  var mt;
+  lineas.forEach(function (l) { if (!r.tasa && /\bi\.?\s?v\.?\s?a\b/i.test(l) && (mt = l.match(/\b(16|8)(?:[.,]0+)?\s*%/))) r.tasa = +mt[1]; });
+  if (!r.tasa && r.iva > 0 && r.total > r.iva) { var rz = r.iva / (r.total - r.iva); r.tasa = Math.abs(rz - 0.16) < 0.012 ? 16 : Math.abs(rz - 0.08) < 0.008 ? 8 : 0; }
   var tx = lineas.join('\n'), m;
   var re1 = /(\d{1,2})\s*[\/\-.]\s*(\d{1,2})\s*[\/\-.]\s*(\d{2,4})/g;
   while (!r.fecha && (m = re1.exec(tx))) r.fecha = fFechaValida(+m[3], +m[2], +m[1]);
@@ -1875,6 +1881,12 @@ function fMarcaChip(grupo, valor) {
   $$('#fm-cuerpo [data-grupo="' + grupo + '"] button').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-v') === valor ? 'true' : 'false'); });
   if (grupo === 'fac') { var box = $('#fm-ivabox'); if (box) box.hidden = valor !== 'si'; }
 }
+/* los botones de 8 % y 16 %: el activo queda marcado y el IVA se recalcula si cambia el total */
+function fMarcaTasaBoton(t) { $$('#fm-cuerpo [data-iva]').forEach(function (b) { b.setAttribute('aria-pressed', +b.getAttribute('data-iva') === t ? 'true' : 'false'); }); }
+function fMarcaTasa(t) {
+  var total = num(fv('total')); fMarcaTasaBoton(t);
+  if (total > 0) $('#fm-iva').value = r2(total - total / (1 + t / 100));
+}
 function fScanEstado(t) { var e = $('#fm-scan'); if (e) e.textContent = t; }
 function fScanAplica(r) {
   var p = r.texto ? fParseTicket(r.texto) : {}, q = r.qr, hallado = [], falta = [], total = q && q.total > 0 ? q.total : p.total;
@@ -1883,7 +1895,13 @@ function fScanAplica(r) {
   var prov = p.proveedor || ''; if (q && q.rfc) prov = (prov ? prov + ' · ' : '') + 'RFC ' + q.rfc;
   if (prov) { $('#fm-prov').value = prov; hallado.push('proveedor'); } else falta.push('el proveedor');
   if (q) { $('#fm-uuid').value = q.uuid; fMarcaChip('fac', 'si'); hallado.push('factura por su código QR'); }
-  if (p.iva > 0) { $('#fm-iva').value = p.iva; hallado.push('IVA ' + money(p.iva)); }
+  var tasa = p.tasa || 0, iva = p.iva || 0;
+  if (tasa && total) {
+    var esperado = r2(total - total / (1 + tasa / 100));
+    if (!(iva > 0) || Math.abs(iva - esperado) > Math.max(1, esperado * 0.05)) iva = esperado;   // si lo leído no cuadra, manda la tasa
+  }
+  if (iva > 0) { $('#fm-iva').value = iva; if (tasa) fMarcaTasaBoton(tasa); hallado.push('IVA ' + money(iva) + (tasa ? ' al ' + tasa + ' %' : '')); }
+  else falta.push('el IVA');
   fScanEstado((hallado.length ? 'Leí: ' + hallado.join(', ') + '. ' : 'No pude leer datos en la foto. ') + (falta.length ? 'No encontré ' + falta.join(' ni ') + '. ' : '') + 'Revisa todo y elige si se facturó.');
   var det = $('#fm-ocr'); if (det) { det.hidden = !r.texto; var pre = $('pre', det); if (pre) pre.textContent = r.texto || ''; }
 }
@@ -1904,6 +1922,10 @@ function fFotoInit() {
   c.addEventListener('click', function (e) {
     var b = e.target.closest('[data-scan]'); if (!b) return;
     var inp = $(b.getAttribute('data-scan') === 'camara' ? '#fm-foto-cam' : '#fm-foto-gal'); if (inp) inp.click();
+  });
+  c.addEventListener('input', function (e) {
+    if (e.target.id === 'fm-total') { var p = $('#fm-cuerpo [data-iva][aria-pressed="true"]'); if (p && num(e.target.value) > 0) fMarcaTasa(+p.getAttribute('data-iva')); }
+    if (e.target.id === 'fm-iva') $$('#fm-cuerpo [data-iva]').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
   });
   c.addEventListener('change', function (e) {
     if (e.target.id !== 'fm-foto-cam' && e.target.id !== 'fm-foto-gal') return;
