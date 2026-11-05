@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="4dce73b9ab">
-<meta name="pj-fecha" content="2026-11-05 00:42">
+<meta name="pj-build" content="96fc462d2a">
+<meta name="pj-fecha" content="2026-11-05 13:13">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -492,6 +492,11 @@ body.fin-claro{background:#f2f2f3}
       <div class="campo"><label for="a-msi">Meses sin intereses (condiciones)</label><textarea id="a-msi" data-a="msi"></textarea></div>
     </div>
     <div class="panel">
+      <h2>Reseñas de clientes</h2>
+      <p class="nota">Cuando marcas un trabajo como terminado, la app prepara un mensaje de WhatsApp para pedir la reseña. Pega aquí el enlace directo de reseñas de tu perfil de Google (Google Business: Pedir reseñas > Copiar enlace).</p>
+      <div class="campo"><label for="a-resena">Enlace de reseñas de Google</label><input id="a-resena" data-a="resenaUrl" type="url" autocomplete="off" autocapitalize="off" placeholder="https://g.page/r/…/review"></div>
+    </div>
+    <div class="panel">
       <h2>Versión de la app</h2>
       <p class="nota" id="ver-txt"></p>
       <p class="nota">Para estar seguro de tener la última versión, jala la pantalla hacia abajo desde arriba, o toca el botón.</p>
@@ -610,7 +615,7 @@ function leer(k, def) { try { var v = localStorage.getItem(k); return v ? JSON.p
 function escribir(k, v) { memoria[k] = v; try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
 
 /* ---------- datos ---------- */
-var AJ0 = { representante: 'Jesús Cano Mata', tel: '656 312 9242', correo: 'pintoresjuarez1@gmail.com', ciudad: 'Cd. Juárez, Chih.', folio: 1, vigencia: 20, anticipo: 50, garantia: 1, multa: 1, iva: 8, isr: 1.25, msi: 'Consulte plazos y tarjetas participantes.', firma: null };
+var AJ0 = { representante: 'Jesús Cano Mata', tel: '656 312 9242', correo: 'pintoresjuarez1@gmail.com', ciudad: 'Cd. Juárez, Chih.', folio: 1, vigencia: 20, anticipo: 50, garantia: 1, multa: 1, iva: 8, isr: 1.25, msi: 'Consulte plazos y tarjetas participantes.', firma: null, resenaUrl: '' };
 var ajustes = Object.assign({}, AJ0, leer(K_AJ, {}));
 var historial = leer(K_HIST, []);
 var clientes = leer(K_CLI, []);
@@ -1140,6 +1145,7 @@ function filaCot(h) {
     + (e === 'borrador' || e === 'aceptada' ? '<button class="btn chico" data-no="' + id + '" type="button">No aceptada</button>' : '')
     + (e === 'aceptada' ? '<button class="btn chico" data-ter="' + id + '" type="button">Terminado</button>' : '')
     + (e === 'aceptada' || e === 'terminada' ? '<button class="btn chico" data-fact="' + id + '" type="button">Datos de factura</button>' : '')
+    + (e === 'terminada' ? '<button class="btn chico" data-resena="' + id + '" type="button">' + (d.resenaEnviada ? 'Reseña pedida ✓' : 'Pedir reseña') + '</button>' : '')
     + (e === 'no_aceptada' ? '<button class="btn chico" data-reabrir="' + id + '" type="button">Reabrir</button>' : '')
     + '<button class="btn chico" data-borrar="' + id + '" type="button">Eliminar</button>';
   return '<div class="item"><div class="cab"><b>' + esc(h.folio) + ' · ' + esc(h.cliente || 'Sin nombre') + '</b><span class="sello' + clase + '">' + ETQ[e] + '</span></div><div class="meta">' + meta + '</div>' + extra + '<div class="acc">' + btns + '</div></div>';
@@ -1165,6 +1171,7 @@ function marcaEstado(id, estado, motivo) {
   }
   pintaHistorial(); pintaClientes();
   aviso(estado === 'no_aceptada' ? 'Marcada como no aceptada. Sigue en el historial.' : estado === 'terminada' ? 'Trabajo marcado como terminado.' : 'Cotización reabierta como borrador.');
+  if (estado === 'terminada') setTimeout(function () { abreResena(id); }, 250);
 }
 function abreNo(id) {
   noId = id; disparadorNo = document.activeElement; $('#mn-motivo').value = ''; $('#mn-nota').value = '';
@@ -1182,6 +1189,7 @@ function accionLista(e) {
   else if (a.hasAttribute('data-reabrir')) marcaEstado(a.getAttribute('data-reabrir'), estadoReabrir(a.getAttribute('data-reabrir')));
   else if (a.hasAttribute('data-pdf')) { abre(a.getAttribute('data-pdf')); accionCompartir(); }
   else if (a.hasAttribute('data-fact')) abreFact(a.getAttribute('data-fact'));
+  else if (a.hasAttribute('data-resena')) abreResena(a.getAttribute('data-resena'));
 }
 
 function resumenCliente(c) {
@@ -1626,7 +1634,7 @@ function fVistaSueldos() {
     '<div class="f-acc"><button type="button" class="f-b1" data-fa="pago">Registrar pago</button><button type="button" class="f-b2" data-fa="llenar">Marcar días</button></div></div>';
   var mios = pagos.filter(function (x) { return x.trabajador === w.id; }).sort(function (a, b) { return String(b.fecha).localeCompare(String(a.fecha)); }).slice(0, 6);
   h += fMarcos('<div class="f-th">Pagos de ' + esc(String(w.nombre).split(' ')[0]) + '</div>' + (mios.length ? '<div class="f-lst">' + mios.map(function (r) {
-    var conf = finConfirma === 'Pagos|' + r.id; return '<div>' + esc(r.nota || 'Pago') + '<div class="m">' + esc(fFechaCorta(r.fecha)) + '</div></div><span class="v">' + money(r.monto) + '</span><button type="button" class="f-x' + (conf ? ' conf' : '') + '" data-fa="del" data-hoja="Pagos" data-id="' + esc(r.id) + '" aria-label="Quitar pago">' + (conf ? '¿Sí?' : '×') + '</button>'; }).join('') + '</div>' : '<div class="f-nota" style="margin-top:8px">Aún no hay pagos registrados.</div>'));
+    var conf = finConfirma === 'Pagos|' + r.id; return '<div>' + esc(r.nota || 'Pago') + '<div class="m">' + esc(fFechaCorta(r.fecha)) + '</div></div><span class="v">' + money(r.monto) + '</span><span style="display:flex;gap:6px"><button type="button" class="f-mini" style="padding:6px 9px;font-size:12px" data-fa="recibo" data-id="' + esc(r.id) + '">Recibo' + (r.reciboEnviado ? ' ✓' : '') + '</button><button type="button" class="f-x' + (conf ? ' conf' : '') + '" data-fa="del" data-hoja="Pagos" data-id="' + esc(r.id) + '" aria-label="Quitar pago">' + (conf ? '¿Sí?' : '×') + '</button></span>'; }).join('') + '</div>' : '<div class="f-nota" style="margin-top:8px">Aún no hay pagos registrados.</div>'));
   var filasT = tr.map(function (x) {
     var rm = dias.filter(function (d) { return d.trabajador === x.id; }), a = fDevengado(rm.filter(function (d) { return fEnMes(d, finMes); })), de = r2(fDevengado(rm) - fSuma(pagos.filter(function (z) { return z.trabajador === x.id; }), 'monto'));
     return { x: x, a: a, de: Math.max(de, 0) };
@@ -1659,8 +1667,8 @@ function fLlenaDias() {
 }
 
 /* ----- ventana de captura ----- */
-function fAbreModal(titulo, cuerpo, okTxt, onOk) {
-  $('#fm-tit').textContent = titulo; $('#fm-cuerpo').innerHTML = cuerpo; $('#fm-ok').textContent = okTxt; fModalOk = onOk;
+function fAbreModal(titulo, cuerpo, okTxt, onOk, cancelTxt) {
+  $('#fm-tit').textContent = titulo; $('#fm-cuerpo').innerHTML = cuerpo; $('#fm-ok').textContent = okTxt; $('#fm-cancela').textContent = cancelTxt || 'Cancelar'; fModalOk = onOk;
   $('#modal-fin').hidden = false; document.body.style.overflow = 'hidden';
   var p = $('#fm-cuerpo input, #fm-cuerpo select'); if (p) setTimeout(function () { p.focus(); }, 30);
 }
@@ -1710,7 +1718,9 @@ function fFormPago() {
     '<div class="campo"><label for="fm-monto">Monto pagado</label><input id="fm-monto" type="number" inputmode="decimal" min="0" step="0.01" value="' + (debe > 0 ? debe : '') + '"></div>' +
     '<div class="campo"><label for="fm-nota">Nota (opcional)</label><input id="fm-nota" placeholder="Semana del 1 al 7, adelanto…"></div>', 'Guardar pago', function () {
       var monto = num(fv('monto')); if (!(monto > 0)) { aviso('Escribe el monto pagado.'); return false; }
-      fEncola({ accion: 'pago', id: aId(), trabajador: w.id, fecha: fv('fecha') || hoyISO(), monto: monto, nota: fv('nota').trim() });
+      var pid = aId();
+      fEncola({ accion: 'pago', id: pid, trabajador: w.id, fecha: fv('fecha') || hoyISO(), monto: monto, nota: fv('nota').trim() });
+      setTimeout(function () { abreRecibo(pid); }, 150);
       return 'Pago guardado.';
     });
 }
@@ -1750,6 +1760,7 @@ function fInit() {
     else if (a === 'editaTrab') fFormTrab(finTrab);
     else if (a === 'dia') fCicloDia(b.getAttribute('data-f'));
     else if (a === 'llenar') fLlenaDias();
+    else if (a === 'recibo') abreRecibo(b.getAttribute('data-id'));
     else if (a === 'del') {
       var k = b.getAttribute('data-hoja') + '|' + b.getAttribute('data-id');
       if (finConfirma === k) { fEncola({ accion: 'borrar', hoja: b.getAttribute('data-hoja'), id: b.getAttribute('data-id') }); finConfirma = ''; fPinta(); aviso('Quitado.'); }
@@ -2007,6 +2018,166 @@ function actInit() {
   setTimeout(actAuto, 4000);
 }
 
+/* ---------- recibos de pago a trabajadores y solicitud de reseña por WhatsApp ---------- */
+var MES_LARGO = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+var rActual = null;
+
+/* chat de WhatsApp con el mensaje escrito; sin número, WhatsApp deja elegir el chat */
+function waUrl(tel, texto) {
+  var d = soloDigitos(tel); if (d.length === 10) d = '52' + d;
+  return 'https://wa.me/' + (d.length >= 11 ? d : '') + '?text=' + encodeURIComponent(texto || '');
+}
+function isoDe(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function rFecha(iso) { var p = iso.split('-'); return +p[2] + ' de ' + MES_LARGO[+p[1] - 1] + ' de ' + p[0]; }
+function rCorta(iso) { var p = iso.split('-'); return +p[2] + ' de ' + MES_LARGO[+p[1] - 1]; }
+/* ["2026-11-02","2026-11-03","2026-10-30"] -> "30 oct · 2, 3 nov" */
+function rLista(fechas) {
+  var g = {}, orden = [];
+  fechas.slice().sort().forEach(function (f) { var k = f.slice(0, 7); if (!g[k]) { g[k] = []; orden.push(k); } g[k].push(+f.slice(8)); });
+  return orden.map(function (k) { return g[k].join(', ') + ' ' + MESES3[+k.slice(5) - 1].toLowerCase(); }).join(' · ');
+}
+function rDias(n) { return n + ' día' + (n === 1 ? '' : 's'); }
+
+/* lo que cubre un pago: desde el día siguiente al pago anterior hasta la fecha de este pago */
+function rDatos(w, p) {
+  var dias = fTbl('Dias').filter(function (d) { return d.trabajador === w.id; });
+  var pagos = fTbl('Pagos').filter(function (x) { return x.trabajador === w.id; }).sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)) || String(a.id).localeCompare(String(b.id)); });
+  var i = pagos.findIndex(function (x) { return x.id === p.id; }), prev = i > 0 ? pagos[i - 1] : null, fin = p.fecha, inicio;
+  if (prev) { var d0 = new Date(prev.fecha + 'T12:00:00'); d0.setDate(d0.getDate() + 1); inicio = isoDe(d0); }
+  else { var fs = dias.map(function (d) { return d.fecha; }).sort(); inicio = fs.length ? fs[0] : fin; }
+  var sinDias = inicio > fin;
+  var ventana = sinDias ? [] : dias.filter(function (d) { return d.fecha >= inicio && d.fecha <= fin; });
+  var mapa = {}; ventana.forEach(function (d) { mapa[d.fecha] = d; });
+  var desc = {}; String(w.descansos || '').split(',').forEach(function (x) { if (x !== '') desc[x] = 1; });
+  var t = [], m = [], r = [], s = [], tSum = 0, mSum = 0;
+  if (!sinDias) {
+    for (var d = new Date(inicio + 'T12:00:00'), tope = new Date(fin + 'T12:00:00'), n = 0; d <= tope && n < 400; d.setDate(d.getDate() + 1), n++) {
+      var iso = isoDe(d), row = mapa[iso];
+      if (row && row.estado === 't') { t.push(iso); tSum += num(row.sueldo); }
+      else if (row && row.estado === 'm') { m.push(iso); mSum += num(row.sueldo) / 2; }
+      else if ((row && row.estado === 'r') || (!row && desc[d.getDay()])) r.push(iso);
+      else s.push(iso);
+    }
+  }
+  var ganado = r2(tSum + mSum);
+  var antes = fDevengado(dias.filter(function (d) { return sinDias ? d.fecha <= fin : d.fecha < inicio; }));
+  var pagadoAntes = fSuma(pagos.slice(0, Math.max(i, 0)), 'monto');
+  var saldoAnt = r2(antes - pagadoAntes), total = r2(saldoAnt + ganado);
+  return { w: w, p: p, inicio: inicio, fin: fin, sinDias: sinDias, t: t, m: m, r: r, s: s, tSum: r2(tSum), mSum: r2(mSum), ganado: ganado, saldoAnt: saldoAnt, total: total, pagado: num(p.monto), pendiente: r2(total - num(p.monto)) };
+}
+function rTexto(dt) {
+  var L = ['*Recibo de pago · Pintores Juárez*', '', 'Trabajador: ' + dt.w.nombre + (dt.w.puesto ? ' (' + dt.w.puesto + ')' : ''),
+    dt.sinDias ? 'Periodo: sin días nuevos desde el pago anterior' : 'Periodo: ' + rCorta(dt.inicio) + ' al ' + rFecha(dt.fin), 'Sueldo por día: ' + money(dt.w.sueldo), ''];
+  if (!dt.sinDias) {
+    L.push('Trabajó: ' + rDias(dt.t.length) + (dt.t.length ? ' (' + rLista(dt.t) + ') = ' + money(dt.tSum) : ''));
+    L.push('Medio día: ' + rDias(dt.m.length) + (dt.m.length ? ' (' + rLista(dt.m) + ') = ' + money(dt.mSum) : ''));
+    L.push('Descansó: ' + rDias(dt.r.length) + (dt.r.length ? ' (' + rLista(dt.r) + ')' : ''));
+    if (dt.s.length) L.push('Sin marcar: ' + rDias(dt.s.length) + ' (' + rLista(dt.s) + '), no se pagan');
+    L.push('');
+  }
+  L.push('Ganado en el periodo: ' + money(dt.ganado), 'Saldo anterior: ' + money(dt.saldoAnt), 'Total a pagar: ' + money(dt.total), 'Pagado el ' + rFecha(dt.p.fecha) + ': ' + money(dt.pagado), 'Saldo pendiente: ' + money(Math.max(dt.pendiente, 0)));
+  if (dt.pendiente < 0) L.push('Pagado de más (a favor): ' + money(-dt.pendiente));
+  if (dt.p.nota) L.push('Nota: ' + dt.p.nota);
+  L.push('', 'Gracias por tu trabajo.');
+  return L.join('\n');
+}
+
+/* ----- PDF del recibo ----- */
+function rPdf(dt) {
+  var J = window.jspdf && window.jspdf.jsPDF; if (!J) throw new Error('pdf');
+  var doc = new J({ unit: 'pt', format: 'letter' }), W = 612, M = 48, y = 0, ancho = W - 2 * M;
+  var folio = 'R-' + dt.p.fecha.replace(/-/g, '') + '-' + String(dt.p.id).slice(-4).toUpperCase();
+  doc.setFillColor(29, 45, 61); doc.rect(0, 0, W, 92, 'F');
+  doc.setTextColor(242, 242, 243); doc.setFont('helvetica', 'bold'); doc.setFontSize(24); doc.text('PINTORES JUÁREZ', M, 46);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.text('RECIBO DE PAGO', M, 68); doc.text('Folio ' + folio, W - M, 46, { align: 'right' }); doc.text(rFecha(dt.p.fecha), W - M, 68, { align: 'right' });
+  doc.setTextColor(29, 31, 32); y = 128;
+  function par(a, b) { doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(93, 93, 96); doc.text(a.toUpperCase(), M, y); doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(29, 31, 32); doc.text(b, M + 130, y); y += 22; }
+  par('Trabajador', dt.w.nombre + (dt.w.puesto ? ' · ' + dt.w.puesto : ''));
+  par('Periodo', dt.sinDias ? 'Sin días nuevos desde el pago anterior' : rCorta(dt.inicio) + ' al ' + rFecha(dt.fin));
+  par('Sueldo por día', money(dt.w.sueldo));
+  y += 8; doc.setDrawColor(29, 31, 32); doc.line(M, y, W - M, y); y += 22;
+  function fila(c, n, imp, b) {
+    doc.setFont('helvetica', b ? 'bold' : 'normal'); doc.setFontSize(11); doc.setTextColor(29, 31, 32);
+    doc.text(c, M, y); doc.text(n, M + 300, y, { align: 'right' }); doc.text(imp, W - M, y, { align: 'right' }); y += 20;
+  }
+  function fechas(texto) { if (!texto) return; doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(93, 93, 96); var ls = doc.splitTextToSize(texto, ancho - 20); doc.text(ls, M + 12, y - 4); y += ls.length * 11 + 2; }
+  if (!dt.sinDias) {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(93, 93, 96); doc.text('CONCEPTO', M, y); doc.text('DÍAS', M + 300, y, { align: 'right' }); doc.text('IMPORTE', W - M, y, { align: 'right' }); y += 18;
+    fila('Días trabajados', String(dt.t.length), money(dt.tSum)); fechas(rLista(dt.t));
+    fila('Medios días', String(dt.m.length), money(dt.mSum)); fechas(rLista(dt.m));
+    fila('Descansos', String(dt.r.length), '—'); fechas(rLista(dt.r));
+    if (dt.s.length) { fila('Sin marcar (no se pagan)', String(dt.s.length), '—'); fechas(rLista(dt.s)); }
+    y += 6; doc.line(M, y, W - M, y); y += 22;
+  }
+  fila('Ganado en el periodo', '', money(dt.ganado)); fila('Saldo anterior', '', money(dt.saldoAnt)); fila('Total a pagar', '', money(dt.total), true);
+  fila('Pagado el ' + rFecha(dt.p.fecha), '', money(dt.pagado), true); fila('Saldo pendiente', '', money(Math.max(dt.pendiente, 0)), true);
+  if (dt.pendiente < 0) fila('Pagado de más (a favor)', '', money(-dt.pendiente));
+  if (dt.p.nota) { y += 4; doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.text('Nota: ' + dt.p.nota, M, y, { maxWidth: ancho }); y += 18; }
+  y = Math.max(y + 50, 640); doc.setDrawColor(29, 31, 32); doc.line(M, y, M + 220, y); doc.line(W - M - 220, y, W - M, y);
+  doc.setFontSize(9); doc.setTextColor(93, 93, 96); doc.text('Recibí conforme: ' + dt.w.nombre, M, y + 14); doc.text('Pintores Juárez', W - M - 220, y + 14);
+  doc.setFontSize(8); doc.text([ajustes.ciudad, ajustes.tel, ajustes.correo].filter(Boolean).join('  ·  '), M, 760);
+  return doc.output('blob');
+}
+function rNombrePdf(dt) { return 'Recibo-' + dt.p.fecha + '-' + String(dt.w.nombre).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.pdf'; }
+
+/* ----- ventana del recibo ----- */
+function abreRecibo(pagoId) {
+  var p = fTbl('Pagos').find(function (x) { return x.id === pagoId; }); if (!p) return;
+  var w = fTbl('Trabajadores').find(function (x) { return x.id === p.trabajador; }); if (!w) return;
+  var dt = rDatos(w, p); rActual = dt;
+  fAbreModal('Recibo de pago', '<p class="nota" style="margin:0 0 10px">Se manda por WhatsApp al trabajador. Puedes cambiar el texto antes de enviarlo.</p>' +
+    '<div class="campo"><label for="fm-wa">WhatsApp del trabajador</label><input id="fm-wa" type="tel" value="' + esc(w.whatsapp || '') + '" placeholder="656 000 0000"></div>' +
+    '<div class="campo"><label for="fm-msg">Recibo</label><textarea id="fm-msg" style="min-height:250px">' + esc(rTexto(dt)) + '</textarea></div>' +
+    '<button type="button" class="btn chico" data-recibo-pdf="1">Compartir como PDF</button>' +
+    '<p class="nota" id="fm-rec-estado" role="status" aria-live="polite" style="margin:10px 0 0">Si no hay número, WhatsApp te deja elegir el chat. El PDF se comparte con el menú del teléfono.</p>', 'Enviar por WhatsApp', function () {
+      var tel = fv('wa').trim(), msg = fv('msg');
+      if (tel && !w.whatsapp) fEncola({ accion: 'trabajador', id: w.id, whatsapp: tel });
+      fEncola({ accion: 'pago', id: p.id, reciboEnviado: hoyISO() });
+      window.open(waUrl(tel, msg), '_blank', 'noopener');
+      return 'Se abrió WhatsApp con el recibo.';
+    }, 'Cerrar');
+}
+function rCompartePdf() {
+  var est = $('#fm-rec-estado'), dt = rActual; if (!dt) return;
+  try {
+    var blob = rPdf(dt); est.textContent = 'Preparando el PDF…';
+    entregar(blob, rNombrePdf(dt), 'Recibo de pago de ' + dt.w.nombre + ' por ' + money(dt.pagado)).then(function (r) {
+      est.textContent = r === 'compartido' ? 'PDF compartido.' : r === 'cancelado' ? 'Se canceló.' : r === 'error' ? 'No se pudo compartir el PDF.' : 'PDF guardado en el teléfono.';
+      if (r === 'compartido') fEncola({ accion: 'pago', id: dt.p.id, reciboEnviado: hoyISO() });
+    });
+  } catch (e) { est.textContent = 'No se pudo armar el PDF. Revisa tu conexión e intenta otra vez.'; }
+}
+
+/* ----- reseña de Google al terminar un trabajo ----- */
+function rMensajeResena(h, url) {
+  var nombre = String(h.cliente || (h.datos && h.datos.cliente && h.datos.cliente.nombre) || '').trim().split(/\s+/)[0];
+  return 'Hola' + (nombre ? ' ' + nombre : '') + ', gracias por confiar en Pintores Juárez. Su trabajo (' + h.folio + ') ya quedó terminado. ' +
+    '¿Qué le pareció el trabajo y la atención de nuestro equipo? Si quedó conforme, nos ayudaría muchísimo con una reseña en Google, contando qué se pintó y en qué zona de Juárez. ' +
+    'Solo toma un minuto: ' + (url || '[aquí va tu enlace de reseñas]') + ' ¡Muchas gracias!';
+}
+function rUrlValida(u) { return /^https:\/\/[^\s]{6,300}$/i.test(u); }
+function abreResena(id) {
+  var h = historial.find(function (x) { return x.id === id; }); if (!h || !h.datos) return;
+  var url = String(ajustes.resenaUrl || '').trim();
+  fAbreModal('Pedir reseña', '<p class="nota" style="margin:0 0 10px">' + esc(h.cliente || 'El cliente') + ' · ' + esc(h.folio) + '. Pedirla justo al terminar es lo que mejor funciona.</p>' +
+    '<div class="campo"><label for="fm-wa">WhatsApp del cliente</label><input id="fm-wa" type="tel" value="' + esc(h.datos.cliente.tel || '') + '" placeholder="656 000 0000"></div>' +
+    (rUrlValida(url) ? '' : '<div class="campo"><label for="fm-url">Enlace de reseñas de Google (pégalo una sola vez)</label><input id="fm-url" type="url" autocomplete="off" autocapitalize="off" placeholder="https://g.page/r/…/review"><p class="nota" style="margin:6px 0 0">Lo sacas de tu perfil de Google Business: Pedir reseñas > Copiar enlace.</p></div>') +
+    '<div class="campo"><label for="fm-msg">Mensaje</label><textarea id="fm-msg" style="min-height:230px">' + esc(rMensajeResena(h, rUrlValida(url) ? url : '')) + '</textarea></div>', 'Enviar por WhatsApp', function () {
+      var u = rUrlValida(url) ? url : fv('url').trim();
+      if (!rUrlValida(u)) { aviso('Pega el enlace de reseñas de Google (empieza con https://).'); return false; }
+      var tel = fv('wa').trim(), msg = fv('msg');
+      msg = msg.indexOf('[aquí va tu enlace de reseñas]') >= 0 ? msg.replace('[aquí va tu enlace de reseñas]', u) : (msg.indexOf(u) >= 0 ? msg : msg + ' ' + u);
+      if (u !== ajustes.resenaUrl) { ajustes.resenaUrl = u; escribir(K_AJ, ajustes); llenaAjustes(); }
+      if (tel && !h.datos.cliente.tel) h.datos.cliente.tel = tel;
+      h.datos.resenaEnviada = hoyISO(); escribir(K_HIST, historial); pintaHistorial();
+      window.open(waUrl(tel, msg), '_blank', 'noopener');
+      return 'Se abrió WhatsApp con la solicitud de reseña.';
+    }, 'Ahora no');
+}
+function recibosInit() {
+  $('#fm-cuerpo').addEventListener('click', function (e) { if (e.target.closest('[data-recibo-pdf]')) rCompartePdf(); });
+}
+
 
 /* ---------- navegación y ajustes ---------- */
 function cambiaTab(n, conservar) {
@@ -2035,7 +2206,7 @@ function arranca() {
   q = bor && bor.partidas && (bor.estado || 'borrador') === 'borrador' ? bor : nueva();
   pintaChips();
   padCli = lienzo($('#lienzo-cli')); padPj = lienzo($('#lienzo-pj'));
-  backfillClientes(); recalculaTotales(); llenaForma(); llenaAjustes(); pintaHistorial(); pintaClientes(); pintar(); fInit(); fFotoInit(); actInit();
+  backfillClientes(); recalculaTotales(); llenaForma(); llenaAjustes(); pintaHistorial(); pintaClientes(); pintar(); fInit(); fFotoInit(); recibosInit(); actInit();
 
   ['nueva', 'historial', 'clientes', 'fin', 'ajustes'].forEach(function (t) { $('#tab-' + t).addEventListener('click', function () { cambiaTab(t); }); });
   $('#forma').addEventListener('input', cambioForma); $('#forma').addEventListener('change', cambioForma);
@@ -2114,6 +2285,7 @@ function arranca() {
       (d.historial || []).forEach(function (h) { if (h && h.id && h.datos && !historial.some(function (x) { return x.id === h.id; })) { historial.push(h); n++; } });
       (d.clientes || []).forEach(function (c) { if (c && c.id && !clientes.some(function (x) { return x.id === c.id; })) clientes.push(c); });
       if (!ajustes.firma && d.ajustes && d.ajustes.firma) { ajustes.firma = d.ajustes.firma; escribir(K_AJ, ajustes); llenaAjustes(); }
+      if (!ajustes.resenaUrl && d.ajustes && /^https:\/\//.test(String(d.ajustes.resenaUrl || ''))) { ajustes.resenaUrl = d.ajustes.resenaUrl; escribir(K_AJ, ajustes); llenaAjustes(); }
       historial.sort(function (a, b) { return String(b.datos.creada).localeCompare(String(a.datos.creada)); });
       escribir(K_HIST, historial); escribir(K_CLI, clientes); backfillClientes(); pintaHistorial(); pintaClientes();
       var nf = fMezcla(d.finanzas); if (finVista) fPinta();
