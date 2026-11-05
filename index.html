@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="44bed6d33f">
-<meta name="pj-fecha" content="2026-11-05 00:07">
+<meta name="pj-build" content="cbf26f8e0e">
+<meta name="pj-fecha" content="2026-11-05 00:33">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -210,6 +210,8 @@ html{overscroll-behavior-y:contain}
 #ptr.gira .ptr-i{animation:ptrgira .8s linear infinite}
 @keyframes ptrgira{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){#ptr.gira .ptr-i{animation:none}#ptr{transition:none}}
+.campo[hidden]{display:none}
+#modal-fin .f-scan{border:1px dashed #5980A6;padding:12px;margin-bottom:16px;background:#fff}
 
 /* ===== Finanzas: estilo claro del dashboard (tarjetas plano, barras rayadas, tarjeta oscura) ===== */
 body.fin-claro{background:#f2f2f3}
@@ -1513,7 +1515,7 @@ function fVistaResumen() {
   var ms = fMeses(), vals = ms.map(function (m) { return Math.max(fCalc(m.k).neto, 0); });
   h += fMarcos('<div class="f-chead"><div class="f-th">Neto por mes</div>' + fToggle() + '</div>' + fBarras(vals, ms, finMes));
   h += fMarcos('<div class="f-cab"><div class="f-th">Trabajos terminados <small>' + c.cob.length + '</small></div></div>' + fLista('Cobros', c.cob, function (r) { return [esc(r.obra + ' · ' + (r.cliente || '')), esc(fFechaCorta(r.fecha) + ' · cobrado'), money(r.monto)]; }, true) + '<div class="f-nota">Cuando marcas una cotización como terminada, su total cuenta como dinero que entró ese día.</div>');
-  h += fMarcos('<div class="f-cab"><div class="f-th">Gastos <small>' + c.gas.length + '</small></div></div>' + fLista('Gastos', c.gas, function (r) { return [esc((r.proveedor || r.concepto || 'Gasto') + (r.facturado === 'no' ? ' · sin factura' : '')), esc(fFechaCorta(r.fecha) + ' · ' + r.categoria), money(r.total)]; }) + '<button type="button" class="f-btn" data-fa="gasto">Registrar gasto</button>');
+  h += fMarcos('<div class="f-cab"><div class="f-th">Gastos <small>' + c.gas.length + '</small></div></div>' + fLista('Gastos', c.gas, function (r) { return [esc((r.proveedor || r.concepto || 'Gasto') + (r.facturado === 'no' ? ' · no deducible' : '')), esc(fFechaCorta(r.fecha) + ' · ' + r.categoria), money(r.total)]; }) + '<button type="button" class="f-btn" data-fa="gasto">Registrar gasto</button>');
   return h;
 }
 function fLista(hoja, filas, fmt, fijo) {
@@ -1670,20 +1672,33 @@ function fChipsVal(grupo) { return $$('#fm-cuerpo [data-grupo="' + grupo + '"] b
 function fOpcObras(sel, soloPendientes) {
   return '<option value="">Sin obra</option>' + fTbl('Obras').filter(function (o) { return o.estado === 'aceptada' || o.estado === 'terminada'; }).map(function (o) { return '<option value="' + esc(o.folio) + '"' + (o.folio === sel ? ' selected' : '') + '>' + esc(o.folio + ' · ' + o.cliente) + '</option>'; }).join('');
 }
+var fConfirmaIva = false;
 function fFormGasto() {
-  var cuerpo = '<div class="campo"><label for="fm-fecha">Fecha</label><input id="fm-fecha" type="date" value="' + hoyISO() + '"></div>' +
+  fConfirmaIva = false;
+  var cuerpo = '<div class="f-scan"><div class="f-et" style="margin-bottom:10px">Leer un ticket con la cámara</div>' +
+    '<div class="f-dos"><button type="button" class="btn p chico" data-scan="camara">Tomar foto</button><button type="button" class="btn chico" data-scan="galeria">Elegir foto</button></div>' +
+    '<input type="file" id="fm-foto-cam" accept="image/*" capture="environment" hidden><input type="file" id="fm-foto-gal" accept="image/*" hidden>' +
+    '<p class="nota" id="fm-scan" role="status" aria-live="polite" style="margin:10px 0 0">La foto se lee en tu teléfono y no se guarda ni se envía. Revisa los datos antes de guardar.</p>' +
+    '<details id="fm-ocr" hidden style="margin-top:8px"><summary class="nota" style="cursor:pointer;margin:0">Ver el texto que leí</summary><pre style="white-space:pre-wrap;font:12px var(--mono);margin:8px 0 0;max-height:160px;overflow:auto"></pre></details></div>' +
+    '<div class="campo"><label for="fm-fecha">Fecha</label><input id="fm-fecha" type="date" value="' + hoyISO() + '"></div>' +
     '<div class="campo"><label for="fm-prov">Proveedor</label><input id="fm-prov" placeholder="Dónde compraste"></div>' +
     '<div class="campo"><label for="fm-conc">Concepto</label><input id="fm-conc" placeholder="Qué compraste"></div>' +
     '<div class="campo"><label>Tipo de gasto</label>' + fChips('cat', CATS, ['material'], false) + '</div>' +
-    '<div class="campo"><label>Factura</label>' + fChips('fac', [['si', 'Con factura'], ['no', 'Sin factura']], ['si'], false) + '</div>' +
+    '<div class="campo"><label>¿Se facturó?</label>' + fChips('fac', [['si', 'Sí, con factura'], ['no', 'No (no deducible)']], [], false) +
+    '<p class="nota" style="margin:8px 0 0">Con factura cuenta el IVA y baja lo que pagas de IVA. Sin factura es no deducible: baja tu neto, pero no baja impuestos.</p></div>' +
     '<div class="campo"><label for="fm-obra">Obra (opcional)</label><select id="fm-obra">' + fOpcObras('') + '</select></div>' +
     '<div class="campo"><label for="fm-total">Total pagado (con IVA)</label><input id="fm-total" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Lo que dice el ticket"></div>' +
-    '<div class="campo" id="fm-ivabox"><label for="fm-iva">IVA de la factura</label><input id="fm-iva" type="number" inputmode="decimal" min="0" step="0.01" placeholder="IVA que viene en la factura"><button type="button" class="btn chico" data-iva8="1" style="margin-top:8px">Calcular IVA al ' + (num(ajustes.iva) || 8) + ' %</button></div>';
+    '<div class="campo" id="fm-ivabox" hidden><label for="fm-iva">IVA de la factura</label><input id="fm-iva" type="number" inputmode="decimal" min="0" step="0.01" placeholder="IVA que viene en la factura"><button type="button" class="btn chico" data-iva8="1" style="margin-top:8px">Calcular IVA al ' + (num(ajustes.iva) || 8) + ' %</button></div>' +
+    '<input type="hidden" id="fm-uuid">';
   fAbreModal('Registrar gasto', cuerpo, 'Guardar gasto', function () {
     var total = num(fv('total')); if (!(total > 0)) { aviso('Escribe el total pagado.'); return false; }
-    var fac = fChipsVal('fac')[0] || 'si';
-    fEncola({ accion: 'gasto', id: aId(), fecha: fv('fecha') || hoyISO(), proveedor: fv('prov').trim(), concepto: fv('conc').trim(), categoria: fChipsVal('cat')[0] || 'otro', obra: fv('obra'), facturado: fac, total: total, iva: fac === 'si' ? num(fv('iva')) : 0 });
-    return 'Gasto guardado.';
+    var fac = fChipsVal('fac')[0]; if (!fac) { aviso('Elige si el gasto se facturó o no.'); return false; }
+    var uuid = fv('uuid').trim();
+    if (uuid && fTbl('Gastos').some(function (g) { return g.uuid === uuid; })) { aviso('Esa factura ya está registrada.'); return false; }
+    var iva = fac === 'si' ? num(fv('iva')) : 0;
+    if (fac === 'si' && !(iva > 0) && !fConfirmaIva) { fConfirmaIva = true; aviso('No escribiste el IVA. Si la factura no lleva IVA, toca Guardar otra vez.'); return false; }
+    fEncola({ accion: 'gasto', id: aId(), fecha: fv('fecha') || hoyISO(), proveedor: fv('prov').trim(), concepto: fv('conc').trim(), categoria: fChipsVal('cat')[0] || 'otro', obra: fv('obra'), facturado: fac, total: total, iva: iva, uuid: uuid });
+    return fac === 'si' ? 'Gasto guardado con factura.' : 'Gasto guardado como no deducible.';
   });
 }
 function fFormPago() {
@@ -1743,7 +1758,7 @@ function fInit() {
   $('#fm-cuerpo').addEventListener('click', function (e) {
     var c = e.target.closest('.f-ch2 button');
     if (c) { var g = c.parentNode; if (g.hasAttribute('data-multi')) c.setAttribute('aria-pressed', c.getAttribute('aria-pressed') === 'true' ? 'false' : 'true'); else { $$('button', g).forEach(function (x) { x.setAttribute('aria-pressed', 'false'); }); c.setAttribute('aria-pressed', 'true'); }
-      if (g.getAttribute('data-grupo') === 'fac') { var box = $('#fm-ivabox'); if (box) box.hidden = c.getAttribute('data-v') === 'no'; } return; }
+      if (g.getAttribute('data-grupo') === 'fac') { var box = $('#fm-ivabox'); if (box) box.hidden = c.getAttribute('data-v') !== 'si'; } return; }
     if (e.target.closest('[data-iva8]')) { var t = num(fv('total')), r = (num(ajustes.iva) || 8) / 100; if (t > 0) $('#fm-iva').value = r2(t - t / (1 + r)); else aviso('Primero escribe el total.'); }
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('#modal-fin').hidden) fCierraModal(); });
@@ -1752,6 +1767,147 @@ function fInit() {
     if (!fModalOk) return;
     var r = fModalOk(); if (r === false) return;
     fCierraModal(); fPinta(); if (r) aviso(r);
+  });
+}
+
+/* ---------- gasto desde una foto: el teléfono lee el ticket y llena el formulario ---------- */
+var URL_OCR = 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js';
+var URL_QR = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+var fLibs = {};
+/* las librerías se bajan solo cuando se usa la cámara */
+function fCarga(url) {
+  if (fLibs[url]) return fLibs[url];
+  return (fLibs[url] = new Promise(function (ok, mal) {
+    var s = document.createElement('script'); s.src = url; s.onload = ok;
+    s.onerror = function () { delete fLibs[url]; mal(new Error('carga')); };
+    document.head.appendChild(s);
+  }));
+}
+function fImagen(file) {
+  return new Promise(function (ok, mal) {
+    var img = new Image(), u = URL.createObjectURL(file);
+    img.onload = function () {
+      var k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.naturalWidth * k)); c.height = Math.max(1, Math.round(img.naturalHeight * k));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(u); ok(c);
+    };
+    img.onerror = function () { URL.revokeObjectURL(u); mal(new Error('imagen')); };
+    img.src = u;
+  });
+}
+/* copia en grises con el contraste estirado: ayuda a leer papel térmico */
+function fGris(c) {
+  var o = document.createElement('canvas'); o.width = c.width; o.height = c.height;
+  var x = o.getContext('2d'); x.drawImage(c, 0, 0);
+  var d = x.getImageData(0, 0, o.width, o.height), p = d.data, min = 255, max = 0, i, g;
+  for (i = 0; i < p.length; i += 4) { g = (p[i] * 299 + p[i + 1] * 587 + p[i + 2] * 114) / 1000; p[i] = g; if (g < min) min = g; if (g > max) max = g; }
+  var r = max - min || 1;
+  for (i = 0; i < p.length; i += 4) { g = (p[i] - min) * 255 / r; p[i] = p[i + 1] = p[i + 2] = g; }
+  x.putImageData(d, 0, 0); return o;
+}
+
+/* ----- código QR de la factura (CFDI): folio fiscal, RFC del proveedor y total ----- */
+function fQrCfdi(txt) {
+  try {
+    var u = new URL(txt); if (!/sat\.gob\.mx$/i.test(u.hostname)) return null;
+    var id = u.searchParams.get('id') || u.searchParams.get('Id'); if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return null;
+    return { uuid: id.toUpperCase(), rfc: String(u.searchParams.get('re') || '').toUpperCase().replace(/[^A-Z0-9&Ñ]/g, '').slice(0, 13), total: parseFloat(u.searchParams.get('tt')) || 0 };
+  } catch (e) { return null; }
+}
+function fQr(c) {
+  return fCarga(URL_QR).then(function () {
+    var d = c.getContext('2d').getImageData(0, 0, c.width, c.height), r = window.jsQR(d.data, c.width, c.height, { inversionAttempts: 'attemptBoth' });
+    return r ? fQrCfdi(r.data) : null;
+  }).catch(function () { return null; });
+}
+
+/* ----- lectura del ticket ----- */
+function fOcr(c, progreso) {
+  return fCarga(URL_OCR).then(function () {
+    return window.Tesseract.recognize(c, 'spa', { logger: function (m) { if (progreso && m && m.status === 'recognizing text') progreso(m.progress); } });
+  }).then(function (r) { return (r && r.data && r.data.text) || ''; });
+}
+/* todos los importes con centavos de una línea: 1,234.56 | 1.234,56 | 123.45 */
+function fMontos(linea) {
+  var out = [], re = /(\d[\d.,\s]{0,12}[.,]\d{2})(?!\d)/g, m;
+  while ((m = re.exec(linea))) {
+    var t = m[1].replace(/\s/g, ''), v = parseFloat(t.slice(0, -3).replace(/[.,]/g, '') + '.' + t.slice(-2));
+    if (isFinite(v) && v > 0 && v < 10000000) out.push(v);
+  }
+  return out;
+}
+var MES_ABR = { ene: 1, feb: 2, mar: 3, abr: 4, may: 5, jun: 6, jul: 7, ago: 8, sep: 9, oct: 10, nov: 11, dic: 12 };
+function fFechaValida(y, m, d) {
+  if (y < 100) y += 2000;
+  if (m < 1 || m > 12 || d < 1 || d > 31 || y < 2000) return '';
+  var f = new Date(y, m - 1, d, 12), hoy = new Date();
+  if (f.getMonth() !== m - 1 || f > new Date(hoy.getTime() + 2 * 86400000) || f < new Date(hoy.getTime() - 550 * 86400000)) return '';
+  return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+function fParseTicket(texto) {
+  var lineas = String(texto || '').split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean), r = { total: 0, iva: 0, fecha: '', proveedor: '' };
+  var todos = [], conTotal = [];
+  lineas.forEach(function (l) {
+    var ms = fMontos(l); todos = todos.concat(ms);
+    if (/\btotal\b/i.test(l) && !/sub\s*-?\s*total/i.test(l) && !/\bi\.?\s?v\.?\s?a\b/i.test(l)) conTotal = conTotal.concat(ms);
+  });
+  r.total = conTotal.length ? Math.max.apply(null, conTotal) : (todos.length ? Math.max.apply(null, todos) : 0);
+  var ivas = [];
+  lineas.forEach(function (l) { if (/\bi\.?\s?v\.?\s?a\b/i.test(l)) ivas = ivas.concat(fMontos(l)); });
+  ivas = ivas.filter(function (v) { return r.total && v < r.total * 0.25 && v !== r.total; });
+  r.iva = ivas.length ? ivas[ivas.length - 1] : 0;
+  var tx = lineas.join('\n'), m;
+  var re1 = /(\d{1,2})\s*[\/\-.]\s*(\d{1,2})\s*[\/\-.]\s*(\d{2,4})/g;
+  while (!r.fecha && (m = re1.exec(tx))) r.fecha = fFechaValida(+m[3], +m[2], +m[1]);
+  var re2 = /(\d{4})\s*[\/\-]\s*(\d{1,2})\s*[\/\-]\s*(\d{1,2})/g;
+  while (!r.fecha && (m = re2.exec(tx))) r.fecha = fFechaValida(+m[1], +m[2], +m[3]);
+  var re3 = /(\d{1,2})\s*(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)[a-z]*\.?\s*(?:de\s*)?(\d{2,4})/gi;
+  while (!r.fecha && (m = re3.exec(tx))) r.fecha = fFechaValida(+m[3], MES_ABR[m[2].toLowerCase()], +m[1]);
+  for (var i = 0; i < Math.min(lineas.length, 8); i++) {
+    var l = lineas[i], letras = (l.match(/[A-Za-zÁÉÍÓÚÑáéíóúñ]/g) || []).length, digitos = (l.match(/\d/g) || []).length;
+    if (letras >= 4 && digitos <= letras * 0.4 && l.length <= 60 && !/ticket|factura|folio|rfc|fecha|hora|tel\b|tel\.|caja|cliente|gracias|bienvenid|sucursal|calle|col\.|av\./i.test(l)) { r.proveedor = l.replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9 &.,'-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60); break; }
+  }
+  return r;
+}
+
+/* ----- formulario ----- */
+function fMarcaChip(grupo, valor) {
+  $$('#fm-cuerpo [data-grupo="' + grupo + '"] button').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-v') === valor ? 'true' : 'false'); });
+  if (grupo === 'fac') { var box = $('#fm-ivabox'); if (box) box.hidden = valor !== 'si'; }
+}
+function fScanEstado(t) { var e = $('#fm-scan'); if (e) e.textContent = t; }
+function fScanAplica(r) {
+  var p = r.texto ? fParseTicket(r.texto) : {}, q = r.qr, hallado = [], falta = [], total = q && q.total > 0 ? q.total : p.total;
+  if (total) { $('#fm-total').value = total; hallado.push('total ' + money(total)); } else falta.push('el total');
+  if (p.fecha) { $('#fm-fecha').value = p.fecha; hallado.push('fecha ' + fFechaCorta(p.fecha)); }
+  var prov = p.proveedor || ''; if (q && q.rfc) prov = (prov ? prov + ' · ' : '') + 'RFC ' + q.rfc;
+  if (prov) { $('#fm-prov').value = prov; hallado.push('proveedor'); } else falta.push('el proveedor');
+  if (q) { $('#fm-uuid').value = q.uuid; fMarcaChip('fac', 'si'); hallado.push('factura por su código QR'); }
+  if (p.iva > 0) { $('#fm-iva').value = p.iva; hallado.push('IVA ' + money(p.iva)); }
+  fScanEstado((hallado.length ? 'Leí: ' + hallado.join(', ') + '. ' : 'No pude leer datos en la foto. ') + (falta.length ? 'No encontré ' + falta.join(' ni ') + '. ' : '') + 'Revisa todo y elige si se facturó.');
+  var det = $('#fm-ocr'); if (det) { det.hidden = !r.texto; var pre = $('pre', det); if (pre) pre.textContent = r.texto || ''; }
+}
+function fScan(file) {
+  fScanEstado('Abriendo la foto…');
+  return fImagen(file).then(function (c) {
+    fScanEstado('Buscando el código QR de la factura…');
+    return fQr(c).then(function (qr) {
+      fScanEstado('Leyendo el ticket… la primera vez baja el lector y tarda más.');
+      return fOcr(fGris(c), function (pr) { fScanEstado('Leyendo el ticket… ' + Math.round(pr * 100) + ' %'); }).then(
+        function (texto) { return { qr: qr, texto: texto }; },
+        function () { fScanEstado('No pude bajar el lector de texto (¿sin internet?).'); return { qr: qr, texto: null }; });
+    });
+  }).then(fScanAplica).catch(function () { fScanEstado('No pude abrir la foto. Llena los datos a mano.'); });
+}
+function fFotoInit() {
+  var c = $('#fm-cuerpo');
+  c.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-scan]'); if (!b) return;
+    var inp = $(b.getAttribute('data-scan') === 'camara' ? '#fm-foto-cam' : '#fm-foto-gal'); if (inp) inp.click();
+  });
+  c.addEventListener('change', function (e) {
+    if (e.target.id !== 'fm-foto-cam' && e.target.id !== 'fm-foto-gal') return;
+    var f = e.target.files && e.target.files[0]; if (f) fScan(f); e.target.value = '';
   });
 }
 
@@ -1857,7 +2013,7 @@ function arranca() {
   q = bor && bor.partidas && (bor.estado || 'borrador') === 'borrador' ? bor : nueva();
   pintaChips();
   padCli = lienzo($('#lienzo-cli')); padPj = lienzo($('#lienzo-pj'));
-  backfillClientes(); recalculaTotales(); llenaForma(); llenaAjustes(); pintaHistorial(); pintaClientes(); pintar(); fInit(); actInit();
+  backfillClientes(); recalculaTotales(); llenaForma(); llenaAjustes(); pintaHistorial(); pintaClientes(); pintar(); fInit(); fFotoInit(); actInit();
 
   ['nueva', 'historial', 'clientes', 'fin', 'ajustes'].forEach(function (t) { $('#tab-' + t).addEventListener('click', function () { cambiaTab(t); }); });
   $('#forma').addEventListener('input', cambioForma); $('#forma').addEventListener('change', cambioForma);
