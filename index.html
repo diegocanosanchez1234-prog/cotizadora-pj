@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="f9f887e43e">
-<meta name="pj-fecha" content="2026-11-05 14:19">
+<meta name="pj-build" content="c8d6c4895a">
+<meta name="pj-fecha" content="2026-11-05 15:36">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -493,7 +493,7 @@ body.fin-claro{background:#f2f2f3}
     </div>
     <div class="panel">
       <h2>Reseñas de clientes</h2>
-      <p class="nota">Cuando marcas un trabajo como terminado, la app prepara un mensaje de WhatsApp para pedir la recomendación en tu página de Facebook. El enlace ya viene puesto; si algún día cambia, pégalo aquí (termina en /reviews).</p>
+      <p class="nota">Cuando marcas un trabajo como terminado, la app prepara un mensaje de WhatsApp para pedir la recomendación en tu página de Facebook. El enlace ya viene puesto; si algún día cambia, pégalo aquí.</p>
       <div class="campo"><label for="a-resena">Enlace de recomendaciones de Facebook</label><input id="a-resena" data-a="resenaUrl" type="url" autocomplete="off" autocapitalize="off" placeholder="https://www.facebook.com/…/reviews"></div>
     </div>
     <div class="panel">
@@ -615,9 +615,9 @@ function leer(k, def) { try { var v = localStorage.getItem(k); return v ? JSON.p
 function escribir(k, v) { memoria[k] = v; try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
 
 /* ---------- datos ---------- */
-var AJ0 = { representante: 'Jesús Cano Mata', tel: '656 312 9242', correo: 'pintoresjuarez1@gmail.com', ciudad: 'Cd. Juárez, Chih.', folio: 1, vigencia: 20, anticipo: 50, garantia: 1, multa: 1, iva: 8, isr: 1.25, msi: 'Consulte plazos y tarjetas participantes.', firma: null, resenaUrl: 'https://www.facebook.com/219713035468931/reviews' };
+var AJ0 = { representante: 'Jesús Cano Mata', tel: '656 312 9242', correo: 'pintoresjuarez1@gmail.com', ciudad: 'Cd. Juárez, Chih.', folio: 1, vigencia: 20, anticipo: 50, garantia: 1, multa: 1, iva: 8, isr: 1.25, msi: 'Consulte plazos y tarjetas participantes.', firma: null, resenaUrl: 'https://www.facebook.com/profile.php?id=219713035468931&sk=reviews' };
 var ajustes = Object.assign({}, AJ0, leer(K_AJ, {}));
-if (!String(ajustes.resenaUrl || '').trim() || String(ajustes.resenaUrl).indexOf('g.page/r/CVH0ZL30KbaYEBM') >= 0) { ajustes.resenaUrl = AJ0.resenaUrl; escribir(K_AJ, ajustes); }
+if (!String(ajustes.resenaUrl || '').trim() || /g\.page\/r\/CVH0ZL30KbaYEBM|facebook\.com\/219713035468931\/reviews/.test(String(ajustes.resenaUrl))) { ajustes.resenaUrl = AJ0.resenaUrl; escribir(K_AJ, ajustes); }
 var historial = leer(K_HIST, []);
 var clientes = leer(K_CLI, []);
 var q = null;          // cotización activa
@@ -2168,7 +2168,7 @@ function rCompartePdf() {
 function rMensajeResena(h, url) {
   var nombre = String(h.cliente || (h.datos && h.datos.cliente && h.datos.cliente.nombre) || '').trim().split(/\s+/)[0];
   return 'Hola' + (nombre ? ' ' + nombre : '') + ', gracias por confiar en Pintores Juárez. Su trabajo (' + h.folio + ') ya quedó terminado. ' +
-    '¿Qué le pareció el trabajo y la atención de nuestro equipo? Si quedó conforme, nos ayudaría muchísimo con una recomendación en nuestra página de Facebook: toque «Sí» y cuéntenos qué se pintó y en qué zona de Juárez. ' +
+    '¿Qué le pareció el trabajo y la atención de nuestro equipo? Si quedó conforme, nos ayudaría muchísimo con una recomendación en nuestra página de Facebook: entre a «Opiniones» y cuéntenos qué se pintó y en qué zona de Juárez. ' +
     'Solo toma un minuto: ' + (url || '[aquí va tu enlace de reseñas]') + ' ¡Muchas gracias!';
 }
 function rUrlValida(u) { return /^https:\/\/[^\s]{6,300}$/i.test(u); }
@@ -2177,7 +2177,7 @@ function abreResena(id) {
   var url = String(ajustes.resenaUrl || '').trim();
   fAbreModal('Pedir reseña', '<p class="nota" style="margin:0 0 10px">' + esc(h.cliente || 'El cliente') + ' · ' + esc(h.folio) + '. Pedirla justo al terminar es lo que mejor funciona.</p>' +
     '<div class="campo"><label for="fm-wa">WhatsApp del cliente</label><input id="fm-wa" type="tel" value="' + esc(h.datos.cliente.tel || '') + '" placeholder="656 000 0000"></div>' +
-    (rUrlValida(url) ? '' : '<div class="campo"><label for="fm-url">Enlace de recomendaciones de tu página de Facebook (pégalo una sola vez)</label><input id="fm-url" type="url" autocomplete="off" autocapitalize="off" placeholder="https://www.facebook.com/…/reviews"><p class="nota" style="margin:6px 0 0">Es el enlace de tu página de Facebook con /reviews al final.</p></div>') +
+    (rUrlValida(url) ? '' : '<div class="campo"><label for="fm-url">Enlace de recomendaciones de tu página de Facebook (pégalo una sola vez)</label><input id="fm-url" type="url" autocomplete="off" autocapitalize="off" placeholder="https://www.facebook.com/…/reviews"><p class="nota" style="margin:6px 0 0">Es el enlace de tu página de Facebook.</p></div>') +
     '<div class="campo"><label for="fm-msg">Mensaje</label><textarea id="fm-msg" style="min-height:230px">' + esc(rMensajeResena(h, rUrlValida(url) ? url : '')) + '</textarea></div>', 'Enviar por WhatsApp', function () {
       var u = rUrlValida(url) ? url : fv('url').trim();
       if (!rUrlValida(u)) { aviso('Pega el enlace de recomendaciones de Facebook (empieza con https://).'); return false; }
