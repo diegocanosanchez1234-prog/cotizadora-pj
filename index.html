@@ -187,6 +187,21 @@ details.avanzado summary{font-size:12.5px}
 .partida input{font-size:17px;min-height:46px}
 .partida .importe{font-size:13.5px}
 .quita{width:44px;height:46px}
+/* ===== Tema claro en toda la app (como Finanzas). El encabezado se queda oscuro, igual que en el dashboard. ===== */
+:root{--deep:#f2f2f3;--panel:#ffffff;--paper:#1d1f20;--light:#416180;--line:rgba(29,31,32,.16);--edge:rgba(29,31,32,.28);--warn:#b4503a;color-scheme:light}
+.barra{--deep:#1D2D3D;--paper:#F2F2F3;--light:#94BCE3;--line:#2C455D;--edge:#416180;--panel:#233549;color:#F2F2F3}
+.sello.ok{background:#1D2D3D;border-color:#1D2D3D;color:#f2f2f3}
+.campo input::placeholder,.campo textarea::placeholder{color:#7a8794}
+.nota{color:#5d5d60}
+.item .motivo{color:#5d5d60}
+.vista-doc{background:#e6e7ea}
+.modal{background:rgba(29,31,32,.6)}
+.btn.p,.btn.c{background:#1D2D3D;border-color:#1D2D3D;color:#f2f2f3}
+.chip[aria-pressed="true"]{background:#1D2D3D;border-color:#1D2D3D;color:#f2f2f3}
+.sello.hecho{color:#fff}
+.quita,.firma-lienzo{background:#fff}
+.partida select{background:#fff}
+
 /* ===== Finanzas: estilo claro del dashboard (tarjetas plano, barras rayadas, tarjeta oscura) ===== */
 body.fin-claro{background:#f2f2f3}
 .tabs.c5 .tab{font-size:10px;letter-spacing:.02em}
@@ -1316,8 +1331,8 @@ async function generaFact() {
 /* ---------- datos de finanzas: todo se guarda en este teléfono ---------- */
 var K_FIN = 'pjq.fin.v2';
 var finStore = leer(K_FIN, null) || {};
-['Cobros', 'Gastos', 'Trabajadores', 'Dias', 'Pagos'].forEach(function (n) { if (!Array.isArray(finStore[n])) finStore[n] = []; });
-var ALIAS_FIN = { cobro: 'Cobros', gasto: 'Gastos', trabajador: 'Trabajadores', dia: 'Dias', pago: 'Pagos' };
+['Gastos', 'Trabajadores', 'Dias', 'Pagos'].forEach(function (n) { if (!Array.isArray(finStore[n])) finStore[n] = []; });
+var ALIAS_FIN = { gasto: 'Gastos', trabajador: 'Trabajadores', dia: 'Dias', pago: 'Pagos' };
 function fGuarda() { escribir(K_FIN, finStore); }
 
 /* Obras y facturas salen del historial de cotizaciones: no se capturan dos veces. */
@@ -1331,6 +1346,12 @@ function fTbl(n) {
     return historial.filter(function (h) { return h.datos && h.datos.factFecha; }).map(function (h) {
       var c = calc(h.datos);
       return { id: h.id, folio: h.folio, fecha: h.datos.factFecha, cliente: h.cliente || '', subtotal: c.sub, iva: c.iva, isr_retenido: c.isr, total: c.total, con_iva: h.datos.factura ? 'si' : 'no' };
+    });
+  }
+  /* dinero que entró: el total de cada cotización marcada como terminada, el día que se marcó */
+  if (n === 'Cobros') {
+    return historial.filter(function (h) { return h.datos && estadoDe(h) === 'terminada'; }).map(function (h) {
+      var c = calc(h.datos); return { id: h.id, fecha: h.datos.fechaEstado || h.fecha, obra: h.folio, cliente: h.cliente || '', monto: c.total, nota: 'Trabajo terminado' };
     });
   }
   return finStore[n] || [];
@@ -1369,7 +1390,7 @@ function fEncola(it) {
 /* al importar un respaldo: se agrega lo que falte, sin pisar lo que ya hay */
 function fMezcla(f) {
   var n = 0; if (!f || typeof f !== 'object') return 0;
-  ['Cobros', 'Gastos', 'Trabajadores', 'Dias', 'Pagos'].forEach(function (nombre) {
+  ['Gastos', 'Trabajadores', 'Dias', 'Pagos'].forEach(function (nombre) {
     (Array.isArray(f[nombre]) ? f[nombre] : []).forEach(function (r) {
       if (r && r.id && !finStore[nombre].some(function (x) { return x.id === r.id; })) { finStore[nombre].push(r); n++; }
     });
@@ -1463,7 +1484,7 @@ function fVistaResumen() {
   var c = fCalc(finMes), vacio = !c.fac.length && !c.cob.length && !c.gas.length && !c.pag.length;
   var h = '';
   h += '<div class="f-dark"><div class="et">NETO QUE TE QUEDA</div><div class="n">' + fGrande(c.neto) + '</div><p>' + (c.ing > 0 ? Math.round(c.neto / c.ing * 100) + ' % de lo facturado sin IVA. ' : '') + 'Ya con gastos, sueldos e impuestos descontados.</p></div>';
-  if (vacio) h += '<div class="f-vacio">Aún no hay movimientos en ' + esc(fMesTxt(finMes).toLowerCase()) + '. Anota un cobro o un gasto para empezar.</div>';
+  if (vacio) h += '<div class="f-vacio">Aún no hay movimientos en ' + esc(fMesTxt(finMes).toLowerCase()) + '. Aparecen cuando marcas un trabajo como terminado o registras un gasto.</div>';
   h += fMarcos('<div class="f-th">A dónde se fue el dinero</div><div class="f-g">' +
     '<span class="f-et">Entró a la cuenta</span><span class="v s">' + money(c.entro) + '</span><hr>' +
     '<span class="f-et">Material</span><span class="v">' + fMenos(c.mat) + '</span>' +
@@ -1471,19 +1492,19 @@ function fVistaResumen() {
     '<span class="f-et">Sueldos pagados</span><span class="v">' + fMenos(c.sue) + '</span>' +
     '<span class="f-et">Impuestos del mes</span><span class="v">' + fMenos(c.total) + '</span><hr>' +
     '<span class="f-et">Neto</span><span class="v s ' + (c.neto >= 0 ? 'f-ok' : 'f-pen') + '">' + money(c.neto) + '</span></div>' +
-    '<div class="f-nota">“Entró a la cuenta” son los cobros que anotaste. Incluye el IVA y ya descuenta el ISR que te retuvieron. Los impuestos son estimados.</div>');
+    '<div class="f-nota">“Entró a la cuenta” es el total de las cotizaciones que marcaste como terminadas en el mes. Incluye el IVA y ya descuenta el ISR que te retuvieron. Los impuestos son estimados.</div>');
   var ms = fMeses(), vals = ms.map(function (m) { return Math.max(fCalc(m.k).neto, 0); });
   h += fMarcos('<div class="f-chead"><div class="f-th">Neto por mes</div>' + fToggle() + '</div>' + fBarras(vals, ms, finMes));
-  h += fMarcos('<div class="f-cab"><div class="f-th">Cobros <small>' + c.cob.length + '</small></div></div>' + fLista('Cobros', c.cob, function (r) { return [esc((r.obra ? r.obra + ' · ' : '') + (r.cliente || r.nota || 'Cobro')), esc(fFechaCorta(r.fecha)), money(r.monto)]; }) + '<button type="button" class="f-btn" data-fa="cobro">Registrar cobro</button>');
+  h += fMarcos('<div class="f-cab"><div class="f-th">Trabajos terminados <small>' + c.cob.length + '</small></div></div>' + fLista('Cobros', c.cob, function (r) { return [esc(r.obra + ' · ' + (r.cliente || '')), esc(fFechaCorta(r.fecha) + ' · cobrado'), money(r.monto)]; }, true) + '<div class="f-nota">Cuando marcas una cotización como terminada, su total cuenta como dinero que entró ese día.</div>');
   h += fMarcos('<div class="f-cab"><div class="f-th">Gastos <small>' + c.gas.length + '</small></div></div>' + fLista('Gastos', c.gas, function (r) { return [esc((r.proveedor || r.concepto || 'Gasto') + (r.facturado === 'no' ? ' · sin factura' : '')), esc(fFechaCorta(r.fecha) + ' · ' + r.categoria), money(r.total)]; }) + '<button type="button" class="f-btn" data-fa="gasto">Registrar gasto</button>');
   return h;
 }
-function fLista(hoja, filas, fmt) {
+function fLista(hoja, filas, fmt, fijo) {
   if (!filas.length) return '<div class="f-nota" style="margin-top:0">Nada registrado este mes.</div>';
   var orden = filas.slice().sort(function (a, b) { return String(b.fecha).localeCompare(String(a.fecha)); });
   return '<div class="f-lst">' + orden.map(function (r) {
     var f = fmt(r), conf = finConfirma === hoja + '|' + r.id;
-    return '<div>' + f[0] + '<div class="m">' + f[1] + '</div></div><span class="v">' + f[2] + '</span><button type="button" class="f-x' + (conf ? ' conf' : '') + '" data-fa="del" data-hoja="' + hoja + '" data-id="' + esc(r.id) + '" aria-label="' + (conf ? 'Confirmar: quitar' : 'Quitar') + '">' + (conf ? '¿Sí?' : '×') + '</button>';
+    return '<div>' + f[0] + '<div class="m">' + f[1] + '</div></div><span class="v">' + f[2] + '</span>' + (fijo ? '<span></span>' : '<button type="button" class="f-x' + (conf ? ' conf' : '') + '" data-fa="del" data-hoja="' + hoja + '" data-id="' + esc(r.id) + '" aria-label="' + (conf ? 'Confirmar: quitar' : 'Quitar') + '">' + (conf ? '¿Sí?' : '×') + '</button>');
   }).join('') + '</div>';
 }
 
@@ -1544,10 +1565,9 @@ function fVistaObras() {
     var pct = num(f.o.total) > 0 ? Math.min(100, Math.round(f.cobrado / num(f.o.total) * 100)) : 0;
     h += fMarcos('<div class="f-cab"><div><div class="f-th">' + esc(f.o.folio) + ' · ' + esc(f.o.cliente) + '</div><div class="f-sub">' + (f.o.estado === 'terminada' ? 'Trabajo terminado' : 'En proceso') + ' · cotizada en ' + money(f.o.total) + '</div></div></div>' +
       '<div class="f-pb" style="background:#e1e6ec;margin-top:0"><div style="width:' + pct + '%;background:#1D2D3D"></div></div><div class="f-pi" style="color:#5d5d60"><span>COBRADO ' + fCorto(f.cobrado) + '</span><span>' + pct + ' %</span></div>' +
-      '<div class="f-g"><span class="f-et">Por cobrar</span><span class="v ' + (f.por > 0 ? 'f-pen' : 'f-ok') + '">' + money(f.por) + '</span><span class="f-et">Gastos de la obra</span><span class="v">' + fMenos(f.gastos) + '</span><span class="f-et">Queda antes de sueldos</span><span class="v s">' + money(f.cobrado - f.gastos) + '</span></div>' +
-      (f.por > 0 ? '<button type="button" class="f-btn o" data-fa="cobro" data-obra="' + esc(f.o.folio) + '">Registrar cobro</button>' : ''));
+      '<div class="f-g"><span class="f-et">Por cobrar</span><span class="v ' + (f.por > 0 ? 'f-pen' : 'f-ok') + '">' + money(f.por) + '</span><span class="f-et">Gastos de la obra</span><span class="v">' + fMenos(f.gastos) + '</span><span class="f-et">Queda antes de sueldos</span><span class="v s">' + money(f.cobrado - f.gastos) + '</span></div>');
   });
-  h += '<div class="f-nota">Los gastos cuentan para una obra cuando al registrarlos eliges su folio. Los sueldos se llevan aparte, por persona.</div>';
+  h += '<div class="f-nota">Una obra se da por cobrada cuando la marcas como terminada. Los gastos cuentan para una obra si al registrarlos eliges su folio. Los sueldos se llevan aparte, por persona.</div>';
   return h;
 }
 
@@ -1633,23 +1653,6 @@ function fChipsVal(grupo) { return $$('#fm-cuerpo [data-grupo="' + grupo + '"] b
 function fOpcObras(sel, soloPendientes) {
   return '<option value="">Sin obra</option>' + fTbl('Obras').filter(function (o) { return o.estado === 'aceptada' || o.estado === 'terminada'; }).map(function (o) { return '<option value="' + esc(o.folio) + '"' + (o.folio === sel ? ' selected' : '') + '>' + esc(o.folio + ' · ' + o.cliente) + '</option>'; }).join('');
 }
-function fFormCobro(obra) {
-  var cuerpo = '<div class="campo"><label for="fm-fecha">Fecha</label><input id="fm-fecha" type="date" value="' + hoyISO() + '"></div>' +
-    '<div class="campo"><label for="fm-obra">Obra</label><select id="fm-obra">' + fOpcObras(obra) + '</select></div>' +
-    '<div class="campo"><label for="fm-monto">Cuánto entró a la cuenta</label><input id="fm-monto" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Monto que depositaron"></div>' +
-    '<div class="campo"><label for="fm-nota">Nota (opcional)</label><input id="fm-nota" placeholder="Anticipo, saldo, transferencia…"></div>';
-  fAbreModal('Registrar cobro', cuerpo, 'Guardar cobro', function () {
-    var monto = num(fv('monto')); if (!(monto > 0)) { aviso('Escribe cuánto entró.'); return false; }
-    var folio = fv('obra'), o = fTbl('Obras').find(function (x) { return x.folio === folio; });
-    fEncola({ accion: 'cobro', id: aId(), fecha: fv('fecha') || hoyISO(), obra: folio, cliente: o ? o.cliente : '', monto: monto, nota: fv('nota').trim() });
-    return 'Cobro guardado.';
-  });
-  var sel = $('#fm-obra'); sel.addEventListener('change', function () {
-    var o = fTbl('Obras').find(function (x) { return x.folio === sel.value; }); if (!o || fv('monto')) return;
-    var cobrado = fSuma(fTbl('Cobros').filter(function (c) { return c.obra === o.folio; }), 'monto'), por = r2(num(o.total) - cobrado); if (por > 0) $('#fm-monto').value = por;
-  });
-  if (obra) sel.dispatchEvent(new Event('change'));
-}
 function fFormGasto() {
   var cuerpo = '<div class="campo"><label for="fm-fecha">Fecha</label><input id="fm-fecha" type="date" value="' + hoyISO() + '"></div>' +
     '<div class="campo"><label for="fm-prov">Proveedor</label><input id="fm-prov" placeholder="Dónde compraste"></div>' +
@@ -1707,7 +1710,6 @@ function fInit() {
     else if (a === 'mes') { finMes = b.getAttribute('data-mes'); fPinta(); }
     else if (a === 'graf') { finGraf = b.getAttribute('data-g'); fPinta(); }
     else if (a === 'respaldo') $('#btn-resp').click();
-    else if (a === 'cobro') fFormCobro(b.getAttribute('data-obra') || '');
     else if (a === 'gasto') fFormGasto();
     else if (a === 'pago') fFormPago();
     else if (a === 'trab') { finTrab = b.getAttribute('data-id'); fPinta(); }
