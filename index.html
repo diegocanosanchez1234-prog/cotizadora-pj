@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="96fc462d2a">
-<meta name="pj-fecha" content="2026-11-05 13:13">
+<meta name="pj-build" content="e62f609e51">
+<meta name="pj-fecha" content="2026-11-05 13:48">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -615,8 +615,9 @@ function leer(k, def) { try { var v = localStorage.getItem(k); return v ? JSON.p
 function escribir(k, v) { memoria[k] = v; try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
 
 /* ---------- datos ---------- */
-var AJ0 = { representante: 'Jesús Cano Mata', tel: '656 312 9242', correo: 'pintoresjuarez1@gmail.com', ciudad: 'Cd. Juárez, Chih.', folio: 1, vigencia: 20, anticipo: 50, garantia: 1, multa: 1, iva: 8, isr: 1.25, msi: 'Consulte plazos y tarjetas participantes.', firma: null, resenaUrl: '' };
+var AJ0 = { representante: 'Jesús Cano Mata', tel: '656 312 9242', correo: 'pintoresjuarez1@gmail.com', ciudad: 'Cd. Juárez, Chih.', folio: 1, vigencia: 20, anticipo: 50, garantia: 1, multa: 1, iva: 8, isr: 1.25, msi: 'Consulte plazos y tarjetas participantes.', firma: null, resenaUrl: 'https://g.page/r/CVH0ZL30KbaYEBM/review' };
 var ajustes = Object.assign({}, AJ0, leer(K_AJ, {}));
+if (!String(ajustes.resenaUrl || '').trim()) ajustes.resenaUrl = AJ0.resenaUrl;
 var historial = leer(K_HIST, []);
 var clientes = leer(K_CLI, []);
 var q = null;          // cotización activa
