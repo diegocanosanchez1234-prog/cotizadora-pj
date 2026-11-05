@@ -99,7 +99,7 @@ details.avanzado summary{cursor:pointer;font:500 11px var(--mono);letter-spacing
 .oculto-export{position:fixed;left:-12000px;top:0;width:816px}
 @media (prefers-reduced-motion:no-preference){.toast{animation:sube .2s ease-out}@keyframes sube{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}}
 
-.btn[hidden],.chip[hidden]{display:none}
+.btn[hidden],.chip[hidden],.acciones[hidden]{display:none}
 .chip[aria-pressed="true"]{background:var(--steel);border-color:var(--steel);color:var(--deep)}
 .sello.no{border-color:var(--warn);color:var(--warn)}
 .sello.hecho{background:var(--steel);border-color:var(--steel);color:var(--deep)}
@@ -204,6 +204,9 @@ details.avanzado summary{font-size:12.5px}
   <main>
   <!-- ===== COTIZACIÓN ===== -->
   <section class="vista" id="vista-nueva" role="tabpanel" aria-labelledby="tab-nueva">
+    <div class="acciones" style="margin:0 0 14px" id="nueva-fila" hidden>
+      <button class="btn p" id="btn-nueva-cot" type="button">＋ Nueva cotización</button>
+    </div>
     <div class="panel" id="estado-panel" hidden>
       <span class="sello ok" id="sello-estado">ACEPTADA</span>
       <p class="nota" style="margin:10px 0 12px" id="estado-texto"></p>
@@ -289,6 +292,9 @@ details.avanzado summary{font-size:12.5px}
   <!-- ===== HISTORIAL ===== -->
   <section class="vista" id="vista-historial" role="tabpanel" aria-labelledby="tab-historial" hidden>
     <div class="panel">
+      <div class="acciones" style="margin:0 0 16px">
+        <button class="btn p" id="btn-nueva-hist" type="button">＋ Nueva cotización</button>
+      </div>
       <h2>Historial <i id="hist-cuenta"></i></h2>
       <div class="campo"><label for="h-buscar">Buscar</label><input id="h-buscar" type="search" placeholder="Cliente o folio"></div>
       <div class="chips" id="h-filtros"></div>
@@ -687,6 +693,7 @@ function pintaResumen() {
   var est = q.estado || 'borrador', firmada = est === 'aceptada' || est === 'terminada', bloqueada = firmada || est === 'no_aceptada';
   $('#campos').disabled = bloqueada;
   $('#estado-panel').hidden = !bloqueada;
+  $('#nueva-fila').hidden = !q.guardada;
   if (bloqueada) {
     var s = $('#sello-estado'); s.textContent = ETQ[est]; s.className = 'sello ' + (est === 'no_aceptada' ? 'no' : est === 'terminada' ? 'hecho' : 'ok');
     $('#estado-texto').textContent = est === 'no_aceptada'
@@ -922,6 +929,21 @@ function upsertCliente(x) {
   x.clienteId = c.id; escribir(K_CLI, clientes);
 }
 function autoguarda() { if ((q.estado || 'borrador') === 'borrador' && q.cliente.nombre.trim() && calc(q).sub > 0) guardar(true); }
+var pendienteNueva = false;
+function nuevaCot() {
+  autoguarda();
+  var conDatos = q.cliente.nombre.trim() || calc(q).sub > 0;
+  if (!q.guardada && conDatos && !pendienteNueva) {
+    pendienteNueva = true;
+    aviso('Esta cotización aún no se guarda (falta el nombre o un precio). Toca “Nueva cotización” otra vez para descartarla.');
+    setTimeout(function () { pendienteNueva = false; }, 5000);
+    return;
+  }
+  pendienteNueva = false;
+  var guardada = q.guardada;
+  resetea(); cambiaTab('nueva', true);
+  aviso(guardada ? 'Cotización en blanco. La anterior sigue en el historial.' : 'Cotización en blanco.');
+}
 function resetea() { q = nueva(); escribir(K_BOR, q); llenaForma(); pintar(); window.scrollTo(0, 0); }
 function terminaEnvio(extra) { guardar(true); resetea(); cambiaTab('historial'); aviso('Enviada y guardada en el historial.' + (extra ? ' ' + extra : '')); }
 function estadoReabrir(id) { var h = historial.find(function (x) { return x.id === id; }); return h && h.datos.firmaCliente ? 'aceptada' : 'borrador'; }
@@ -1203,6 +1225,8 @@ function arranca() {
   });
   
   
+  $('#btn-nueva-cot').addEventListener('click', nuevaCot);
+  $('#btn-nueva-hist').addEventListener('click', nuevaCot);
   $('#btn-copia').addEventListener('click', function () { if (!q.guardada) guardar(true); duplica(q.id); });
   $('#mf-ok').addEventListener('click', aceptaFirma); $('#mf-cancela').addEventListener('click', cierraFirma); $('#mf-limpia').addEventListener('click', function () { padCli.limpia(); });
   $('#hist-lista').addEventListener('click', accionLista);
