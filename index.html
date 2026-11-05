@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="e62f609e51">
-<meta name="pj-fecha" content="2026-11-05 13:48">
+<meta name="pj-build" content="2c8faa4495">
+<meta name="pj-fecha" content="2026-11-05 14:06">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1360,9 +1360,12 @@ async function generaFact() {
 /* ---------- datos de finanzas: todo se guarda en este teléfono ---------- */
 var K_FIN = 'pjq.fin.v2';
 var finStore = leer(K_FIN, null) || {};
-['Gastos', 'Trabajadores', 'Dias', 'Pagos'].forEach(function (n) { if (!Array.isArray(finStore[n])) finStore[n] = []; });
-var ALIAS_FIN = { gasto: 'Gastos', trabajador: 'Trabajadores', dia: 'Dias', pago: 'Pagos' };
+['Gastos', 'Trabajadores', 'Dias', 'Pagos', 'Prestamos'].forEach(function (n) { if (!Array.isArray(finStore[n])) finStore[n] = []; });
+var ALIAS_FIN = { gasto: 'Gastos', trabajador: 'Trabajadores', dia: 'Dias', pago: 'Pagos', prestamo: 'Prestamos' };
 function fGuarda() { escribir(K_FIN, finStore); }
+/* un pago liquida lo que se entrega más lo que se descuenta por préstamos */
+function fLiq(p) { return num(p.monto) + num(p.descuento); }
+function fSumaLiq(a) { return r2(a.reduce(function (s, x) { return s + fLiq(x); }, 0)); }
 
 /* Obras y facturas salen del historial de cotizaciones: no se capturan dos veces. */
 function fTbl(n) {
@@ -1419,7 +1422,7 @@ function fEncola(it) {
 /* al importar un respaldo: se agrega lo que falte, sin pisar lo que ya hay */
 function fMezcla(f) {
   var n = 0; if (!f || typeof f !== 'object') return 0;
-  ['Gastos', 'Trabajadores', 'Dias', 'Pagos'].forEach(function (nombre) {
+  ['Gastos', 'Trabajadores', 'Dias', 'Pagos', 'Prestamos'].forEach(function (nombre) {
     (Array.isArray(f[nombre]) ? f[nombre] : []).forEach(function (r) {
       if (r && r.id && !finStore[nombre].some(function (x) { return x.id === r.id; })) { finStore[nombre].push(r); n++; }
     });
@@ -1461,9 +1464,9 @@ function fCalc(k) {
   var cob = fTbl('Cobros').filter(function (r) { return fEnMes(r, k); });
   var pag = fTbl('Pagos').filter(function (r) { return fEnMes(r, k); });
   var entro = fSuma(cob, 'monto'), mat = fSuma(gas.filter(function (g) { return g.categoria === 'material'; }), 'total');
-  var otros = r2(fSuma(gas, 'total') - mat), sue = fSuma(pag, 'monto');
-  i.cob = cob; i.gas = gas; i.pag = pag; i.entro = entro; i.mat = mat; i.otros = otros; i.sue = sue;
-  i.neto = r2(entro - mat - otros - sue - i.total);
+  var otros = r2(fSuma(gas, 'total') - mat), sue = fSuma(pag, 'monto'), pre = fSuma(fTbl('Prestamos').filter(function (r) { return fEnMes(r, k); }), 'monto');
+  i.cob = cob; i.gas = gas; i.pag = pag; i.entro = entro; i.mat = mat; i.otros = otros; i.sue = sue; i.pre = pre;
+  i.neto = r2(entro - mat - otros - sue - pre - i.total);
   return i;
 }
 
@@ -1519,6 +1522,7 @@ function fVistaResumen() {
     '<span class="f-et">Material</span><span class="v">' + fMenos(c.mat) + '</span>' +
     '<span class="f-et">Otros gastos</span><span class="v">' + fMenos(c.otros) + '</span>' +
     '<span class="f-et">Sueldos pagados</span><span class="v">' + fMenos(c.sue) + '</span>' +
+    (c.pre > 0 ? '<span class="f-et">Préstamos a trabajadores</span><span class="v">' + fMenos(c.pre) + '</span>' : '') +
     '<span class="f-et">Impuestos del mes</span><span class="v">' + fMenos(c.total) + '</span><hr>' +
     '<span class="f-et">Neto</span><span class="v s ' + (c.neto >= 0 ? 'f-ok' : 'f-pen') + '">' + money(c.neto) + '</span></div>' +
     '<div class="f-nota">“Entró a la cuenta” es el total de las cotizaciones que marcaste como terminadas en el mes. Incluye el IVA y ya descuenta el ISR que te retuvieron. Los impuestos son estimados.</div>');
@@ -1619,8 +1623,8 @@ function fVistaSueldos() {
     if (vis === 't') t++; else if (vis === 'm') md++; else if (vis === 'r') rd++; else if (f <= hoy) sin++;
     celdas += '<button type="button" class="f-d ' + vis + (f === hoy ? ' hoy' : '') + '" data-fa="dia" data-f="' + f + '" aria-label="' + i + ': ' + (vis === 't' ? 'trabajó' : vis === 'm' ? 'medio día' : vis === 'r' ? 'descanso' : 'sin marcar') + '">' + i + '</button>';
   }
-  var dev = fDevengado(misMes), pagM = fSuma(pagos.filter(function (x) { return x.trabajador === w.id && fEnMes(x, finMes); }), 'monto');
-  var debeTot = r2(fDevengado(misDias) - fSuma(pagos.filter(function (x) { return x.trabajador === w.id; }), 'monto')), pct = dev > 0 ? Math.min(100, Math.round(pagM / dev * 100)) : 0;
+  var dev = fDevengado(misMes), pagM = fSumaLiq(pagos.filter(function (x) { return x.trabajador === w.id && fEnMes(x, finMes); })), prestSaldo = pSaldoTotal(w.id);
+  var debeTot = r2(fDevengado(misDias) - fSumaLiq(pagos.filter(function (x) { return x.trabajador === w.id; }))), pct = dev > 0 ? Math.min(100, Math.round(pagM / dev * 100)) : 0;
   var diaPago = { vie: 'los viernes', sab: 'los sábados', dom: 'los domingos' }[w.dia_pago] || '';
   var h = fMarcos('<div class="f-th" style="margin-bottom:12px">Equipo</div><div class="f-eq">' + tr.map(function (x) {
     return '<button type="button" class="f-av" data-fa="trab" data-id="' + esc(x.id) + '" aria-pressed="' + (x.id === w.id) + '"><b>' + esc(String(x.nombre || '?').charAt(0).toUpperCase()) + '</b><small>' + esc(String(x.nombre || '').split(' ')[0]) + '</small></button>'; }).join('') +
@@ -1630,14 +1634,15 @@ function fVistaSueldos() {
     '<div class="f-ley"><span><u style="background:#1D2D3D"></u>Trabajó</span><span><u style="background:linear-gradient(135deg,#1D2D3D 50%,#fff 50%)"></u>Medio día</span><span><u style="background:repeating-linear-gradient(135deg,#94bce3 0 1.5px,#eef6ff 1.5px 6px);border-color:#5980A6"></u>Descanso</span><span><u style="background:#fff"></u>Sin marcar</span></div>' +
     '<div class="f-nota">Toca un día para cambiarlo: trabajó, medio día, descanso. ' + (sin ? '<b>' + sin + ' día' + (sin === 1 ? '' : 's') + ' sin marcar.</b>' : '') + '</div>');
   h += '<div class="f-dark"><div class="et">' + esc(String(w.nombre).toUpperCase()) + ' · A PAGAR EN ' + esc(fMesTxt(finMes).split(' ')[0].toUpperCase()) + '</div><div class="n">' + fGrande(dev) + '</div><div class="f-pb"><div style="width:' + pct + '%"></div></div>' +
-    '<div class="f-pi"><span>PAGADO ' + fCorto(pagM) + ' · DEBES ' + fCorto(Math.max(debeTot, 0)) + '</span><span>' + pct + ' %</span></div>' +
+    '<div class="f-pi"><span>PAGADO ' + fCorto(pagM) + ' · DEBES ' + fCorto(Math.max(debeTot, 0)) + (prestSaldo > 0 ? ' · PRÉSTAMO ' + fCorto(prestSaldo) : '') + '</span><span>' + pct + ' %</span></div>' +
     '<div class="f-kp"><div><small>TRABAJÓ</small><b>' + t + ' días</b></div><div><small>MEDIO</small><b>' + md + ' día' + (md === 1 ? '' : 's') + '</b></div><div><small>DESCANSÓ</small><b>' + rd + ' días</b></div></div>' +
     '<div class="f-acc"><button type="button" class="f-b1" data-fa="pago">Registrar pago</button><button type="button" class="f-b2" data-fa="llenar">Marcar días</button></div></div>';
   var mios = pagos.filter(function (x) { return x.trabajador === w.id; }).sort(function (a, b) { return String(b.fecha).localeCompare(String(a.fecha)); }).slice(0, 6);
   h += fMarcos('<div class="f-th">Pagos de ' + esc(String(w.nombre).split(' ')[0]) + '</div>' + (mios.length ? '<div class="f-lst">' + mios.map(function (r) {
-    var conf = finConfirma === 'Pagos|' + r.id; return '<div>' + esc(r.nota || 'Pago') + '<div class="m">' + esc(fFechaCorta(r.fecha)) + '</div></div><span class="v">' + money(r.monto) + '</span><span style="display:flex;gap:6px"><button type="button" class="f-mini" style="padding:6px 9px;font-size:12px" data-fa="recibo" data-id="' + esc(r.id) + '">Recibo' + (r.reciboEnviado ? ' ✓' : '') + '</button><button type="button" class="f-x' + (conf ? ' conf' : '') + '" data-fa="del" data-hoja="Pagos" data-id="' + esc(r.id) + '" aria-label="Quitar pago">' + (conf ? '¿Sí?' : '×') + '</button></span>'; }).join('') + '</div>' : '<div class="f-nota" style="margin-top:8px">Aún no hay pagos registrados.</div>'));
+    var conf = finConfirma === 'Pagos|' + r.id; return '<div>' + esc(r.nota || 'Pago') + '<div class="m">' + esc(fFechaCorta(r.fecha) + (num(r.descuento) > 0 ? ' · descuento de préstamo ' + money(r.descuento) : '')) + '</div></div><span class="v">' + money(r.monto) + '</span><span style="display:flex;gap:6px"><button type="button" class="f-mini" style="padding:6px 9px;font-size:12px" data-fa="recibo" data-id="' + esc(r.id) + '">Recibo' + (r.reciboEnviado ? ' ✓' : '') + '</button><button type="button" class="f-x' + (conf ? ' conf' : '') + '" data-fa="del" data-hoja="Pagos" data-id="' + esc(r.id) + '" aria-label="Quitar pago">' + (conf ? '¿Sí?' : '×') + '</button></span>'; }).join('') + '</div>' : '<div class="f-nota" style="margin-top:8px">Aún no hay pagos registrados.</div>'));
+  h += pVistaPrestamos(w);
   var filasT = tr.map(function (x) {
-    var rm = dias.filter(function (d) { return d.trabajador === x.id; }), a = fDevengado(rm.filter(function (d) { return fEnMes(d, finMes); })), de = r2(fDevengado(rm) - fSuma(pagos.filter(function (z) { return z.trabajador === x.id; }), 'monto'));
+    var rm = dias.filter(function (d) { return d.trabajador === x.id; }), a = fDevengado(rm.filter(function (d) { return fEnMes(d, finMes); })), de = r2(fDevengado(rm) - fSumaLiq(pagos.filter(function (z) { return z.trabajador === x.id; })));
     return { x: x, a: a, de: Math.max(de, 0) };
   });
   h += fMarcos('<div class="f-th">Todos los sueldos <small>' + esc(fMesTxt(finMes).split(' ')[0].toUpperCase()) + '</small></div><div class="f-tb"><span class="h">Persona</span><span class="h v">A pagar</span><span class="h v">Debes</span>' + filasT.map(function (f) {
@@ -1711,20 +1716,6 @@ function fFormGasto() {
     return fac === 'si' ? 'Gasto guardado con factura.' : 'Gasto guardado como no deducible.';
   });
 }
-function fFormPago() {
-  var w = fTbl('Trabajadores').find(function (x) { return x.id === finTrab; }); if (!w) return;
-  var debe = r2(fDevengado(fTbl('Dias').filter(function (d) { return d.trabajador === w.id; })) - fSuma(fTbl('Pagos').filter(function (x) { return x.trabajador === w.id; }), 'monto'));
-  fAbreModal('Pago a ' + w.nombre, '<p class="nota" style="margin:0 0 12px">Hoy se le debe ' + esc(money(Math.max(debe, 0))) + '.</p>' +
-    '<div class="campo"><label for="fm-fecha">Fecha</label><input id="fm-fecha" type="date" value="' + hoyISO() + '"></div>' +
-    '<div class="campo"><label for="fm-monto">Monto pagado</label><input id="fm-monto" type="number" inputmode="decimal" min="0" step="0.01" value="' + (debe > 0 ? debe : '') + '"></div>' +
-    '<div class="campo"><label for="fm-nota">Nota (opcional)</label><input id="fm-nota" placeholder="Semana del 1 al 7, adelanto…"></div>', 'Guardar pago', function () {
-      var monto = num(fv('monto')); if (!(monto > 0)) { aviso('Escribe el monto pagado.'); return false; }
-      var pid = aId();
-      fEncola({ accion: 'pago', id: pid, trabajador: w.id, fecha: fv('fecha') || hoyISO(), monto: monto, nota: fv('nota').trim() });
-      setTimeout(function () { abreRecibo(pid); }, 150);
-      return 'Pago guardado.';
-    });
-}
 function fFormTrab(id) {
   var w = id ? fTbl('Trabajadores').find(function (x) { return x.id === id; }) : null; w = w || {};
   var cuerpo = '<p class="nota" style="margin:0 0 12px">Se registra una vez. Después solo marcas los días en el calendario.</p>' +
@@ -1761,6 +1752,7 @@ function fInit() {
     else if (a === 'editaTrab') fFormTrab(finTrab);
     else if (a === 'dia') fCicloDia(b.getAttribute('data-f'));
     else if (a === 'llenar') fLlenaDias();
+    else if (a === 'prestamo') fFormPrestamo();
     else if (a === 'recibo') abreRecibo(b.getAttribute('data-id'));
     else if (a === 'del') {
       var k = b.getAttribute('data-hoja') + '|' + b.getAttribute('data-id');
@@ -1771,7 +1763,7 @@ function fInit() {
   $('#fm-cuerpo').addEventListener('click', function (e) {
     var c = e.target.closest('.f-ch2 button');
     if (c) { var g = c.parentNode; if (g.hasAttribute('data-multi')) c.setAttribute('aria-pressed', c.getAttribute('aria-pressed') === 'true' ? 'false' : 'true'); else { $$('button', g).forEach(function (x) { x.setAttribute('aria-pressed', 'false'); }); c.setAttribute('aria-pressed', 'true'); }
-      if (g.getAttribute('data-grupo') === 'fac') { var box = $('#fm-ivabox'); if (box) box.hidden = c.getAttribute('data-v') !== 'si'; } return; }
+      if (g.getAttribute('data-grupo') === 'fac') { var box = $('#fm-ivabox'); if (box) box.hidden = c.getAttribute('data-v') !== 'si'; } fAlElegirChip(g.getAttribute('data-grupo'), c.getAttribute('data-v')); return; }
     var bi = e.target.closest('[data-iva]');
     if (bi) { if (!(num(fv('total')) > 0)) { aviso('Primero escribe el total.'); return; } fMarcaTasa(+bi.getAttribute('data-iva')); }
   });
@@ -2062,9 +2054,17 @@ function rDatos(w, p) {
   }
   var ganado = r2(tSum + mSum);
   var antes = fDevengado(dias.filter(function (d) { return sinDias ? d.fecha <= fin : d.fecha < inicio; }));
-  var pagadoAntes = fSuma(pagos.slice(0, Math.max(i, 0)), 'monto');
+  var pagadoAntes = fSumaLiq(pagos.slice(0, Math.max(i, 0)));
   var saldoAnt = r2(antes - pagadoAntes), total = r2(saldoAnt + ganado);
-  return { w: w, p: p, inicio: inicio, fin: fin, sinDias: sinDias, t: t, m: m, r: r, s: s, tSum: r2(tSum), mSum: r2(mSum), ganado: ganado, saldoAnt: saldoAnt, total: total, pagado: num(p.monto), pendiente: r2(total - num(p.monto)) };
+  var descuento = r2(num(p.descuento)), neto = r2(total - descuento), hasta = Math.max(i, 0) + 1, lo = sinDias ? fin : inicio;
+  var prestamos = fTbl('Prestamos').filter(function (x) { return x.trabajador === w.id && x.fecha <= p.fecha; });
+  var prest = (Array.isArray(p.descuentos) ? p.descuentos : []).map(function (x) {
+    var pr = prestamos.find(function (y) { return y.id === x.p; });
+    return pr ? { fecha: pr.fecha, monto: num(pr.monto), forma: pFormaTxt(pr), d: num(x.m), saldo: Math.max(r2(num(pr.monto) - pAplicado(pr.id, pagos, hasta)), 0) } : null;
+  }).filter(Boolean);
+  var nuevos = prestamos.filter(function (x) { return x.fecha >= lo; }).map(function (x) { return { fecha: x.fecha, monto: num(x.monto), forma: pFormaTxt(x) }; });
+  var prestSaldo = r2(prestamos.reduce(function (s, x) { return s + Math.max(r2(num(x.monto) - pAplicado(x.id, pagos, hasta)), 0); }, 0));
+  return { w: w, p: p, inicio: inicio, fin: fin, sinDias: sinDias, t: t, m: m, r: r, s: s, tSum: r2(tSum), mSum: r2(mSum), ganado: ganado, saldoAnt: saldoAnt, total: total, descuento: descuento, neto: neto, prest: prest, nuevos: nuevos, prestSaldo: prestSaldo, pagado: num(p.monto), pendiente: r2(neto - num(p.monto)) };
 }
 function rTexto(dt) {
   var L = ['*Recibo de pago · Pintores Juárez*', '', 'Trabajador: ' + dt.w.nombre + (dt.w.puesto ? ' (' + dt.w.puesto + ')' : ''),
@@ -2076,7 +2076,15 @@ function rTexto(dt) {
     if (dt.s.length) L.push('Sin marcar: ' + rDias(dt.s.length) + ' (' + rLista(dt.s) + '), no se pagan');
     L.push('');
   }
-  L.push('Ganado en el periodo: ' + money(dt.ganado), 'Saldo anterior: ' + money(dt.saldoAnt), 'Total a pagar: ' + money(dt.total), 'Pagado el ' + rFecha(dt.p.fecha) + ': ' + money(dt.pagado), 'Saldo pendiente: ' + money(Math.max(dt.pendiente, 0)));
+  dt.nuevos.forEach(function (x) { L.push('Préstamo entregado el ' + rCorta(x.fecha) + ': ' + money(x.monto) + ' (se descuenta ' + x.forma + ')'); });
+  L.push('Ganado en el periodo: ' + money(dt.ganado), 'Saldo anterior: ' + money(dt.saldoAnt), 'Total a pagar: ' + money(dt.total));
+  if (dt.descuento > 0) {
+    L.push('Descuento por préstamo: -' + money(dt.descuento));
+    dt.prest.forEach(function (x) { L.push('   · Préstamo del ' + rCorta(x.fecha) + ' por ' + money(x.monto) + ': -' + money(x.d) + '. Saldo del préstamo: ' + money(x.saldo)); });
+    L.push('Neto a pagar: ' + money(dt.neto));
+  }
+  L.push('Pagado el ' + rFecha(dt.p.fecha) + ': ' + money(dt.pagado), 'Saldo pendiente: ' + money(Math.max(dt.pendiente, 0)));
+  if (dt.prestSaldo > 0) L.push('Saldo de préstamos: ' + money(dt.prestSaldo));
   if (dt.pendiente < 0) L.push('Pagado de más (a favor): ' + money(-dt.pendiente));
   if (dt.p.nota) L.push('Nota: ' + dt.p.nota);
   L.push('', 'Gracias por tu trabajo.');
@@ -2110,8 +2118,15 @@ function rPdf(dt) {
     if (dt.s.length) { fila('Sin marcar (no se pagan)', String(dt.s.length), '—'); fechas(rLista(dt.s)); }
     y += 6; doc.line(M, y, W - M, y); y += 22;
   }
+  dt.nuevos.forEach(function (x) { fila('Préstamo entregado el ' + rCorta(x.fecha), '', money(x.monto)); fechas('Se descuenta ' + x.forma); });
   fila('Ganado en el periodo', '', money(dt.ganado)); fila('Saldo anterior', '', money(dt.saldoAnt)); fila('Total a pagar', '', money(dt.total), true);
+  if (dt.descuento > 0) {
+    fila('Descuento por préstamo', '', '-' + money(dt.descuento));
+    dt.prest.forEach(function (x) { fechas('Préstamo del ' + rCorta(x.fecha) + ' por ' + money(x.monto) + ': -' + money(x.d) + '. Saldo del préstamo: ' + money(x.saldo)); });
+    fila('Neto a pagar', '', money(dt.neto), true);
+  }
   fila('Pagado el ' + rFecha(dt.p.fecha), '', money(dt.pagado), true); fila('Saldo pendiente', '', money(Math.max(dt.pendiente, 0)), true);
+  if (dt.prestSaldo > 0) fila('Saldo de préstamos', '', money(dt.prestSaldo));
   if (dt.pendiente < 0) fila('Pagado de más (a favor)', '', money(-dt.pendiente));
   if (dt.p.nota) { y += 4; doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.text('Nota: ' + dt.p.nota, M, y, { maxWidth: ancho }); y += 18; }
   y = Math.max(y + 50, 640); doc.setDrawColor(29, 31, 32); doc.line(M, y, M + 220, y); doc.line(W - M - 220, y, W - M, y);
@@ -2179,6 +2194,142 @@ function recibosInit() {
   $('#fm-cuerpo').addEventListener('click', function (e) { if (e.target.closest('[data-recibo-pdf]')) rCompartePdf(); });
 }
 
+/* ---------- préstamos a trabajadores y descuento en nómina ---------- */
+var FORMAS_DSC = [['unico', 'Todo en el siguiente pago'], ['fijo', 'Cantidad fija por pago'], ['cuotas', 'En varios pagos iguales'], ['pct', 'Porcentaje de cada pago'], ['manual', 'Sin descuento automático']];
+var pCtx = null;
+
+function pPagosDe(wid) {
+  return fTbl('Pagos').filter(function (x) { return x.trabajador === wid; }).sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)) || String(a.id).localeCompare(String(b.id)); });
+}
+function pDescDe(pago, prId) { return (Array.isArray(pago.descuentos) ? pago.descuentos : []).reduce(function (s, x) { return x.p === prId ? s + num(x.m) : s; }, 0); }
+/* lo ya descontado de un préstamo en los primeros 'hasta' pagos (todos si no se indica) */
+function pAplicado(prId, pagos, hasta) {
+  var n = hasta === undefined ? pagos.length : hasta, s = 0;
+  for (var i = 0; i < n && i < pagos.length; i++) s += pDescDe(pagos[i], prId);
+  return r2(s);
+}
+function pSaldoTotal(wid) {
+  var pagos = pPagosDe(wid);
+  return r2(fTbl('Prestamos').filter(function (pr) { return pr.trabajador === wid; }).reduce(function (s, pr) { return s + Math.max(r2(num(pr.monto) - pAplicado(pr.id, pagos)), 0); }, 0));
+}
+function pFormaTxt(pr) {
+  var f = pr.forma, v = num(pr.valor);
+  return f === 'unico' ? 'todo en el siguiente pago' : f === 'fijo' ? money(v) + ' por pago' : f === 'cuotas' ? v + ' pagos de ' + money(r2(num(pr.monto) / Math.max(v, 1))) : f === 'pct' ? v + ' % de cada pago' : 'descuento manual';
+}
+
+/* descuento que le toca a cada préstamo en este pago (se puede cambiar al registrarlo) */
+function pSugerido(w, fecha, bruto) {
+  var pagos = pPagosDe(w.id), restante = Math.max(bruto, 0), out = [];
+  fTbl('Prestamos').filter(function (pr) { return pr.trabajador === w.id && pr.fecha <= fecha; })
+    .sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)) || String(a.id).localeCompare(String(b.id)); })
+    .forEach(function (pr) {
+      var saldo = r2(num(pr.monto) - pAplicado(pr.id, pagos)); if (saldo <= 0.004) return;
+      var d = 0, v = num(pr.valor);
+      if (pr.forma === 'unico') d = saldo;
+      else if (pr.forma === 'fijo') d = Math.min(saldo, v);
+      else if (pr.forma === 'cuotas') { var cuota = r2(num(pr.monto) / Math.max(v, 1)); d = Math.min(saldo, cuota); if (saldo - d < 0.5) d = saldo; }
+      else if (pr.forma === 'pct') d = Math.min(saldo, r2(Math.max(bruto, 0) * v / 100));
+      d = r2(Math.min(d, restante)); restante = r2(restante - d);
+      out.push({ pr: pr, saldo: saldo, d: d });
+    });
+  return out;
+}
+
+/* ----- registrar un pago (con descuento de préstamos) ----- */
+function fFormPago() {
+  var w = fTbl('Trabajadores').find(function (x) { return x.id === finTrab; }); if (!w) return;
+  var dias = fTbl('Dias').filter(function (d) { return d.trabajador === w.id; }), pagos = pPagosDe(w.id);
+  var bruto = Math.max(r2(fDevengado(dias) - fSumaLiq(pagos)), 0), fecha = hoyISO();
+  var sug = pSugerido(w, fecha, bruto), desc = r2(sug.reduce(function (s, x) { return s + x.d; }, 0)), neto = r2(Math.max(bruto - desc, 0));
+  pCtx = { w: w, bruto: bruto, sug: sug, manual: false };
+  var bloque = sug.length ? '<div class="f-et" style="margin:4px 0 8px">Descuento en nómina</div>' + sug.map(function (x, i) {
+    return '<div class="campo"><label for="fm-d-' + i + '">Préstamo del ' + esc(fFechaCorta(x.pr.fecha)) + ' · saldo ' + esc(money(x.saldo)) + ' · ' + esc(pFormaTxt(x.pr)) + '</label><input id="fm-d-' + i + '" type="number" inputmode="decimal" min="0" step="0.01" value="' + x.d + '"></div>'; }).join('') +
+    '<p class="nota" id="fm-neto" style="margin:0 0 14px">Neto a entregar: ' + esc(money(neto)) + '</p>' : '';
+  fAbreModal('Pago a ' + w.nombre, '<p class="nota" style="margin:0 0 12px">Hoy se le debe ' + esc(money(bruto)) + '.</p>' +
+    '<div class="campo"><label for="fm-fecha">Fecha</label><input id="fm-fecha" type="date" value="' + fecha + '"></div>' + bloque +
+    '<div class="campo"><label for="fm-monto">Monto que se le entrega</label><input id="fm-monto" type="number" inputmode="decimal" min="0" step="0.01" value="' + (neto > 0 ? neto : '') + '"></div>' +
+    '<div class="campo"><label for="fm-nota">Nota (opcional)</label><input id="fm-nota" placeholder="Semana del 1 al 7, adelanto…"></div>', 'Guardar pago', function () {
+      var ds = pCtx.sug.map(function (x, i) { return { p: x.pr.id, m: r2(num(fv('d-' + i))), saldo: x.saldo }; }), d = 0, i;
+      for (i = 0; i < ds.length; i++) {
+        if (ds[i].m < 0 || ds[i].m > ds[i].saldo + 0.004) { aviso('El descuento de un préstamo no puede ser mayor a su saldo.'); return false; }
+        d = r2(d + ds[i].m);
+      }
+      if (d > pCtx.bruto + 0.004) { aviso('Los descuentos no pueden ser mayores a lo que se le debe.'); return false; }
+      var monto = num(fv('monto')); if (!(monto > 0) && !(d > 0)) { aviso('Escribe el monto que se le entrega.'); return false; }
+      var pid = aId();
+      fEncola({ accion: 'pago', id: pid, trabajador: pCtx.w.id, fecha: fv('fecha') || hoyISO(), monto: monto, descuento: d, descuentos: ds.filter(function (x) { return x.m > 0; }).map(function (x) { return { p: x.p, m: x.m }; }), nota: fv('nota').trim() });
+      setTimeout(function () { abreRecibo(pid); }, 150);
+      return 'Pago guardado.';
+    });
+}
+
+/* ----- registrar un préstamo ----- */
+function pHint() {
+  var el = $('#fm-phint'); if (!el) return;
+  var f = fChipsVal('dsc')[0], m = num(fv('monto')), v = num(fv('pval')), t = '';
+  if (f === 'unico') t = 'Se descuenta completo' + (m > 0 ? ' (' + money(m) + ')' : '') + ' en el siguiente pago.';
+  else if (f === 'fijo') t = v > 0 && m > 0 ? 'Se descuentan ' + money(v) + ' en cada pago; son unos ' + Math.ceil(m / v) + ' pagos.' : 'Escribe cuánto se descuenta en cada pago.';
+  else if (f === 'cuotas') t = v >= 1 && m > 0 ? v + ' pagos de ' + money(r2(m / v)) + '.' : 'Escribe en cuántos pagos se divide.';
+  else if (f === 'pct') t = v > 0 ? 'En cada pago se descuenta el ' + v + ' % de lo que se le deba, hasta liquidar.' : 'Escribe el porcentaje de cada pago.';
+  else if (f === 'manual') t = 'No se descuenta solo: tú pones el descuento al registrar cada pago.';
+  el.textContent = t;
+}
+function fAlElegirChip(grupo, valor) {
+  if (grupo !== 'dsc') return;
+  var box = $('#fm-pvbox'); if (!box) return;
+  var etq = { fijo: 'Cantidad a descontar en cada pago ($)', cuotas: 'Número de pagos', pct: 'Porcentaje de cada pago (%)' }[valor];
+  box.hidden = !etq; if (etq) $('#fm-pvl').textContent = etq;
+  $('#fm-pval').value = ''; pHint();
+}
+function fFormPrestamo() {
+  var w = fTbl('Trabajadores').find(function (x) { return x.id === finTrab; }); if (!w) return;
+  fAbreModal('Préstamo a ' + w.nombre, '<p class="nota" style="margin:0 0 12px">Se descuenta de su nómina como elijas y aparece en cada recibo.</p>' +
+    '<div class="campo"><label for="fm-fecha">Fecha</label><input id="fm-fecha" type="date" value="' + hoyISO() + '"></div>' +
+    '<div class="campo"><label for="fm-monto">Monto prestado</label><input id="fm-monto" type="number" inputmode="decimal" min="0" step="0.01"></div>' +
+    '<div class="campo"><label for="fm-nota">Motivo (opcional)</label><input id="fm-nota" placeholder="Adelanto, emergencia, herramienta…"></div>' +
+    '<div class="campo"><label>¿Cómo se descuenta?</label>' + fChips('dsc', FORMAS_DSC, [], false) + '</div>' +
+    '<div class="campo" id="fm-pvbox" hidden><label id="fm-pvl" for="fm-pval"></label><input id="fm-pval" type="number" inputmode="decimal" min="0" step="0.01"></div>' +
+    '<p class="nota" id="fm-phint" role="status" aria-live="polite" style="margin:0">Elige cómo se va a descontar.</p>', 'Guardar préstamo', function () {
+      var monto = num(fv('monto')), forma = fChipsVal('dsc')[0], v = num(fv('pval'));
+      if (!(monto > 0)) { aviso('Escribe el monto prestado.'); return false; }
+      if (!forma) { aviso('Elige cómo se va a descontar.'); return false; }
+      if (forma === 'fijo' && !(v > 0 && v <= monto)) { aviso('Escribe una cantidad por pago mayor a cero y que no pase del préstamo.'); return false; }
+      if (forma === 'cuotas' && !(v >= 1 && v <= 104 && Math.floor(v) === v)) { aviso('Escribe en cuántos pagos se divide (un número entero).'); return false; }
+      if (forma === 'pct' && !(v > 0 && v <= 100)) { aviso('Escribe un porcentaje entre 1 y 100.'); return false; }
+      fEncola({ accion: 'prestamo', id: aId(), trabajador: w.id, fecha: fv('fecha') || hoyISO(), monto: monto, nota: fv('nota').trim(), forma: forma, valor: (forma === 'unico' || forma === 'manual') ? 0 : v });
+      return 'Préstamo registrado.';
+    });
+}
+
+/* ----- tarjeta de préstamos en Sueldos ----- */
+function pVistaPrestamos(w) {
+  var pagos = pPagosDe(w.id), mis = fTbl('Prestamos').filter(function (pr) { return pr.trabajador === w.id; }).sort(function (a, b) { return String(b.fecha).localeCompare(String(a.fecha)); });
+  var total = pSaldoTotal(w.id);
+  var filas = mis.map(function (pr) {
+    var saldo = Math.max(r2(num(pr.monto) - pAplicado(pr.id, pagos)), 0), conf = finConfirma === 'Prestamos|' + pr.id;
+    return '<div>' + esc(pr.nota || 'Préstamo') + '<div class="m">' + esc(fFechaCorta(pr.fecha) + ' · ' + pFormaTxt(pr)) + '</div></div>' +
+      '<span class="v">' + money(pr.monto) + '<div class="m" style="text-align:right">saldo ' + money(saldo) + '</div></span>' +
+      '<button type="button" class="f-x' + (conf ? ' conf' : '') + '" data-fa="del" data-hoja="Prestamos" data-id="' + esc(pr.id) + '" aria-label="Quitar préstamo">' + (conf ? '¿Sí?' : '×') + '</button>';
+  }).join('');
+  return fMarcos('<div class="f-cab"><div class="f-th">Préstamos de ' + esc(String(w.nombre).split(' ')[0]) + (total > 0 ? ' <small>SALDO ' + esc(fCorto(total)) + '</small>' : '') + '</div></div>' +
+    (mis.length ? '<div class="f-lst">' + filas + '</div>' : '<div class="f-nota" style="margin-top:0">Sin préstamos.</div>') +
+    '<button type="button" class="f-btn o" data-fa="prestamo">Registrar préstamo</button>');
+}
+
+function pInit() {
+  $('#fm-cuerpo').addEventListener('input', function (e) {
+    var id = e.target.id || '';
+    if (id === 'fm-monto' && pCtx && $('#fm-neto')) pCtx.manual = true;
+    else if (pCtx && /^fm-d-\d+$/.test(id)) {
+      var d = 0; pCtx.sug.forEach(function (x, i) { d += num(fv('d-' + i)); });
+      var neto = r2(Math.max(pCtx.bruto - d, 0)), nt = $('#fm-neto');
+      if (nt) nt.textContent = 'Neto a entregar: ' + money(neto);
+      if (!pCtx.manual) $('#fm-monto').value = neto > 0 ? neto : '';
+    }
+    if ((id === 'fm-pval' || id === 'fm-monto') && $('#fm-pvbox')) pHint();
+  });
+}
+
 
 /* ---------- navegación y ajustes ---------- */
 function cambiaTab(n, conservar) {
@@ -2207,7 +2358,7 @@ function arranca() {
   q = bor && bor.partidas && (bor.estado || 'borrador') === 'borrador' ? bor : nueva();
   pintaChips();
   padCli = lienzo($('#lienzo-cli')); padPj = lienzo($('#lienzo-pj'));
-  backfillClientes(); recalculaTotales(); llenaForma(); llenaAjustes(); pintaHistorial(); pintaClientes(); pintar(); fInit(); fFotoInit(); recibosInit(); actInit();
+  backfillClientes(); recalculaTotales(); llenaForma(); llenaAjustes(); pintaHistorial(); pintaClientes(); pintar(); fInit(); fFotoInit(); recibosInit(); pInit(); actInit();
 
   ['nueva', 'historial', 'clientes', 'fin', 'ajustes'].forEach(function (t) { $('#tab-' + t).addEventListener('click', function () { cambiaTab(t); }); });
   $('#forma').addEventListener('input', cambioForma); $('#forma').addEventListener('change', cambioForma);
