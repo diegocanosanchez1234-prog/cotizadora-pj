@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="01b961a83c">
-<meta name="pj-fecha" content="2026-11-06 14:51">
+<meta name="pj-build" content="9c283d7a8d">
+<meta name="pj-fecha" content="2026-11-06 14:58">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1733,7 +1733,13 @@ function fFormGasto(id) {
     var total = num(fv('total')); if (!(total > 0)) { aviso('Escribe el total pagado.'); return false; }
     var fac = fChipsVal('fac')[0]; if (!fac) { aviso('Elige si el gasto se facturó o no.'); return false; }
     var uuid = fv('uuid').trim();
-    if (uuid && fTbl('Gastos').some(function (x) { return x.uuid === uuid && x.id !== (g ? g.id : ''); })) { aviso('Esa factura ya está registrada.'); return false; }
+    var rep0 = uuid ? fTbl('Gastos').find(function (x) { return x.uuid === uuid && x.id !== (g ? g.id : ''); }) : null;
+    if (rep0) {
+      var mesRep = String(rep0.fecha || '').slice(0, 7), caja = $('#fm-dup');
+      if (!caja) { caja = document.createElement('div'); caja.id = 'fm-dup'; caja.className = 'campo'; $('#fm-cuerpo').insertBefore(caja, $('#fm-cuerpo').firstChild); }
+      caja.innerHTML = '<p class="nota" style="margin:0 0 8px;color:#b3261e;font-weight:600">Esa factura ya está registrada: ' + esc((rep0.proveedor || rep0.concepto || 'Gasto') + ' · ' + money(rep0.total) + ' · ' + fFechaCorta(rep0.fecha)) + (mesRep ? ' (' + esc(fMesTxt(mesRep)) + ')' : '') + '.</p><button type="button" class="btn chico" data-verdup="' + esc(mesRep) + '">Ver ese gasto</button>';
+      aviso('Esa factura ya está registrada. Toca «Ver ese gasto» para editarla o quitarla.'); return false;
+    }
     var iva = fac === 'si' ? num(fv('iva')) : 0;
     if (fac === 'si' && !(iva > 0) && !fConfirmaIva) { fConfirmaIva = true; aviso('No escribiste el IVA. Si la factura no lleva IVA, toca Guardar otra vez.'); return false; }
     fEncola({ accion: 'gasto', id: g ? g.id : aId(), fecha: fv('fecha') || hoyISO(), proveedor: fv('prov').trim(), concepto: fv('conc').trim(), categoria: fChipsVal('cat')[0] || 'otro', obra: fv('obra'), facturado: fac, total: total, iva: iva, uuid: uuid });
@@ -1792,6 +1798,8 @@ function fInit() {
     var c = e.target.closest('.f-ch2 button');
     if (c) { var g = c.parentNode; if (g.hasAttribute('data-multi')) c.setAttribute('aria-pressed', c.getAttribute('aria-pressed') === 'true' ? 'false' : 'true'); else { $$('button', g).forEach(function (x) { x.setAttribute('aria-pressed', 'false'); }); c.setAttribute('aria-pressed', 'true'); }
       if (g.getAttribute('data-grupo') === 'fac') { var box = $('#fm-ivabox'); if (box) box.hidden = c.getAttribute('data-v') !== 'si'; } fAlElegirChip(g.getAttribute('data-grupo'), c.getAttribute('data-v')); return; }
+    var vd = e.target.closest('[data-verdup]');
+    if (vd) { if (vd.getAttribute('data-verdup')) finMes = vd.getAttribute('data-verdup'); finVista = 'resumen'; fCierraModal(); fPinta(); return; }
     var bi = e.target.closest('[data-iva]');
     if (bi) { if (!(num(fv('total')) > 0)) { aviso('Primero escribe el total.'); return; } fMarcaTasa(+bi.getAttribute('data-iva')); }
   });
@@ -1968,7 +1976,8 @@ function fScanAplica(r) {
   if (p.fecha) { $('#fm-fecha').value = p.fecha; hallado.push('fecha ' + fFechaCorta(p.fecha)); }
   var prov = p.proveedor || ''; if (q && q.rfc) prov = (prov ? prov + ' · ' : '') + 'RFC ' + q.rfc;
   if (prov) { $('#fm-prov').value = prov; hallado.push('proveedor'); } else falta.push('el proveedor');
-  if (q) { $('#fm-uuid').value = q.uuid; fMarcaChip('fac', 'si'); hallado.push(r.qr ? 'factura por su código QR' : 'folio fiscal de la factura'); }
+  $('#fm-uuid').value = q ? q.uuid : '';
+  if (q) { fMarcaChip('fac', 'si'); hallado.push(r.qr ? 'factura por su código QR' : 'folio fiscal de la factura'); }
   var tasa = p.tasa || 0, iva = p.iva || 0;
   if (tasa && total) {
     var esperado = r2(total - total / (1 + tasa / 100));
