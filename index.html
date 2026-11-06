@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="4427359077">
-<meta name="pj-fecha" content="2026-11-06 15:40">
+<meta name="pj-build" content="a39e9b21ea">
+<meta name="pj-fecha" content="2026-11-06 15:49">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -358,6 +358,7 @@ body.fin-claro{background:#f2f2f3}
         <button class="btn p chico" id="btn-anticipo" type="button" hidden>Registrar anticipo</button>
         <button class="btn p chico" id="btn-terminado" type="button" hidden>Marcar trabajo terminado</button>
         <button class="btn chico" id="btn-compfinal" type="button" hidden>Adjuntar comprobante del pago final</button>
+        <button class="btn chico" id="btn-pg" type="button" hidden>Cambiar a tarjeta, público en general</button>
         <button class="btn p chico" id="btn-reabrir" type="button" hidden>Reabrir como borrador</button>
         <button class="btn chico" id="btn-copia" type="button">Duplicar como nueva cotización</button>
       </div>
@@ -881,6 +882,7 @@ function pintaResumen() {
     $('#anticipo-linea').hidden = !ace; if (ace) $('#anticipo-linea').textContent = aLinea(q);
     $('#btn-anticipo').hidden = !(ace && aResta(q) > 0); $('#btn-anticipo').textContent = aPagos(q).length ? 'Registrar otro pago' : 'Registrar anticipo';
     $('#btn-compfinal').hidden = est !== 'terminada'; $('#btn-compfinal').textContent = q.compFinal ? 'Comprobante del pago final ✓' : 'Adjuntar comprobante del pago final';
+    $('#btn-pg').hidden = !(ace && q.factura && !q.factFecha); $('#btn-pg').textContent = q.pg ? 'Quitar «tarjeta, público en general»' : 'Cambiar a tarjeta, público en general';
   }
   $('#btn-no').hidden = est !== 'borrador';
   $('#btn-firma').hidden = est === 'no_aceptada';
@@ -1156,6 +1158,7 @@ function filaCot(h) {
   var btns = '<button class="btn chico" data-abrir="' + id + '" type="button">Abrir</button><button class="btn chico" data-pdf="' + id + '" type="button">Compartir PDF</button>'
     + (e === 'borrador' || e === 'aceptada' ? '<button class="btn chico" data-no="' + id + '" type="button">No aceptada</button>' : '')
     + (e === 'aceptada' && aResta(d) > 0 ? '<button class="btn chico" data-ant="' + id + '" type="button">' + (aPagos(d).length ? 'Otro pago' : 'Anticipo') + '</button>' : '')
+    + (e === 'aceptada' && d.factura && !d.factFecha ? '<button class="btn chico" data-pg="' + id + '" type="button">' + (d.pg ? 'Quitar público en general' : 'Tarjeta: público en general') + '</button>' : '')
     + (e === 'aceptada' ? '<button class="btn chico" data-ter="' + id + '" type="button">Terminado</button>' : '')
     + (e === 'terminada' ? '<button class="btn chico" data-compf="' + id + '" type="button">' + (d.compFinal ? 'Comprobante final ✓' : 'Comprobante final') + '</button>' : '')
     + ((e === 'aceptada' || e === 'terminada') && !(d.factura && d.pg) ? '<button class="btn chico" data-fact="' + id + '" type="button">Datos de factura</button>' : '')
@@ -1206,6 +1209,7 @@ function accionLista(e) {
   else if (a.hasAttribute('data-resena')) abreResena(a.getAttribute('data-resena'));
   else if (a.hasAttribute('data-ant')) aFormAnticipo(a.getAttribute('data-ant'));
   else if (a.hasAttribute('data-compf')) aCompAccion(a.getAttribute('data-compf') + '|final');
+  else if (a.hasAttribute('data-pg')) gCambiaPG(a.getAttribute('data-pg'));
 }
 
 function resumenCliente(c) {
@@ -2478,7 +2482,7 @@ function aPonMeta(h, pid, meta) {
 /* guarda y refresca todas las pantallas donde se ve */
 function aSync(h) {
   escribir(K_HIST, historial);
-  if (q && q.id === h.id) { q.anticipos = copia(aPagos(h.datos)); if (h.datos.compFinal) q.compFinal = copia(h.datos.compFinal); else delete q.compFinal; escribir(K_BOR, q); }
+  if (q && q.id === h.id) { q.anticipos = copia(aPagos(h.datos)); if (h.datos.pg) q.pg = true; else delete q.pg; if (h.datos.pgFact) q.pgFact = copia(h.datos.pgFact); else delete q.pgFact; if (h.datos.compFinal) q.compFinal = copia(h.datos.compFinal); else delete q.compFinal; escribir(K_BOR, q); llenaForma(); }
   pintaHistorial(); pintaClientes(); pintar(); fPinta();
 }
 function aLinea(d) {
@@ -2513,6 +2517,25 @@ function gMarca(fechaEmision, mesTope) {
     h.datos.pgFact = (Array.isArray(h.datos.pgFact) ? h.datos.pgFact : []).concat([{ id: r.id.slice(r.hid.length + 1), fecha: fechaEmision, base: r.base, iva: r.iva, monto: r.monto }]); n++;
   });
   escribir(K_HIST, historial); return n;
+}
+
+/* cambia una cotización ya firmada (con factura) a "tarjeta, público en general" o la regresa: la firma bloquea el formulario, por eso se hace aquí */
+function gCambiaPG(id) {
+  var h = aHist(id); if (!h || !h.datos) return; var d = h.datos;
+  if (estadoDe(h) !== 'aceptada' || !d.factura) { aviso('Solo sirve en cotizaciones aceptadas con factura.'); return; }
+  if (d.factFecha) { aviso('Ya enviaste el Excel de esta factura: no se puede cambiar.'); return; }
+  var aPG = !d.pg, nuevo = copia(d); nuevo.pg = aPG;
+  var antes = calc(d), despues = calc(nuevo), cambia = Math.abs(antes.total - despues.total) > 0.004;
+  var cuerpo = '<p class="nota" style="margin:0 0 10px">' + esc(h.folio + ' · ' + (h.cliente || '')) + '</p>' +
+    '<p class="nota" style="margin:0 0 10px">' + (aPG
+      ? 'Se suma el IVA y deja de restarse el ISR retenido (hoy ' + money(antes.isr) + '). Sus cobros pasan a «Factura global pendiente» en Finanzas > Impuestos.'
+      : 'Vuelve a restarse el ISR retenido (' + money(despues.isr) + ') y la cotización pasa a «Datos de factura» con Excel y constancia. Lo que ya marcaste en una factura global deja de contar como facturado.') + '</p>' +
+    '<p class="nota" style="margin:0;font-weight:600">Total: ' + money(antes.total) + (cambia ? ' → ' + money(despues.total) + '. El cliente firmó el total anterior: avísale del cambio.' : ' (no cambia).') + '</p>';
+  fAbreModal(aPG ? 'Cambiar a tarjeta, público en general' : 'Quitar público en general', cuerpo, 'Cambiar', function () {
+    if (aPG) d.pg = true; else { delete d.pg; delete d.pgFact; }
+    h.total = calc(d).total; aSync(h);
+    return aPG ? 'Listo: ahora es pago con tarjeta, factura a público en general.' : 'Listo: vuelve a ser factura con datos fiscales.';
+  });
 }
 
 /* ----- archivo del comprobante: las fotos se achican, los PDF se guardan tal cual ----- */
@@ -2631,6 +2654,7 @@ function aFilasObra(h) {
 function aInit() {
   $('#btn-anticipo').addEventListener('click', function () { aFormAnticipo(q.id); });
   $('#btn-compfinal').addEventListener('click', function () { aCompAccion(q.id + '|final'); });
+  $('#btn-pg').addEventListener('click', function () { gCambiaPG(q.id); });
   var cu = $('#fm-cuerpo');
   cu.addEventListener('input', function (e) { if (e.target.id === 'fm-monto') aPintaDesg(); });
   cu.addEventListener('click', function (e) {
