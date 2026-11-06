@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="9c283d7a8d">
-<meta name="pj-fecha" content="2026-11-06 14:58">
+<meta name="pj-build" content="11e2dbe185">
+<meta name="pj-fecha" content="2026-11-06 15:05">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1612,7 +1612,7 @@ function fVistaObras() {
   var cob = fTbl('Cobros'), gas = fTbl('Gastos');
   var filas = obras.map(function (o) {
     var cobrado = fSuma(cob.filter(function (c) { return c.obra === o.folio; }), 'monto'), gastos = fSuma(gas.filter(function (g) { return g.obra === o.folio; }), 'total');
-    return { o: o, cobrado: cobrado, gastos: gastos, por: Math.max(r2(num(o.total) - cobrado), 0) };
+    return { o: o, cobrado: cobrado, gastos: gastos, gs: gas.filter(function (g) { return g.obra === o.folio; }), por: Math.max(r2(num(o.total) - cobrado), 0) };
   }).sort(function (a, b) { return (b.por > 0) - (a.por > 0) || String(b.o.fecha).localeCompare(String(a.o.fecha)); });
   var porCobrar = r2(filas.reduce(function (s, f) { return s + f.por; }, 0));
   var h = '<div class="f-dark"><div class="et">POR COBRAR EN TODAS LAS OBRAS</div><div class="n">' + fGrande(porCobrar) + '</div><p>Saldo pendiente de las obras aceptadas.</p></div>';
@@ -1620,7 +1620,11 @@ function fVistaObras() {
     var pct = num(f.o.total) > 0 ? Math.min(100, Math.round(f.cobrado / num(f.o.total) * 100)) : 0, hh = aHist(f.o.id);
     h += fMarcos('<div class="f-cab"><div><div class="f-th">' + esc(f.o.folio) + ' · ' + esc(f.o.cliente) + '</div><div class="f-sub">' + (f.o.estado === 'terminada' ? 'Trabajo terminado' : 'En proceso') + ' · cotizada en ' + money(f.o.total) + '</div></div></div>' +
       '<div class="f-pb" style="background:#e1e6ec;margin-top:0"><div style="width:' + pct + '%;background:#1D2D3D"></div></div><div class="f-pi" style="color:#5d5d60"><span>COBRADO ' + fCorto(f.cobrado) + '</span><span>' + pct + ' %</span></div>' +
-      '<div class="f-g"><span class="f-et">Por cobrar</span><span class="v ' + (f.por > 0 ? 'f-pen' : 'f-ok') + '">' + money(f.por) + '</span><span class="f-et">Gastos de la obra</span><span class="v">' + fMenos(f.gastos) + '</span><span class="f-et">Queda antes de sueldos</span><span class="v s">' + money(f.cobrado - f.gastos) + '</span></div>' + aFilasObra(hh) +
+      '<div class="f-g"><span class="f-et">Por cobrar</span><span class="v ' + (f.por > 0 ? 'f-pen' : 'f-ok') + '">' + money(f.por) + '</span><span class="f-et">Gastos de la obra</span><span class="v">' + fMenos(f.gastos) + '</span>' +
+      (f.gs.length ? '<span class="f-et" style="padding-left:12px">· Sin IVA</span><span class="v">' + fMenos(fSuma(f.gs, 'subtotal')) + '</span><span class="f-et" style="padding-left:12px">· IVA</span><span class="v">' + fMenos(fSuma(f.gs, 'iva')) + '</span>' : '') + '<span class="f-et">Queda antes de sueldos</span><span class="v s">' + money(f.cobrado - f.gastos) + '</span></div>' + aFilasObra(hh) +
+      '<div class="f-th" style="margin:16px 0 4px">Gastos de esta obra <small>' + f.gs.length + '</small></div>' +
+      (f.gs.length ? fLista('Gastos', f.gs, function (r) { return [esc((r.proveedor || r.concepto || 'Gasto') + (r.facturado === 'no' ? ' · no deducible' : '')), esc(fFechaCorta(r.fecha) + ' · ' + r.categoria + (num(r.iva) > 0 ? ' · IVA ' + money(r.iva) : '')), money(r.total)]; })
+        : '<div class="f-nota" style="margin-top:0">Aún no hay gastos en esta obra. Al registrar un gasto elige su folio en «Obra».</div>') +
       (f.o.estado === 'aceptada' && f.por > 0 ? '<button type="button" class="f-btn" data-fa="anticipo" data-id="' + esc(f.o.id) + '">' + (aPagos(hh.datos).length ? 'Registrar otro pago' : 'Registrar anticipo') + '</button>' : ''));
   });
   h += '<div class="f-nota">Antes de terminar, cuenta lo que registres como anticipo; al marcarla como terminada se da por cobrada completa. Adjunta el ticket o comprobante de cada pago. Los gastos cuentan para una obra si al registrarlos eliges su folio. Los sueldos se llevan aparte, por persona.</div>';
