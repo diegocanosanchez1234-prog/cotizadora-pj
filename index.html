@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="c8d6c4895a">
-<meta name="pj-fecha" content="2026-11-05 15:36">
+<meta name="pj-build" content="01b961a83c">
+<meta name="pj-fecha" content="2026-11-06 14:51">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -353,8 +353,11 @@ body.fin-claro{background:#f2f2f3}
     <div class="panel" id="estado-panel" hidden>
       <span class="sello ok" id="sello-estado">ACEPTADA</span>
       <p class="nota" style="margin:10px 0 12px" id="estado-texto"></p>
+      <p class="nota" style="margin:-4px 0 12px;font-weight:600" id="anticipo-linea" hidden></p>
       <div class="acciones" style="margin-top:0">
+        <button class="btn p chico" id="btn-anticipo" type="button" hidden>Registrar anticipo</button>
         <button class="btn p chico" id="btn-terminado" type="button" hidden>Marcar trabajo terminado</button>
+        <button class="btn chico" id="btn-compfinal" type="button" hidden>Adjuntar comprobante del pago final</button>
         <button class="btn p chico" id="btn-reabrir" type="button" hidden>Reabrir como borrador</button>
         <button class="btn chico" id="btn-copia" type="button">Duplicar como nueva cotización</button>
       </div>
@@ -872,6 +875,10 @@ function pintaResumen() {
       ? 'No aceptada' + (q.fechaEstado ? ' el ' + fechaLarga(q.fechaEstado) : '') + (q.motivo ? '. Motivo: ' + q.motivo : '') + '. Sigue en el historial y en la ficha del cliente.'
       : 'Firmada por ' + q.firmaCliente.nombre + ' el ' + conPunto(fechaHora(q.firmaCliente.fecha)) + (est === 'terminada' && q.fechaEstado ? ' Trabajo terminado el ' + fechaLarga(q.fechaEstado) + '.' : '') + ' Una cotización firmada ya no se puede editar: duplícala para hacer cambios.';
     $('#btn-terminado').hidden = est !== 'aceptada'; $('#btn-reabrir').hidden = est !== 'no_aceptada';
+    var ace = est === 'aceptada';
+    $('#anticipo-linea').hidden = !ace; if (ace) $('#anticipo-linea').textContent = aLinea(q);
+    $('#btn-anticipo').hidden = !(ace && aResta(q) > 0); $('#btn-anticipo').textContent = aPagos(q).length ? 'Registrar otro pago' : 'Registrar anticipo';
+    $('#btn-compfinal').hidden = est !== 'terminada'; $('#btn-compfinal').textContent = q.compFinal ? 'Comprobante del pago final ✓' : 'Adjuntar comprobante del pago final';
   }
   $('#btn-no').hidden = est !== 'borrador';
   $('#btn-firma').hidden = est === 'no_aceptada';
@@ -939,12 +946,13 @@ function abre(id) {
 function duplica(id) {
   var h = historial.find(function (x) { return x.id === id; }); if (!h) return;
   q = copia(h.datos); q.id = aId(); q.folio = folioTxt(ajustes.folio); q.fecha = hoyISO(); q.estado = 'borrador'; q.motivo = ''; q.fechaEstado = null; q.guardada = false; q.firmaCliente = null; q.creada = new Date().toISOString();
+  q.anticipos = []; delete q.compFinal; delete q.factFecha; delete q.resenaEnviada;
   escribir(K_BOR, q); llenaForma(); pintar(); cambiaTab('nueva', true); window.scrollTo(0, 0); aviso('Cotización duplicada con folio nuevo.');
 }
 var pendienteBorrar = null;
 function borra(id) {
   if (pendienteBorrar !== id) { pendienteBorrar = id; aviso('Toca “Eliminar” otra vez para confirmar.'); setTimeout(function () { pendienteBorrar = null; }, 4000); return; }
-  historial = historial.filter(function (x) { return x.id !== id; }); escribir(K_HIST, historial); pendienteBorrar = null; if (q && q.id === id) resetea(); pintaHistorial(); pintaClientes(); aviso('Cotización eliminada.');
+  aBorraArchivos(aHist(id)); historial = historial.filter(function (x) { return x.id !== id; }); escribir(K_HIST, historial); pendienteBorrar = null; if (q && q.id === id) resetea(); pintaHistorial(); pintaClientes(); aviso('Cotización eliminada.');
 }
 
 /* ---------- entrega de archivos ---------- */
@@ -1141,10 +1149,13 @@ function filaCot(h) {
   var e = estadoDe(h), clase = e === 'aceptada' ? ' ok' : e === 'no_aceptada' ? ' no' : e === 'terminada' ? ' hecho' : '', id = esc(h.id), d = h.datos;
   var meta = esc(fechaLarga(h.fecha)) + ' · ' + money(h.total) + (d.cliente && d.cliente.dom ? ' · ' + esc(d.cliente.dom) : '');
   var extra = e === 'no_aceptada' ? '<div class="motivo">No aceptada' + (d.fechaEstado ? ' el ' + esc(fechaLarga(d.fechaEstado)) : '') + (d.motivo ? ' · ' + esc(d.motivo) : '') + '</div>'
-    : e === 'terminada' && d.fechaEstado ? '<div class="motivo">Trabajo terminado el ' + esc(fechaLarga(d.fechaEstado)) + '</div>' : '';
+    : e === 'terminada' && d.fechaEstado ? '<div class="motivo">Trabajo terminado el ' + esc(fechaLarga(d.fechaEstado)) + '</div>'
+    : e === 'aceptada' ? '<div class="motivo">' + esc(aLinea(d)) + '</div>' : '';
   var btns = '<button class="btn chico" data-abrir="' + id + '" type="button">Abrir</button><button class="btn chico" data-pdf="' + id + '" type="button">Compartir PDF</button>'
     + (e === 'borrador' || e === 'aceptada' ? '<button class="btn chico" data-no="' + id + '" type="button">No aceptada</button>' : '')
+    + (e === 'aceptada' && aResta(d) > 0 ? '<button class="btn chico" data-ant="' + id + '" type="button">' + (aPagos(d).length ? 'Otro pago' : 'Anticipo') + '</button>' : '')
     + (e === 'aceptada' ? '<button class="btn chico" data-ter="' + id + '" type="button">Terminado</button>' : '')
+    + (e === 'terminada' ? '<button class="btn chico" data-compf="' + id + '" type="button">' + (d.compFinal ? 'Comprobante final ✓' : 'Comprobante final') + '</button>' : '')
     + (e === 'aceptada' || e === 'terminada' ? '<button class="btn chico" data-fact="' + id + '" type="button">Datos de factura</button>' : '')
     + (e === 'terminada' ? '<button class="btn chico" data-resena="' + id + '" type="button">' + (d.resenaEnviada ? 'Reseña pedida ✓' : 'Pedir reseña') + '</button>' : '')
     + (e === 'no_aceptada' ? '<button class="btn chico" data-reabrir="' + id + '" type="button">Reabrir</button>' : '')
@@ -1191,6 +1202,8 @@ function accionLista(e) {
   else if (a.hasAttribute('data-pdf')) { abre(a.getAttribute('data-pdf')); accionCompartir(); }
   else if (a.hasAttribute('data-fact')) abreFact(a.getAttribute('data-fact'));
   else if (a.hasAttribute('data-resena')) abreResena(a.getAttribute('data-resena'));
+  else if (a.hasAttribute('data-ant')) aFormAnticipo(a.getAttribute('data-ant'));
+  else if (a.hasAttribute('data-compf')) aCompAccion(a.getAttribute('data-compf') + '|final');
 }
 
 function resumenCliente(c) {
@@ -1380,11 +1393,19 @@ function fTbl(n) {
       return { id: h.id, folio: h.folio, fecha: h.datos.factFecha, cliente: h.cliente || '', subtotal: c.sub, iva: c.iva, isr_retenido: c.isr, total: c.total, con_iva: h.datos.factura ? 'si' : 'no' };
     });
   }
-  /* dinero que entró: el total de cada cotización marcada como terminada, el día que se marcó */
+  /* dinero que entró: cada anticipo registrado el día que se recibió, y el resto de cada cotización terminada el día que se marcó */
   if (n === 'Cobros') {
-    return historial.filter(function (h) { return h.datos && estadoDe(h) === 'terminada'; }).map(function (h) {
-      var c = calc(h.datos); return { id: h.id, fecha: h.datos.fechaEstado || h.fecha, obra: h.folio, cliente: h.cliente || '', monto: c.total, nota: 'Trabajo terminado' };
+    var cobros = [];
+    historial.forEach(function (h) {
+      var e = h.datos ? estadoDe(h) : ''; if (e !== 'aceptada' && e !== 'terminada') return;
+      var c = calc(h.datos), ants = aPagos(h.datos), pagado = aPagado(h.datos);
+      ants.forEach(function (a) { cobros.push({ id: h.id + '|' + a.id, fecha: a.fecha || h.fecha, obra: h.folio, cliente: h.cliente || '', monto: num(a.monto), nota: 'Anticipo', tipo: 'anticipo' }); });
+      if (e === 'terminada') {
+        var resto = r2(c.total - pagado);
+        if (resto > 0 || !ants.length) cobros.push({ id: h.id, fecha: h.datos.fechaEstado || h.fecha, obra: h.folio, cliente: h.cliente || '', monto: Math.max(resto, 0), nota: ants.length ? 'Resto al terminar' : 'Trabajo terminado', tipo: 'final' });
+      }
     });
+    return cobros;
   }
   return finStore[n] || [];
 }
@@ -1402,7 +1423,8 @@ function fEncola(it) {
     if (it.hoja === 'Facturas') {
       var h = historial.find(function (x) { return x.id === it.id; });
       if (h && h.datos) { delete h.datos.factFecha; escribir(K_HIST, historial); }   // la factura se puede volver a enviar y contará otra vez
-    } else if (finStore[it.hoja]) finStore[it.hoja] = finStore[it.hoja].filter(function (r) { return r.id !== it.id; });
+    } else if (it.hoja === 'Anticipos') { aQuita(it.id); return; }
+    else if (finStore[it.hoja]) finStore[it.hoja] = finStore[it.hoja].filter(function (r) { return r.id !== it.id; });
     fGuarda(); return;
   }
   var n = ALIAS_FIN[it.accion]; if (!n) return;
@@ -1525,10 +1547,10 @@ function fVistaResumen() {
     (c.pre > 0 ? '<span class="f-et">Préstamos a trabajadores</span><span class="v">' + fMenos(c.pre) + '</span>' : '') +
     '<span class="f-et">Impuestos del mes</span><span class="v">' + fMenos(c.total) + '</span><hr>' +
     '<span class="f-et">Neto</span><span class="v s ' + (c.neto >= 0 ? 'f-ok' : 'f-pen') + '">' + money(c.neto) + '</span></div>' +
-    '<div class="f-nota">“Entró a la cuenta” es el total de las cotizaciones que marcaste como terminadas en el mes. Incluye el IVA y ya descuenta el ISR que te retuvieron. Los impuestos son estimados.</div>');
+    '<div class="f-nota">“Entró a la cuenta” es lo que cobraste en el mes: los anticipos que registraste y el resto de cada trabajo que marcaste como terminado. Incluye el IVA y ya descuenta el ISR que te retuvieron. Los impuestos son estimados.</div>');
   var ms = fMeses(), vals = ms.map(function (m) { return Math.max(fCalc(m.k).neto, 0); });
   h += fMarcos('<div class="f-chead"><div class="f-th">Neto por mes</div>' + fToggle() + '</div>' + fBarras(vals, ms, finMes));
-  h += fMarcos('<div class="f-cab"><div class="f-th">Trabajos terminados <small>' + c.cob.length + '</small></div></div>' + fLista('Cobros', c.cob, function (r) { return [esc(r.obra + ' · ' + (r.cliente || '')), esc(fFechaCorta(r.fecha) + ' · cobrado'), money(r.monto)]; }, true) + '<div class="f-nota">Cuando marcas una cotización como terminada, su total cuenta como dinero que entró ese día.</div>');
+  h += fMarcos('<div class="f-cab"><div class="f-th">Cobros del mes <small>' + c.cob.length + '</small></div></div>' + fLista('Cobros', c.cob, function (r) { return [esc(r.obra + ' · ' + (r.cliente || '')), esc(fFechaCorta(r.fecha) + ' · ' + (r.tipo === 'anticipo' ? 'anticipo' : r.nota === 'Resto al terminar' ? 'resto al terminar' : 'cobrado')), money(r.monto)]; }, true) + '<div class="f-nota">El anticipo cuenta el día que lo registras; el resto (o el total) cuenta el día que marcas la cotización como terminada.</div>');
   h += fMarcos('<div class="f-cab"><div class="f-th">Gastos <small>' + c.gas.length + '</small></div></div>' + fLista('Gastos', c.gas, function (r) { return [esc((r.proveedor || r.concepto || 'Gasto') + (r.facturado === 'no' ? ' · no deducible' : '')), esc(fFechaCorta(r.fecha) + ' · ' + r.categoria), money(r.total)]; }) + '<button type="button" class="f-btn" data-fa="gasto">Registrar gasto</button>');
   return h;
 }
@@ -1537,7 +1559,7 @@ function fLista(hoja, filas, fmt, fijo) {
   var orden = filas.slice().sort(function (a, b) { return String(b.fecha).localeCompare(String(a.fecha)); });
   return '<div class="f-lst">' + orden.map(function (r) {
     var f = fmt(r), conf = finConfirma === hoja + '|' + r.id;
-    return '<div>' + f[0] + '<div class="m">' + f[1] + '</div></div><span class="v">' + f[2] + '</span>' + (fijo ? '<span></span>' : '<button type="button" class="f-x' + (conf ? ' conf' : '') + '" data-fa="del" data-hoja="' + hoja + '" data-id="' + esc(r.id) + '" aria-label="' + (conf ? 'Confirmar: quitar' : 'Quitar') + '">' + (conf ? '¿Sí?' : '×') + '</button>');
+    return '<div>' + f[0] + '<div class="m">' + f[1] + '</div></div><span class="v">' + f[2] + '</span>' + (fijo ? '<span></span>' : '<span style="display:flex;gap:6px">' + (hoja === 'Gastos' ? '<button type="button" class="f-mini" style="padding:6px 9px;font-size:12px" data-fa="editaGasto" data-id="' + esc(r.id) + '">Editar</button>' : '') + '<button type="button" class="f-x' + (conf ? ' conf' : '') + '" data-fa="del" data-hoja="' + hoja + '" data-id="' + esc(r.id) + '" aria-label="' + (conf ? 'Confirmar: quitar' : 'Quitar') + '">' + (conf ? '¿Sí?' : '×') + '</button></span>');
   }).join('') + '</div>';
 }
 
@@ -1595,12 +1617,13 @@ function fVistaObras() {
   var porCobrar = r2(filas.reduce(function (s, f) { return s + f.por; }, 0));
   var h = '<div class="f-dark"><div class="et">POR COBRAR EN TODAS LAS OBRAS</div><div class="n">' + fGrande(porCobrar) + '</div><p>Saldo pendiente de las obras aceptadas.</p></div>';
   filas.forEach(function (f) {
-    var pct = num(f.o.total) > 0 ? Math.min(100, Math.round(f.cobrado / num(f.o.total) * 100)) : 0;
+    var pct = num(f.o.total) > 0 ? Math.min(100, Math.round(f.cobrado / num(f.o.total) * 100)) : 0, hh = aHist(f.o.id);
     h += fMarcos('<div class="f-cab"><div><div class="f-th">' + esc(f.o.folio) + ' · ' + esc(f.o.cliente) + '</div><div class="f-sub">' + (f.o.estado === 'terminada' ? 'Trabajo terminado' : 'En proceso') + ' · cotizada en ' + money(f.o.total) + '</div></div></div>' +
       '<div class="f-pb" style="background:#e1e6ec;margin-top:0"><div style="width:' + pct + '%;background:#1D2D3D"></div></div><div class="f-pi" style="color:#5d5d60"><span>COBRADO ' + fCorto(f.cobrado) + '</span><span>' + pct + ' %</span></div>' +
-      '<div class="f-g"><span class="f-et">Por cobrar</span><span class="v ' + (f.por > 0 ? 'f-pen' : 'f-ok') + '">' + money(f.por) + '</span><span class="f-et">Gastos de la obra</span><span class="v">' + fMenos(f.gastos) + '</span><span class="f-et">Queda antes de sueldos</span><span class="v s">' + money(f.cobrado - f.gastos) + '</span></div>');
+      '<div class="f-g"><span class="f-et">Por cobrar</span><span class="v ' + (f.por > 0 ? 'f-pen' : 'f-ok') + '">' + money(f.por) + '</span><span class="f-et">Gastos de la obra</span><span class="v">' + fMenos(f.gastos) + '</span><span class="f-et">Queda antes de sueldos</span><span class="v s">' + money(f.cobrado - f.gastos) + '</span></div>' + aFilasObra(hh) +
+      (f.o.estado === 'aceptada' && f.por > 0 ? '<button type="button" class="f-btn" data-fa="anticipo" data-id="' + esc(f.o.id) + '">' + (aPagos(hh.datos).length ? 'Registrar otro pago' : 'Registrar anticipo') + '</button>' : ''));
   });
-  h += '<div class="f-nota">Una obra se da por cobrada cuando la marcas como terminada. Los gastos cuentan para una obra si al registrarlos eliges su folio. Los sueldos se llevan aparte, por persona.</div>';
+  h += '<div class="f-nota">Antes de terminar, cuenta lo que registres como anticipo; al marcarla como terminada se da por cobrada completa. Adjunta el ticket o comprobante de cada pago. Los gastos cuentan para una obra si al registrarlos eliges su folio. Los sueldos se llevan aparte, por persona.</div>';
   return h;
 }
 
@@ -1688,33 +1711,35 @@ function fOpcObras(sel, soloPendientes) {
   return '<option value="">Sin obra</option>' + fTbl('Obras').filter(function (o) { return o.estado === 'aceptada' || o.estado === 'terminada'; }).map(function (o) { return '<option value="' + esc(o.folio) + '"' + (o.folio === sel ? ' selected' : '') + '>' + esc(o.folio + ' · ' + o.cliente) + '</option>'; }).join('');
 }
 var fConfirmaIva = false;
-function fFormGasto() {
+function fFormGasto(id) {
   fConfirmaIva = false;
-  var cuerpo = '<div class="f-scan"><div class="f-et" style="margin-bottom:10px">Leer un ticket con la cámara</div>' +
-    '<div class="f-dos"><button type="button" class="btn p chico" data-scan="camara">Tomar foto</button><button type="button" class="btn chico" data-scan="galeria">Elegir foto</button></div>' +
-    '<input type="file" id="fm-foto-cam" accept="image/*" capture="environment" hidden><input type="file" id="fm-foto-gal" accept="image/*" hidden>' +
-    '<p class="nota" id="fm-scan" role="status" aria-live="polite" style="margin:10px 0 0">La foto se lee en tu teléfono y no se guarda ni se envía. Revisa los datos antes de guardar.</p>' +
+  var g = id ? (fTbl('Gastos').find(function (x) { return x.id === id; }) || null) : null, gv = g || {};
+  var cuerpo = '<div class="f-scan"><div class="f-et" style="margin-bottom:10px">Leer un ticket o una factura</div>' +
+    '<div class="f-dos"><button type="button" class="btn p chico" data-scan="camara">Tomar foto</button><button type="button" class="btn chico" data-scan="galeria">Elegir foto o PDF</button></div>' +
+    '<input type="file" id="fm-foto-cam" accept="image/*" capture="environment" hidden><input type="file" id="fm-foto-gal" accept="image/*,application/pdf,.pdf" hidden>' +
+    '<p class="nota" id="fm-scan" role="status" aria-live="polite" style="margin:10px 0 0">La foto o el PDF se lee en tu teléfono y no se guarda ni se envía. Revisa los datos antes de guardar.</p>' +
     '<details id="fm-ocr" hidden style="margin-top:8px"><summary class="nota" style="cursor:pointer;margin:0">Ver el texto que leí</summary><pre style="white-space:pre-wrap;font:12px var(--mono);margin:8px 0 0;max-height:160px;overflow:auto"></pre></details></div>' +
-    '<div class="campo"><label for="fm-fecha">Fecha</label><input id="fm-fecha" type="date" value="' + hoyISO() + '"></div>' +
-    '<div class="campo"><label for="fm-prov">Proveedor</label><input id="fm-prov" placeholder="Dónde compraste"></div>' +
-    '<div class="campo"><label for="fm-conc">Concepto</label><input id="fm-conc" placeholder="Qué compraste"></div>' +
-    '<div class="campo"><label>Tipo de gasto</label>' + fChips('cat', CATS, ['material'], false) + '</div>' +
-    '<div class="campo"><label>¿Se facturó?</label>' + fChips('fac', [['si', 'Sí, con factura'], ['no', 'No (no deducible)']], [], false) +
+    '<div class="campo"><label for="fm-fecha">Fecha</label><input id="fm-fecha" type="date" value="' + esc(gv.fecha || hoyISO()) + '"></div>' +
+    '<div class="campo"><label for="fm-prov">Proveedor</label><input id="fm-prov" value="' + esc(gv.proveedor || '') + '" placeholder="Dónde compraste"></div>' +
+    '<div class="campo"><label for="fm-conc">Concepto</label><input id="fm-conc" value="' + esc(gv.concepto || '') + '" placeholder="Qué compraste"></div>' +
+    '<div class="campo"><label>Tipo de gasto</label>' + fChips('cat', CATS, [gv.categoria || 'material'], false) + '</div>' +
+    '<div class="campo"><label>¿Se facturó?</label>' + fChips('fac', [['si', 'Sí, con factura'], ['no', 'No (no deducible)']], g ? [gv.facturado === 'no' ? 'no' : 'si'] : [], false) +
     '<p class="nota" style="margin:8px 0 0">Con factura cuenta el IVA y baja lo que pagas de IVA. Sin factura es no deducible: baja tu neto, pero no baja impuestos.</p></div>' +
-    '<div class="campo"><label for="fm-obra">Obra (opcional)</label><select id="fm-obra">' + fOpcObras('') + '</select></div>' +
-    '<div class="campo"><label for="fm-total">Total pagado (con IVA)</label><input id="fm-total" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Lo que dice el ticket"></div>' +
-    '<div class="campo" id="fm-ivabox" hidden><label for="fm-iva">IVA de la factura</label><input id="fm-iva" type="number" inputmode="decimal" min="0" step="0.01" placeholder="IVA que viene en la factura"><div class="f-dos" style="margin-top:8px"><button type="button" class="btn chico" data-iva="8" aria-pressed="false">Calcular IVA al 8 %</button><button type="button" class="btn chico" data-iva="16" aria-pressed="false">Calcular IVA al 16 %</button></div></div>' +
-    '<input type="hidden" id="fm-uuid">';
-  fAbreModal('Registrar gasto', cuerpo, 'Guardar gasto', function () {
+    '<div class="campo"><label for="fm-obra">Obra (opcional)</label><select id="fm-obra">' + fOpcObras(gv.obra || '') + '</select></div>' +
+    '<div class="campo"><label for="fm-total">Total pagado (con IVA)</label><input id="fm-total" type="number" inputmode="decimal" min="0" step="0.01" value="' + (gv.total || '') + '" placeholder="Lo que dice el ticket"></div>' +
+    '<div class="campo" id="fm-ivabox"' + (g && gv.facturado !== 'no' ? '' : ' hidden') + '><label for="fm-iva">IVA de la factura</label><input id="fm-iva" type="number" inputmode="decimal" min="0" step="0.01" value="' + (gv.iva || '') + '" placeholder="IVA que viene en la factura"><div class="f-dos" style="margin-top:8px"><button type="button" class="btn chico" data-iva="8" aria-pressed="false">Calcular IVA al 8 %</button><button type="button" class="btn chico" data-iva="16" aria-pressed="false">Calcular IVA al 16 %</button></div></div>' +
+    '<input type="hidden" id="fm-uuid" value="' + esc(gv.uuid || '') + '">';
+  fAbreModal(g ? 'Editar gasto' : 'Registrar gasto', cuerpo, g ? 'Guardar cambios' : 'Guardar gasto', function () {
     var total = num(fv('total')); if (!(total > 0)) { aviso('Escribe el total pagado.'); return false; }
     var fac = fChipsVal('fac')[0]; if (!fac) { aviso('Elige si el gasto se facturó o no.'); return false; }
     var uuid = fv('uuid').trim();
-    if (uuid && fTbl('Gastos').some(function (g) { return g.uuid === uuid; })) { aviso('Esa factura ya está registrada.'); return false; }
+    if (uuid && fTbl('Gastos').some(function (x) { return x.uuid === uuid && x.id !== (g ? g.id : ''); })) { aviso('Esa factura ya está registrada.'); return false; }
     var iva = fac === 'si' ? num(fv('iva')) : 0;
     if (fac === 'si' && !(iva > 0) && !fConfirmaIva) { fConfirmaIva = true; aviso('No escribiste el IVA. Si la factura no lleva IVA, toca Guardar otra vez.'); return false; }
-    fEncola({ accion: 'gasto', id: aId(), fecha: fv('fecha') || hoyISO(), proveedor: fv('prov').trim(), concepto: fv('conc').trim(), categoria: fChipsVal('cat')[0] || 'otro', obra: fv('obra'), facturado: fac, total: total, iva: iva, uuid: uuid });
-    return fac === 'si' ? 'Gasto guardado con factura.' : 'Gasto guardado como no deducible.';
+    fEncola({ accion: 'gasto', id: g ? g.id : aId(), fecha: fv('fecha') || hoyISO(), proveedor: fv('prov').trim(), concepto: fv('conc').trim(), categoria: fChipsVal('cat')[0] || 'otro', obra: fv('obra'), facturado: fac, total: total, iva: iva, uuid: uuid });
+    return (g ? 'Gasto actualizado' : 'Gasto guardado') + (fac === 'si' ? ' con factura.' : ' como no deducible.');
   });
+  if (g && num(gv.iva) > 0 && num(gv.total) > gv.iva) { var rz = num(gv.iva) / (num(gv.total) - num(gv.iva)); fMarcaTasaBoton(Math.abs(rz - 0.16) < 0.012 ? 16 : Math.abs(rz - 0.08) < 0.008 ? 8 : 0); }
 }
 function fFormTrab(id) {
   var w = id ? fTbl('Trabajadores').find(function (x) { return x.id === id; }) : null; w = w || {};
@@ -1746,6 +1771,9 @@ function fInit() {
     else if (a === 'graf') { finGraf = b.getAttribute('data-g'); fPinta(); }
     else if (a === 'respaldo') $('#btn-resp').click();
     else if (a === 'gasto') fFormGasto();
+    else if (a === 'editaGasto') fFormGasto(b.getAttribute('data-id'));
+    else if (a === 'anticipo') aFormAnticipo(b.getAttribute('data-id'));
+    else if (a === 'comp') aCompAccion(b.getAttribute('data-id'));
     else if (a === 'pago') fFormPago();
     else if (a === 'trab') { finTrab = b.getAttribute('data-id'); fPinta(); }
     else if (a === 'nuevoTrab') fFormTrab('');
@@ -1779,6 +1807,8 @@ function fInit() {
 /* ---------- gasto desde una foto: el teléfono lee el ticket y llena el formulario ---------- */
 var URL_OCR = 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js';
 var URL_QR = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+var URL_PDF = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+var URL_PDFW = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 var fLibs = {};
 /* las librerías se bajan solo cuando se usa la cámara */
 function fCarga(url) {
@@ -1810,6 +1840,46 @@ function fGris(c) {
   var r = max - min || 1;
   for (i = 0; i < p.length; i += 4) { g = (p[i] - min) * 255 / r; p[i] = p[i + 1] = p[i + 2] = g; }
   x.putImageData(d, 0, 0); return o;
+}
+
+/* ----- factura en PDF: se saca el texto (los PDF de facturas lo traen) y se dibuja la primera página ----- */
+function fEsPdf(file) { return file.type === 'application/pdf' || /\.pdf$/i.test(file.name || ''); }
+function fLineasPdf(items) {
+  var filas = [];
+  items.forEach(function (it) {
+    if (!it.str || !it.str.trim()) return;
+    var y = it.transform[5], x = it.transform[4], r = filas.find(function (z) { return Math.abs(z.y - y) < 2.5; });
+    if (!r) { r = { y: y, p: [] }; filas.push(r); }
+    r.p.push({ x: x, s: it.str });
+  });
+  filas.sort(function (a, b) { return b.y - a.y; });
+  return filas.map(function (r) { return r.p.sort(function (a, b) { return a.x - b.x; }).map(function (z) { return z.s; }).join(' ').replace(/\s+/g, ' ').trim(); }).join('\n');
+}
+function fPdf(file) {
+  return fCarga(URL_PDF).then(function () {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL_PDFW;
+    return file.arrayBuffer();
+  }).then(function (buf) {
+    return window.pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+  }).then(function (doc) {
+    var textos = [], cadena = Promise.resolve(), n = Math.min(doc.numPages, 3);
+    for (var k = 1; k <= n; k++) (function (k) {
+      cadena = cadena.then(function () { return doc.getPage(k); }).then(function (pg) { return pg.getTextContent(); }).then(function (tc) { textos.push(fLineasPdf(tc.items)); });
+    })(k);
+    return cadena.then(function () { return doc.getPage(1); }).then(function (pg) {
+      var v1 = pg.getViewport({ scale: 1 }), esc2 = Math.min(2.4, 2600 / Math.max(v1.width, v1.height)), vp = pg.getViewport({ scale: esc2 }), c = document.createElement('canvas');
+      c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+      var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+      return pg.render({ canvasContext: x, viewport: vp }).promise.then(function () { return { canvas: c, texto: textos.join('\n') }; });
+    });
+  });
+}
+/* si el QR no se pudo leer, el folio fiscal y el RFC del emisor se sacan del texto de la factura */
+function fFolioDeTexto(r) {
+  if (!r.pdf || !r.texto) return null;
+  var mu = r.texto.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i); if (!mu) return null;
+  var mr = r.texto.match(/R\.?F\.?C\.?\s*emisor\s*:?\s*([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3})/i);
+  return { uuid: mu[0].toUpperCase(), rfc: mr ? mr[1].toUpperCase() : '', total: 0 };
 }
 
 /* ----- código QR de la factura (CFDI): folio fiscal, RFC del proveedor y total ----- */
@@ -1893,12 +1963,12 @@ function fMarcaTasa(t) {
 }
 function fScanEstado(t) { var e = $('#fm-scan'); if (e) e.textContent = t; }
 function fScanAplica(r) {
-  var p = r.texto ? fParseTicket(r.texto) : {}, q = r.qr, hallado = [], falta = [], total = q && q.total > 0 ? q.total : p.total;
+  var p = r.texto ? fParseTicket(r.texto) : {}, q = r.qr || fFolioDeTexto(r), hallado = [], falta = [], total = q && q.total > 0 ? q.total : p.total;
   if (total) { $('#fm-total').value = total; hallado.push('total ' + money(total)); } else falta.push('el total');
   if (p.fecha) { $('#fm-fecha').value = p.fecha; hallado.push('fecha ' + fFechaCorta(p.fecha)); }
   var prov = p.proveedor || ''; if (q && q.rfc) prov = (prov ? prov + ' · ' : '') + 'RFC ' + q.rfc;
   if (prov) { $('#fm-prov').value = prov; hallado.push('proveedor'); } else falta.push('el proveedor');
-  if (q) { $('#fm-uuid').value = q.uuid; fMarcaChip('fac', 'si'); hallado.push('factura por su código QR'); }
+  if (q) { $('#fm-uuid').value = q.uuid; fMarcaChip('fac', 'si'); hallado.push(r.qr ? 'factura por su código QR' : 'folio fiscal de la factura'); }
   var tasa = p.tasa || 0, iva = p.iva || 0;
   if (tasa && total) {
     var esperado = r2(total - total / (1 + tasa / 100));
@@ -1906,20 +1976,24 @@ function fScanAplica(r) {
   }
   if (iva > 0) { $('#fm-iva').value = iva; if (tasa) fMarcaTasaBoton(tasa); hallado.push('IVA ' + money(iva) + (tasa ? ' al ' + tasa + ' %' : '')); }
   else falta.push('el IVA');
-  fScanEstado((hallado.length ? 'Leí: ' + hallado.join(', ') + '. ' : 'No pude leer datos en la foto. ') + (falta.length ? 'No encontré ' + falta.join(' ni ') + '. ' : '') + 'Revisa todo y elige si se facturó.');
+  fScanEstado((hallado.length ? 'Leí: ' + hallado.join(', ') + '. ' : 'No pude leer datos en el archivo. ') + (falta.length ? 'No encontré ' + falta.join(' ni ') + '. ' : '') + 'Revisa todo y elige si se facturó.');
   var det = $('#fm-ocr'); if (det) { det.hidden = !r.texto; var pre = $('pre', det); if (pre) pre.textContent = r.texto || ''; }
 }
 function fScan(file) {
-  fScanEstado('Abriendo la foto…');
-  return fImagen(file).then(function (c) {
+  var esPdf = fEsPdf(file);
+  fScanEstado(esPdf ? 'Abriendo el PDF…' : 'Abriendo la foto…');
+  var lienzo = esPdf ? fPdf(file) : fImagen(file).then(function (c) { return { canvas: c, texto: '' }; });
+  return lienzo.then(function (pg) {
     fScanEstado('Buscando el código QR de la factura…');
-    return fQr(c).then(function (qr) {
+    return fQr(pg.canvas).then(function (qr) {
+      /* un PDF de factura ya trae su texto: no hace falta el lector de imágenes */
+      if (esPdf && pg.texto.replace(/\s/g, '').length >= 40) return { qr: qr, texto: pg.texto, pdf: true };
       fScanEstado('Leyendo el ticket… la primera vez baja el lector y tarda más.');
-      return fOcr(fGris(c), function (pr) { fScanEstado('Leyendo el ticket… ' + Math.round(pr * 100) + ' %'); }).then(
-        function (texto) { return { qr: qr, texto: texto }; },
-        function () { fScanEstado('No pude bajar el lector de texto (¿sin internet?).'); return { qr: qr, texto: null }; });
+      return fOcr(fGris(pg.canvas), function (pr) { fScanEstado('Leyendo el ticket… ' + Math.round(pr * 100) + ' %'); }).then(
+        function (texto) { return { qr: qr, texto: texto, pdf: esPdf }; },
+        function () { fScanEstado('No pude bajar el lector de texto (¿sin internet?).'); return { qr: qr, texto: null, pdf: esPdf }; });
     });
-  }).then(fScanAplica).catch(function () { fScanEstado('No pude abrir la foto. Llena los datos a mano.'); });
+  }).then(fScanAplica).catch(function () { fScanEstado(esPdf ? 'No pude leer ese PDF (¿está protegido o dañado?). Llena los datos a mano.' : 'No pude abrir la foto. Llena los datos a mano.'); });
 }
 function fFotoInit() {
   var c = $('#fm-cuerpo');
@@ -2330,6 +2404,164 @@ function pInit() {
   });
 }
 
+/* ---------- anticipos y comprobantes de pago de una obra ---------- */
+/* se guardan dentro de la cotización: datos.anticipos = [{ id, fecha, monto, forma, comp }] y datos.compFinal.
+   El archivo del comprobante (foto o PDF) vive en este teléfono, en IndexedDB, con id comp-<cotización>-<pago|final>. */
+function aPagos(d) { return d && Array.isArray(d.anticipos) ? d.anticipos : []; }
+function aPagado(d) { return fSuma(aPagos(d), 'monto'); }
+function aResta(d) { return Math.max(r2(calc(d).total - aPagado(d)), 0); }
+function aHist(id) { return historial.find(function (x) { return x.id === id; }); }
+function aClave(hid, pid) { return 'comp-' + hid + '-' + pid; }
+function aPartir(clave) { var i = String(clave).lastIndexOf('|'); return [String(clave).slice(0, i), String(clave).slice(i + 1)]; }
+function aMeta(h, pid) {
+  if (pid === 'final') return h.datos.compFinal || null;
+  var a = aPagos(h.datos).find(function (x) { return x.id === pid; }); return a && a.comp ? a.comp : null;
+}
+function aPonMeta(h, pid, meta) {
+  if (pid === 'final') { if (meta) h.datos.compFinal = meta; else delete h.datos.compFinal; return; }
+  var a = aPagos(h.datos).find(function (x) { return x.id === pid; }); if (!a) return;
+  if (meta) a.comp = meta; else delete a.comp;
+}
+/* guarda y refresca todas las pantallas donde se ve */
+function aSync(h) {
+  escribir(K_HIST, historial);
+  if (q && q.id === h.id) { q.anticipos = copia(aPagos(h.datos)); if (h.datos.compFinal) q.compFinal = copia(h.datos.compFinal); else delete q.compFinal; escribir(K_BOR, q); }
+  pintaHistorial(); pintaClientes(); pintar(); fPinta();
+}
+function aLinea(d) {
+  var c = calc(d), pg = aPagado(d), rs = aResta(d);
+  return pg > 0 ? 'Pagado ' + money(pg) + ' de ' + money(c.total) + ' · Resta ' + money(rs)
+    : 'Sin anticipo registrado · pediste ' + money(c.anticipo) + ' · Resta ' + money(c.total);
+}
+
+/* ----- archivo del comprobante: las fotos se achican, los PDF se guardan tal cual ----- */
+function aPreparaArchivo(file) {
+  var esImg = /^image\//.test(file.type) || /\.(jpe?g|png|heic|heif|webp)$/i.test(file.name), esPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+  if (esImg) {
+    return fImagen(file).then(function (c) {
+      return new Promise(function (ok, no) {
+        c.toBlob(function (b) { if (!b) { no(new Error('imagen')); return; } b.arrayBuffer().then(function (buf) { ok({ buf: buf, tipo: 'image/jpeg', nombre: (file.name || 'comprobante').replace(/\.[^.]+$/, '') + '.jpg' }); }); }, 'image/jpeg', 0.82);
+      });
+    });
+  }
+  if (esPdf) {
+    if (file.size > 8 * 1024 * 1024) return Promise.reject(new Error('grande'));
+    return file.arrayBuffer().then(function (buf) { return { buf: buf, tipo: 'application/pdf', nombre: file.name || 'comprobante.pdf' }; });
+  }
+  return Promise.reject(new Error('tipo'));
+}
+function aGuardaComp(h, pid, file) {
+  return aPreparaArchivo(file).then(function (a) {
+    return guardaArchivo(aClave(h.id, pid), a.buf, a.nombre).then(function () {
+      aPonMeta(h, pid, { nombre: a.nombre, tipo: a.tipo, fecha: hoyISO() }); aSync(h); aviso('Comprobante guardado.');
+    });
+  }).catch(function (e) {
+    var m = e && e.message;
+    aviso(m === 'tipo' ? 'Adjunta una foto o un PDF.' : m === 'grande' ? 'Ese PDF pesa demasiado (máximo 8 MB).' : 'No se pudo guardar el comprobante en este teléfono.');
+  });
+}
+function aElige(h, pid) {
+  var inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*,application/pdf,.pdf';
+  inp.addEventListener('change', function () { var f = inp.files && inp.files[0]; if (f) aGuardaComp(h, pid, f); });
+  inp.click();
+}
+async function aVer(h, pid) {
+  var m = aMeta(h, pid);
+  try {
+    var reg = await leeArchivo(aClave(h.id, pid)); if (!reg) { aviso('No encontré el archivo en este teléfono. Adjúntalo otra vez.'); return; }
+    var blob = new Blob([reg.buf], { type: (m && m.tipo) || 'application/octet-stream' }), u = URL.createObjectURL(blob), w = null;
+    try { w = window.open(u, '_blank'); } catch (e) {}
+    if (!w) descargaSync(blob, reg.nombre || 'Comprobante');
+  } catch (e) { aviso('No se pudo abrir el comprobante.'); }
+}
+var aCtx = null, aSel = null;
+/* sin comprobante: abre el selector; con comprobante: ver, reemplazar o quitar */
+function aCompAccion(clave) {
+  var p = aPartir(clave), h = aHist(p[0]), pid = p[1]; if (!h || !h.datos) return;
+  var m = aMeta(h, pid);
+  if (!m) { aElige(h, pid); return; }
+  aCtx = { h: h, pid: pid };
+  var cuerpo = '<p class="nota" style="margin:0 0 12px">' + esc(m.nombre) + (m.fecha ? ' · guardado el ' + esc(fFechaCorta(m.fecha)) : '') + '. Se guarda solo en este teléfono; no va dentro del respaldo.</p>' +
+    '<div class="f-dos"><button type="button" class="btn chico" data-acomp-reemp>Reemplazar</button><button type="button" class="btn chico" data-acomp-quita>Quitar</button></div>';
+  fAbreModal(pid === 'final' ? 'Comprobante del pago final' : 'Comprobante del anticipo', cuerpo, 'Ver comprobante', function () { aVer(h, pid); return ''; }, 'Cerrar');
+}
+function aQuitaComp(h, pid) {
+  borraArchivo(aClave(h.id, pid)).catch(function () {});
+  aPonMeta(h, pid, null); aSync(h);
+}
+function aBorraArchivos(h) {
+  if (!h || !h.datos) return;
+  aPagos(h.datos).forEach(function (a) { if (a.comp) borraArchivo(aClave(h.id, a.id)).catch(function () {}); });
+  if (h.datos.compFinal) borraArchivo(aClave(h.id, 'final')).catch(function () {});
+}
+
+/* ----- registrar un anticipo (o un pago a cuenta) ----- */
+function aFormAnticipo(id) {
+  var h = aHist(id); if (!h || !h.datos) return;
+  var d = h.datos, c = calc(d), pagado = aPagado(d), resta = aResta(d);
+  if (estadoDe(h) !== 'aceptada') { aviso('El anticipo se registra mientras la obra está aceptada.'); return; }
+  if (resta <= 0) { aviso('Esta cotización ya está pagada completa.'); return; }
+  var sug = pagado > 0 || !(c.anticipo > 0) ? resta : Math.min(c.anticipo, resta);
+  aSel = null;
+  var cuerpo = '<p class="nota" style="margin:0 0 12px">' + esc(h.folio + ' · ' + (h.cliente || '')) + '. Total ' + money(c.total) + ' · anticipo pedido ' + money(c.anticipo) + ' · ya pagado ' + money(pagado) + ' · resta ' + money(resta) + '.</p>' +
+    '<div class="campo"><label for="fm-monto">Cuánto te dieron</label><input id="fm-monto" type="number" inputmode="decimal" min="0" step="0.01" value="' + sug + '"></div>' +
+    '<div class="campo"><label for="fm-fecha">Fecha</label><input id="fm-fecha" type="date" value="' + hoyISO() + '"></div>' +
+    '<div class="campo"><label>Forma de pago</label>' + fChips('forma', [['efectivo', 'Efectivo'], ['transferencia', 'Transferencia'], ['otro', 'Otro']], ['efectivo'], false) + '</div>' +
+    '<div class="campo"><label>Ticket o comprobante (opcional)</label><button type="button" class="btn chico" data-acomp>Adjuntar foto o PDF</button>' +
+    '<input type="file" id="fm-comp" accept="image/*,application/pdf,.pdf" hidden><p class="nota" id="fm-compn" style="margin:8px 0 0">Se guarda solo en este teléfono.</p></div>';
+  fAbreModal(pagado > 0 ? 'Registrar otro pago' : 'Registrar anticipo', cuerpo, 'Guardar', function () {
+    var m = num(fv('monto'));
+    if (!(m > 0)) { aviso('Escribe cuánto te dieron.'); return false; }
+    if (m > resta + 0.005) { aviso('Es más de lo que resta (' + money(resta) + ').'); return false; }
+    var nuevo = { id: aId(), fecha: fv('fecha') || hoyISO(), monto: r2(m), forma: fChipsVal('forma')[0] || '' }, archivo = aSel;
+    h.datos.anticipos = aPagos(h.datos).concat([nuevo]); aSel = null;
+    aSync(h);
+    if (archivo) aGuardaComp(h, nuevo.id, archivo);
+    return 'Anticipo de ' + money(m) + ' guardado. Resta ' + money(aResta(h.datos)) + '.';
+  });
+}
+/* quitar un pago registrado por error: clave = idCotización|idPago */
+function aQuita(clave) {
+  var p = aPartir(clave), h = aHist(p[0]); if (!h || !h.datos) return;
+  var a = aPagos(h.datos).find(function (x) { return x.id === p[1]; });
+  if (a && a.comp) borraArchivo(aClave(h.id, a.id)).catch(function () {});
+  h.datos.anticipos = aPagos(h.datos).filter(function (x) { return x.id !== p[1]; });
+  aSync(h);
+}
+
+/* ----- lista de pagos de una obra, para Finanzas > Obras ----- */
+function aFilasObra(h) {
+  var d = h.datos, e = estadoDe(h), c = calc(d), pg = aPagado(d), filas = [];
+  aPagos(d).forEach(function (a) { filas.push({ pid: a.id, tit: 'Anticipo' + (a.forma ? ' · ' + a.forma : ''), fecha: a.fecha, monto: a.monto, comp: a.comp, borrable: true }); });
+  if (e === 'terminada') {
+    var resto = r2(c.total - pg);
+    if (resto > 0 || !aPagos(d).length) filas.push({ pid: 'final', tit: 'Pago final', fecha: d.fechaEstado || h.fecha, monto: Math.max(resto, 0), comp: d.compFinal, borrable: false });
+  }
+  if (!filas.length) return '';
+  return '<div class="f-lst">' + filas.map(function (f) {
+    var clave = h.id + '|' + f.pid, conf = finConfirma === 'Anticipos|' + clave;
+    return '<div>' + esc(f.tit) + '<div class="m">' + esc(fFechaCorta(f.fecha)) + '</div></div><span class="v">' + money(f.monto) + '</span><span style="display:flex;gap:6px">' +
+      '<button type="button" class="f-mini" style="padding:6px 9px;font-size:12px" data-fa="comp" data-id="' + esc(clave) + '">' + (f.comp ? 'Comprobante ✓' : 'Adjuntar') + '</button>' +
+      (f.borrable ? '<button type="button" class="f-x' + (conf ? ' conf' : '') + '" data-fa="del" data-hoja="Anticipos" data-id="' + esc(clave) + '" aria-label="Quitar pago">' + (conf ? '¿Sí?' : '×') + '</button>' : '') + '</span>';
+  }).join('') + '</div>';
+}
+
+function aInit() {
+  $('#btn-anticipo').addEventListener('click', function () { aFormAnticipo(q.id); });
+  $('#btn-compfinal').addEventListener('click', function () { aCompAccion(q.id + '|final'); });
+  var cu = $('#fm-cuerpo');
+  cu.addEventListener('click', function (e) {
+    if (e.target.closest('[data-acomp]')) { var f = $('#fm-comp'); if (f) f.click(); return; }
+    if (e.target.closest('[data-acomp-reemp]') && aCtx) { var c = aCtx; fCierraModal(); aElige(c.h, c.pid); return; }
+    if (e.target.closest('[data-acomp-quita]') && aCtx) { var c2 = aCtx; fCierraModal(); aQuitaComp(c2.h, c2.pid); aviso('Comprobante quitado.'); }
+  });
+  cu.addEventListener('change', function (e) {
+    if (e.target.id !== 'fm-comp') return;
+    aSel = e.target.files && e.target.files[0] || null;
+    var n = $('#fm-compn'); if (n) n.textContent = aSel ? 'Adjunto: ' + aSel.name : 'Se guarda solo en este teléfono.';
+  });
+}
+
 
 /* ---------- navegación y ajustes ---------- */
 function cambiaTab(n, conservar) {
@@ -2358,7 +2590,7 @@ function arranca() {
   q = bor && bor.partidas && (bor.estado || 'borrador') === 'borrador' ? bor : nueva();
   pintaChips();
   padCli = lienzo($('#lienzo-cli')); padPj = lienzo($('#lienzo-pj'));
-  backfillClientes(); recalculaTotales(); llenaForma(); llenaAjustes(); pintaHistorial(); pintaClientes(); pintar(); fInit(); fFotoInit(); recibosInit(); pInit(); actInit();
+  backfillClientes(); recalculaTotales(); llenaForma(); llenaAjustes(); pintaHistorial(); pintaClientes(); pintar(); fInit(); fFotoInit(); recibosInit(); pInit(); aInit(); actInit();
 
   ['nueva', 'historial', 'clientes', 'fin', 'ajustes'].forEach(function (t) { $('#tab-' + t).addEventListener('click', function () { cambiaTab(t); }); });
   $('#forma').addEventListener('input', cambioForma); $('#forma').addEventListener('change', cambioForma);
