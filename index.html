@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="11e2dbe185">
-<meta name="pj-fecha" content="2026-11-06 15:05">
+<meta name="pj-build" content="f0a3505293">
+<meta name="pj-fecha" content="2026-11-06 15:23">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1399,10 +1399,10 @@ function fTbl(n) {
     historial.forEach(function (h) {
       var e = h.datos ? estadoDe(h) : ''; if (e !== 'aceptada' && e !== 'terminada') return;
       var c = calc(h.datos), ants = aPagos(h.datos), pagado = aPagado(h.datos);
-      ants.forEach(function (a) { cobros.push({ id: h.id + '|' + a.id, fecha: a.fecha || h.fecha, obra: h.folio, cliente: h.cliente || '', monto: num(a.monto), nota: 'Anticipo', tipo: 'anticipo' }); });
+      ants.forEach(function (a) { cobros.push({ id: h.id + '|' + a.id, fecha: a.fecha || h.fecha, obra: h.folio, cliente: h.cliente || '', monto: num(a.monto), nota: 'Anticipo', tipo: 'anticipo', iva: aDg(h.datos, a.monto).iva, facturada: !!h.datos.factFecha }); });
       if (e === 'terminada') {
         var resto = r2(c.total - pagado);
-        if (resto > 0 || !ants.length) cobros.push({ id: h.id, fecha: h.datos.fechaEstado || h.fecha, obra: h.folio, cliente: h.cliente || '', monto: Math.max(resto, 0), nota: ants.length ? 'Resto al terminar' : 'Trabajo terminado', tipo: 'final' });
+        if (resto > 0 || !ants.length) cobros.push({ id: h.id, fecha: h.datos.fechaEstado || h.fecha, obra: h.folio, cliente: h.cliente || '', monto: Math.max(resto, 0), nota: ants.length ? 'Resto al terminar' : 'Trabajo terminado', tipo: 'final', iva: aDg(h.datos, Math.max(resto, 0)).iva, facturada: !!h.datos.factFecha });
       }
     });
     return cobros;
@@ -1547,10 +1547,11 @@ function fVistaResumen() {
     (c.pre > 0 ? '<span class="f-et">Préstamos a trabajadores</span><span class="v">' + fMenos(c.pre) + '</span>' : '') +
     '<span class="f-et">Impuestos del mes</span><span class="v">' + fMenos(c.total) + '</span><hr>' +
     '<span class="f-et">Neto</span><span class="v s ' + (c.neto >= 0 ? 'f-ok' : 'f-pen') + '">' + money(c.neto) + '</span></div>' +
+    (function () { var tot = fSuma(c.cob, 'iva'), ya = fSuma(c.cob.filter(function (r) { return r.facturada; }), 'iva'); return tot > 0 ? '<div class="f-nota">De lo que entró, ' + money(tot) + ' es IVA: ' + (ya > 0 ? money(ya) + ' ya está facturado y cuenta en Impuestos; ' : '') + money(r2(tot - ya)) + ' no pasa a Impuestos hasta que envíes su factura.</div>' : ''; })() +
     '<div class="f-nota">“Entró a la cuenta” es lo que cobraste en el mes: los anticipos que registraste y el resto de cada trabajo que marcaste como terminado. Incluye el IVA y ya descuenta el ISR que te retuvieron. Los impuestos son estimados.</div>');
   var ms = fMeses(), vals = ms.map(function (m) { return Math.max(fCalc(m.k).neto, 0); });
   h += fMarcos('<div class="f-chead"><div class="f-th">Neto por mes</div>' + fToggle() + '</div>' + fBarras(vals, ms, finMes));
-  h += fMarcos('<div class="f-cab"><div class="f-th">Cobros del mes <small>' + c.cob.length + '</small></div></div>' + fLista('Cobros', c.cob, function (r) { return [esc(r.obra + ' · ' + (r.cliente || '')), esc(fFechaCorta(r.fecha) + ' · ' + (r.tipo === 'anticipo' ? 'anticipo' : r.nota === 'Resto al terminar' ? 'resto al terminar' : 'cobrado')), money(r.monto)]; }, true) + '<div class="f-nota">El anticipo cuenta el día que lo registras; el resto (o el total) cuenta el día que marcas la cotización como terminada.</div>');
+  h += fMarcos('<div class="f-cab"><div class="f-th">Cobros del mes <small>' + c.cob.length + '</small></div></div>' + fLista('Cobros', c.cob, function (r) { return [esc(r.obra + ' · ' + (r.cliente || '')), esc(fFechaCorta(r.fecha) + ' · ' + (r.tipo === 'anticipo' ? 'anticipo' : r.nota === 'Resto al terminar' ? 'resto al terminar' : 'cobrado') + (num(r.iva) > 0 ? ' · IVA ' + money(r.iva) : '')), money(r.monto)]; }, true) + '<div class="f-nota">El anticipo cuenta el día que lo registras; el resto (o el total) cuenta el día que marcas la cotización como terminada.</div>');
   h += fMarcos('<div class="f-cab"><div class="f-th">Gastos <small>' + c.gas.length + '</small></div></div>' + fLista('Gastos', c.gas, function (r) { return [esc((r.proveedor || r.concepto || 'Gasto') + (r.facturado === 'no' ? ' · no deducible' : '')), esc(fFechaCorta(r.fecha) + ' · ' + r.categoria), money(r.total)]; }) + '<button type="button" class="f-btn" data-fa="gasto">Registrar gasto</button>');
   return h;
 }
@@ -2447,6 +2448,20 @@ function aLinea(d) {
     : 'Sin anticipo registrado · pediste ' + money(c.anticipo) + ' · Resta ' + money(c.total);
 }
 
+/* parte de un cobro que es base, IVA e ISR retenido (proporcional al total de la cotización). Solo informa: los impuestos cuentan por la factura enviada. */
+function aDesglose(d, monto) {
+  var c = calc(d), m = num(monto); if (!d.factura || !(c.total > 0) || !(m > 0)) return null;
+  var k = m / c.total; return { base: r2(c.sub * k), iva: r2(c.iva * k), isr: r2(c.isr * k) };
+}
+function aDg(d, monto) { return aDesglose(d, monto) || { base: 0, iva: 0, isr: 0 }; }
+function aDesgTxt(g) { return g ? 'base ' + money(g.base) + ' · IVA ' + money(g.iva) + (g.isr > 0 ? ' · ISR retenido ' + money(g.isr) : '') : ''; }
+var aForm = null;
+function aPintaDesg() {
+  var e = $('#fm-desg'); if (!e || !aForm) return;
+  var g = aDesglose(aForm.datos, num(fv('monto')));
+  e.textContent = g ? 'De ese monto: ' + aDesgTxt(g) + '. No pasa a Impuestos hasta que envíes la factura.' : '';
+}
+
 /* ----- archivo del comprobante: las fotos se achican, los PDF se guardan tal cual ----- */
 function aPreparaArchivo(file) {
   var esImg = /^image\//.test(file.type) || /\.(jpe?g|png|heic|heif|webp)$/i.test(file.name), esPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
@@ -2517,7 +2532,7 @@ function aFormAnticipo(id) {
   var sug = pagado > 0 || !(c.anticipo > 0) ? resta : Math.min(c.anticipo, resta);
   aSel = null;
   var cuerpo = '<p class="nota" style="margin:0 0 12px">' + esc(h.folio + ' · ' + (h.cliente || '')) + '. Total ' + money(c.total) + ' · anticipo pedido ' + money(c.anticipo) + ' · ya pagado ' + money(pagado) + ' · resta ' + money(resta) + '.</p>' +
-    '<div class="campo"><label for="fm-monto">Cuánto te dieron</label><input id="fm-monto" type="number" inputmode="decimal" min="0" step="0.01" value="' + sug + '"></div>' +
+    '<div class="campo"><label for="fm-monto">Cuánto te dieron</label><input id="fm-monto" type="number" inputmode="decimal" min="0" step="0.01" value="' + sug + '"><p class="nota" id="fm-desg" style="margin:6px 0 0"></p></div>' +
     '<div class="campo"><label for="fm-fecha">Fecha</label><input id="fm-fecha" type="date" value="' + hoyISO() + '"></div>' +
     '<div class="campo"><label>Forma de pago</label>' + fChips('forma', [['efectivo', 'Efectivo'], ['transferencia', 'Transferencia'], ['otro', 'Otro']], ['efectivo'], false) + '</div>' +
     '<div class="campo"><label>Ticket o comprobante (opcional)</label><button type="button" class="btn chico" data-acomp>Adjuntar foto o PDF</button>' +
@@ -2532,6 +2547,7 @@ function aFormAnticipo(id) {
     if (archivo) aGuardaComp(h, nuevo.id, archivo);
     return 'Anticipo de ' + money(m) + ' guardado. Resta ' + money(aResta(h.datos)) + '.';
   });
+  aForm = h; aPintaDesg();
 }
 /* quitar un pago registrado por error: clave = idCotización|idPago */
 function aQuita(clave) {
@@ -2545,24 +2561,25 @@ function aQuita(clave) {
 /* ----- lista de pagos de una obra, para Finanzas > Obras ----- */
 function aFilasObra(h) {
   var d = h.datos, e = estadoDe(h), c = calc(d), pg = aPagado(d), filas = [];
-  aPagos(d).forEach(function (a) { filas.push({ pid: a.id, tit: 'Anticipo' + (a.forma ? ' · ' + a.forma : ''), fecha: a.fecha, monto: a.monto, comp: a.comp, borrable: true }); });
+  aPagos(d).forEach(function (a) { filas.push({ pid: a.id, tit: 'Anticipo' + (a.forma ? ' · ' + a.forma : ''), fecha: a.fecha, monto: a.monto, comp: a.comp, borrable: true, desg: aDesglose(d, a.monto) }); });
   if (e === 'terminada') {
     var resto = r2(c.total - pg);
-    if (resto > 0 || !aPagos(d).length) filas.push({ pid: 'final', tit: 'Pago final', fecha: d.fechaEstado || h.fecha, monto: Math.max(resto, 0), comp: d.compFinal, borrable: false });
+    if (resto > 0 || !aPagos(d).length) filas.push({ pid: 'final', tit: 'Pago final', fecha: d.fechaEstado || h.fecha, monto: Math.max(resto, 0), comp: d.compFinal, borrable: false, desg: aDesglose(d, Math.max(resto, 0)) });
   }
   if (!filas.length) return '';
   return '<div class="f-lst">' + filas.map(function (f) {
     var clave = h.id + '|' + f.pid, conf = finConfirma === 'Anticipos|' + clave;
-    return '<div>' + esc(f.tit) + '<div class="m">' + esc(fFechaCorta(f.fecha)) + '</div></div><span class="v">' + money(f.monto) + '</span><span style="display:flex;gap:6px">' +
+    return '<div>' + esc(f.tit) + '<div class="m">' + esc(fFechaCorta(f.fecha) + (f.desg ? ' · ' + aDesgTxt(f.desg) : '')) + '</div></div><span class="v">' + money(f.monto) + '</span><span style="display:flex;gap:6px">' +
       '<button type="button" class="f-mini" style="padding:6px 9px;font-size:12px" data-fa="comp" data-id="' + esc(clave) + '">' + (f.comp ? 'Comprobante ✓' : 'Adjuntar') + '</button>' +
       (f.borrable ? '<button type="button" class="f-x' + (conf ? ' conf' : '') + '" data-fa="del" data-hoja="Anticipos" data-id="' + esc(clave) + '" aria-label="Quitar pago">' + (conf ? '¿Sí?' : '×') + '</button>' : '') + '</span>';
-  }).join('') + '</div>';
+  }).join('') + '</div>' + (d.factura ? '<div class="f-nota">' + (d.factFecha ? 'Esta cotización ya está facturada: su IVA ya cuenta en Impuestos.' : 'Con factura: el IVA y el ISR de lo cobrado no pasan a Impuestos del mes hasta que envíes la factura.') + '</div>' : '');
 }
 
 function aInit() {
   $('#btn-anticipo').addEventListener('click', function () { aFormAnticipo(q.id); });
   $('#btn-compfinal').addEventListener('click', function () { aCompAccion(q.id + '|final'); });
   var cu = $('#fm-cuerpo');
+  cu.addEventListener('input', function (e) { if (e.target.id === 'fm-monto') aPintaDesg(); });
   cu.addEventListener('click', function (e) {
     if (e.target.closest('[data-acomp]')) { var f = $('#fm-comp'); if (f) f.click(); return; }
     if (e.target.closest('[data-acomp-reemp]') && aCtx) { var c = aCtx; fCierraModal(); aElige(c.h, c.pid); return; }
