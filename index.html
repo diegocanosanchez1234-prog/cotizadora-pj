@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="f0a3505293">
-<meta name="pj-fecha" content="2026-11-06 15:23">
+<meta name="pj-build" content="4427359077">
+<meta name="pj-fecha" content="2026-11-06 15:40">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -399,6 +399,7 @@ body.fin-claro{background:#f2f2f3}
       <div class="panel">
         <h2>Pago y fechas</h2>
         <label class="interruptor" for="factura"><input type="checkbox" id="factura" data-k="factura"><span><b>Con factura</b><br><span class="nota" style="margin:0" id="factura-nota"></span></span></label>
+        <label class="interruptor" for="pg" id="pg-fila" style="display:none"><input type="checkbox" id="pg" data-k="pg"><span><b>Pago con tarjeta, factura a público en general</b><br><span class="nota" style="margin:0">Se suma el IVA y no se resta ISR retenido. Se factura después en la factura global del mes.</span></span></label>
         <div class="fila" style="margin-top:14px">
           <div class="campo"><label for="anticipo">Anticipo (%)</label><input id="anticipo" data-k="anticipo" type="number" inputmode="decimal" min="0" max="100" step="1"></div>
           <div class="campo"><label for="dias">Días de trabajo</label><input id="dias" data-k="dias" type="number" inputmode="numeric" min="1" placeholder="Días de trabajo estimados"></div>
@@ -640,7 +641,7 @@ function nueva() {
 function calc(x) {
   var sub = r2(x.partidas.reduce(function (a, p) { return a + num(p.n) * num(p.p); }, 0));
   var iva = x.factura ? r2(sub * num(x.cond.iva) / 100) : 0;
-  var isr = x.factura ? r2(sub * num(x.cond.isr) / 100) : 0;
+  var isr = x.factura && !x.pg ? r2(sub * num(x.cond.isr) / 100) : 0;
   var total = r2(sub + iva - isr);
   var anticipo = r2(total * num(x.anticipo) / 100);
   return { sub: sub, iva: iva, isr: isr, total: total, anticipo: anticipo, saldo: r2(total - anticipo) };
@@ -656,7 +657,7 @@ function entrega(x) {
 function hoyISOde(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
 
 async function codigoVerif(x) {
-  var base = JSON.stringify({ f: x.folio, d: x.fecha, c: x.cliente, p: x.partidas, fa: x.factura, a: x.anticipo, i: x.inicio, di: x.dias, v: x.vigencia, co: x.cond, s: x.servicio, m: x.marca, inc: x.incluye, no: x.noIncluye, t: x.tipo });
+  var base = JSON.stringify({ f: x.folio, d: x.fecha, c: x.cliente, p: x.partidas, fa: x.factura, pg: x.pg, a: x.anticipo, i: x.inicio, di: x.dias, v: x.vigencia, co: x.cond, s: x.servicio, m: x.marca, inc: x.incluye, no: x.noIncluye, t: x.tipo });
   var hex = '';
   try {
     var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(base));
@@ -674,7 +675,7 @@ function clausulas(x, c) {
   var g = mesesTxt(x.cond.garantia), m = num(x.cond.multa), ini = fechaLarga(x.inicio) || 'la fecha que se acuerde', dias = num(x.dias);
   var duracion = dias ? 'se estima en ' + dias + (dias === 1 ? ' día' : ' días') + ' de trabajo (no se cuentan domingos)' : 'tendrá la duración de trabajo que se acuerde (no se cuentan domingos)';
   var fac = x.factura
-    ? 'Esta cotización incluye factura: se suma el IVA (' + num(x.cond.iva) + ' %) y se descuenta el ISR retenido (' + num(x.cond.isr) + ' %). Solicítela con sus datos fiscales al pagar el anticipo.'
+    ? (x.pg ? 'Pago con tarjeta: se suma el IVA (' + num(x.cond.iva) + ' %). Se emite factura a público en general; si necesita factura con sus datos fiscales, indíquelo antes de pagar el anticipo.' : 'Esta cotización incluye factura: se suma el IVA (' + num(x.cond.iva) + ' %) y se descuenta el ISR retenido (' + num(x.cond.isr) + ' %). Solicítela con sus datos fiscales al pagar el anticipo.')
     : 'Esta cotización es sin factura y no suma impuestos.';
   return [
     ['Qué es este documento', 'Esta cotización describe el trabajo, el precio y las condiciones. Cuando usted la firma, queda aceptada y obliga a ambas partes como contrato de prestación de servicios.'],
@@ -753,7 +754,7 @@ function hojaCotizacion(x, c) {
     '<div class="d-dos"><div><div class="d-mono">Incluye</div>' + lista(x.incluye) + '</div><div><div class="d-mono">No incluye</div>' + lista(x.noIncluye) + '</div></div>' +
     '<table class="d-tabla"><thead><tr><th>CONCEPTO</th><th class="n" style="width:60px">CANT.</th><th class="n" style="width:110px">PRECIO</th><th class="n" style="width:120px">IMPORTE</th></tr></thead><tbody>' + filas + '</tbody></table>' +
     '<div class="d-tot"><div><span>Subtotal</span><span>' + money(c.sub) + '</span></div>' +
-    (x.factura ? '<div><span>IVA ' + num(x.cond.iva) + ' %</span><span>' + money(c.iva) + '</span></div><div><span>ISR retenido ' + num(x.cond.isr) + ' %</span><span>' + money(-c.isr) + '</span></div>' : '<div><span>Sin factura</span><span>sin impuestos</span></div>') +
+    (x.factura ? '<div><span>IVA ' + num(x.cond.iva) + ' %</span><span>' + money(c.iva) + '</span></div>' + (x.pg ? '' : '<div><span>ISR retenido ' + num(x.cond.isr) + ' %</span><span>' + money(-c.isr) + '</span></div>') : '<div><span>Sin factura</span><span>sin impuestos</span></div>') +
     '<div class="g"><span>Total</span><span>' + money(c.total) + '</span></div></div>' +
     '<div class="d-pago"><div><div class="d-mono">Anticipo ' + num(x.anticipo) + ' %</div><strong>' + money(c.anticipo) + '</strong><div>Para apartar la fecha</div></div>' +
     '<div><div class="d-mono">Saldo</div><strong>' + money(c.saldo) + '</strong><div>El día que se termine el trabajo</div></div>' +
@@ -857,13 +858,14 @@ function pintaPartidas() {
 function pintaResumen() {
   var c = calc(q), ent = entrega(q);
   var filas = [['Subtotal', money(c.sub)]];
-  if (q.factura) { filas.push(['IVA ' + num(q.cond.iva) + ' %', money(c.iva)]); filas.push(['ISR retenido ' + num(q.cond.isr) + ' %', money(-c.isr)]); }
+  if (q.factura) { filas.push(['IVA ' + num(q.cond.iva) + ' %', money(c.iva)]); if (!q.pg) filas.push(['ISR retenido ' + num(q.cond.isr) + ' %', money(-c.isr)]); }
   var h = filas.map(function (f) { return '<span class="l">' + f[0] + '</span><span class="v">' + f[1] + '</span>'; }).join('');
   h += '<hr><span class="l">Total</span><span class="t v">' + money(c.total) + '</span>';
   h += '<span class="l">Anticipo ' + num(q.anticipo) + ' %</span><span class="v">' + money(c.anticipo) + '</span>';
   h += '<span class="l">Saldo al terminar</span><span class="v">' + money(c.saldo) + '</span>';
   $('#resumen').innerHTML = h;
-  $('#factura-nota').textContent = q.factura ? 'Se suma el IVA ' + num(q.cond.iva) + ' % y se resta el ISR retenido ' + num(q.cond.isr) + ' %.' : 'Sin factura no se suman impuestos.';
+  $('#factura-nota').textContent = q.factura ? (q.pg ? 'Se suma el IVA ' + num(q.cond.iva) + ' %; sin ISR retenido.' : 'Se suma el IVA ' + num(q.cond.iva) + ' % y se resta el ISR retenido ' + num(q.cond.isr) + ' %.') : 'Sin factura no se suman impuestos.';
+  $('#pg-fila').style.display = q.factura ? '' : 'none';
   $('#entrega-nota').textContent = ent ? 'Entrega estimada: ' + fechaLarga(ent) + ' (no cuenta domingos; se recorre por clima).' : 'Con fecha de inicio y días de trabajo se calcula la entrega estimada.';
   var est = q.estado || 'borrador', firmada = est === 'aceptada' || est === 'terminada', bloqueada = firmada || est === 'no_aceptada';
   $('#campos').disabled = bloqueada;
@@ -946,7 +948,7 @@ function abre(id) {
 function duplica(id) {
   var h = historial.find(function (x) { return x.id === id; }); if (!h) return;
   q = copia(h.datos); q.id = aId(); q.folio = folioTxt(ajustes.folio); q.fecha = hoyISO(); q.estado = 'borrador'; q.motivo = ''; q.fechaEstado = null; q.guardada = false; q.firmaCliente = null; q.creada = new Date().toISOString();
-  q.anticipos = []; delete q.compFinal; delete q.factFecha; delete q.resenaEnviada;
+  q.anticipos = []; delete q.compFinal; delete q.pgFact; delete q.factFecha; delete q.resenaEnviada;
   escribir(K_BOR, q); llenaForma(); pintar(); cambiaTab('nueva', true); window.scrollTo(0, 0); aviso('Cotización duplicada con folio nuevo.');
 }
 var pendienteBorrar = null;
@@ -1147,7 +1149,7 @@ function estadoDe(h) { return h.estado || 'borrador'; }
 
 function filaCot(h) {
   var e = estadoDe(h), clase = e === 'aceptada' ? ' ok' : e === 'no_aceptada' ? ' no' : e === 'terminada' ? ' hecho' : '', id = esc(h.id), d = h.datos;
-  var meta = esc(fechaLarga(h.fecha)) + ' · ' + money(h.total) + (d.cliente && d.cliente.dom ? ' · ' + esc(d.cliente.dom) : '');
+  var meta = esc(fechaLarga(h.fecha)) + ' · ' + money(h.total) + (d.factura && d.pg ? ' · Factura global' : '') + (d.cliente && d.cliente.dom ? ' · ' + esc(d.cliente.dom) : '');
   var extra = e === 'no_aceptada' ? '<div class="motivo">No aceptada' + (d.fechaEstado ? ' el ' + esc(fechaLarga(d.fechaEstado)) : '') + (d.motivo ? ' · ' + esc(d.motivo) : '') + '</div>'
     : e === 'terminada' && d.fechaEstado ? '<div class="motivo">Trabajo terminado el ' + esc(fechaLarga(d.fechaEstado)) + '</div>'
     : e === 'aceptada' ? '<div class="motivo">' + esc(aLinea(d)) + '</div>' : '';
@@ -1156,7 +1158,7 @@ function filaCot(h) {
     + (e === 'aceptada' && aResta(d) > 0 ? '<button class="btn chico" data-ant="' + id + '" type="button">' + (aPagos(d).length ? 'Otro pago' : 'Anticipo') + '</button>' : '')
     + (e === 'aceptada' ? '<button class="btn chico" data-ter="' + id + '" type="button">Terminado</button>' : '')
     + (e === 'terminada' ? '<button class="btn chico" data-compf="' + id + '" type="button">' + (d.compFinal ? 'Comprobante final ✓' : 'Comprobante final') + '</button>' : '')
-    + (e === 'aceptada' || e === 'terminada' ? '<button class="btn chico" data-fact="' + id + '" type="button">Datos de factura</button>' : '')
+    + ((e === 'aceptada' || e === 'terminada') && !(d.factura && d.pg) ? '<button class="btn chico" data-fact="' + id + '" type="button">Datos de factura</button>' : '')
     + (e === 'terminada' ? '<button class="btn chico" data-resena="' + id + '" type="button">' + (d.resenaEnviada ? 'Reseña pedida ✓' : 'Pedir reseña') + '</button>' : '')
     + (e === 'no_aceptada' ? '<button class="btn chico" data-reabrir="' + id + '" type="button">Reabrir</button>' : '')
     + '<button class="btn chico" data-borrar="' + id + '" type="button">Eliminar</button>';
@@ -1391,7 +1393,7 @@ function fTbl(n) {
     return historial.filter(function (h) { return h.datos && h.datos.factFecha; }).map(function (h) {
       var c = calc(h.datos);
       return { id: h.id, folio: h.folio, fecha: h.datos.factFecha, cliente: h.cliente || '', subtotal: c.sub, iva: c.iva, isr_retenido: c.isr, total: c.total, con_iva: h.datos.factura ? 'si' : 'no' };
-    });
+    }).concat(fFacturasGlobales());
   }
   /* dinero que entró: cada anticipo registrado el día que se recibió, y el resto de cada cotización terminada el día que se marcó */
   if (n === 'Cobros') {
@@ -1399,15 +1401,26 @@ function fTbl(n) {
     historial.forEach(function (h) {
       var e = h.datos ? estadoDe(h) : ''; if (e !== 'aceptada' && e !== 'terminada') return;
       var c = calc(h.datos), ants = aPagos(h.datos), pagado = aPagado(h.datos);
-      ants.forEach(function (a) { cobros.push({ id: h.id + '|' + a.id, fecha: a.fecha || h.fecha, obra: h.folio, cliente: h.cliente || '', monto: num(a.monto), nota: 'Anticipo', tipo: 'anticipo', iva: aDg(h.datos, a.monto).iva, facturada: !!h.datos.factFecha }); });
+      ants.forEach(function (a) { var g1 = aDg(h.datos, a.monto); cobros.push({ id: h.id + '|' + a.id, hid: h.id, fecha: a.fecha || h.fecha, obra: h.folio, cliente: h.cliente || '', monto: num(a.monto), nota: 'Anticipo', tipo: 'anticipo', base: g1.base, iva: g1.iva, pg: gEsPG(h.datos), facturada: gEsPG(h.datos) ? gEmitido(h.datos, a.id) : !!h.datos.factFecha }); });
       if (e === 'terminada') {
         var resto = r2(c.total - pagado);
-        if (resto > 0 || !ants.length) cobros.push({ id: h.id, fecha: h.datos.fechaEstado || h.fecha, obra: h.folio, cliente: h.cliente || '', monto: Math.max(resto, 0), nota: ants.length ? 'Resto al terminar' : 'Trabajo terminado', tipo: 'final', iva: aDg(h.datos, Math.max(resto, 0)).iva, facturada: !!h.datos.factFecha });
+        if (resto > 0 || !ants.length) { var g2 = aDg(h.datos, Math.max(resto, 0)); cobros.push({ id: h.id + '|final', hid: h.id, fecha: h.datos.fechaEstado || h.fecha, obra: h.folio, cliente: h.cliente || '', monto: Math.max(resto, 0), nota: ants.length ? 'Resto al terminar' : 'Trabajo terminado', tipo: 'final', base: g2.base, iva: g2.iva, pg: gEsPG(h.datos), facturada: gEsPG(h.datos) ? gEmitido(h.datos, 'final') : !!h.datos.factFecha }); }
       }
     });
     return cobros;
   }
   return finStore[n] || [];
+}
+
+/* cobros a público en general que ya se incluyeron en una factura global: cuentan el día que se emitió */
+function fFacturasGlobales() {
+  var out = [];
+  historial.forEach(function (h) {
+    (h.datos && Array.isArray(h.datos.pgFact) ? h.datos.pgFact : []).forEach(function (r) {
+      out.push({ id: h.id + '|' + r.id, folio: h.folio, fecha: r.fecha, cliente: h.cliente || '', subtotal: num(r.base), iva: num(r.iva), isr_retenido: 0, total: num(r.monto), con_iva: 'si', global: true });
+    });
+  });
+  return out;
 }
 
 /* se llama cuando se envía el Excel de facturación: desde ese día la cotización cuenta como facturada */
@@ -1421,7 +1434,9 @@ function fFactura(h) {
 function fEncola(it) {
   if (it.accion === 'borrar') {
     if (it.hoja === 'Facturas') {
-      var h = historial.find(function (x) { return x.id === it.id; });
+      var pp = aPartir(it.id), hg = String(it.id).indexOf('|') >= 0 ? aHist(pp[0]) : null;
+      if (hg && hg.datos) { hg.datos.pgFact = (Array.isArray(hg.datos.pgFact) ? hg.datos.pgFact : []).filter(function (r) { return r.id !== pp[1]; }); escribir(K_HIST, historial); }
+      var h = hg ? null : historial.find(function (x) { return x.id === it.id; });
       if (h && h.datos) { delete h.datos.factFecha; escribir(K_HIST, historial); }   // la factura se puede volver a enviar y contará otra vez
     } else if (it.hoja === 'Anticipos') { aQuita(it.id); return; }
     else if (finStore[it.hoja]) finStore[it.hoja] = finStore[it.hoja].filter(function (r) { return r.id !== it.id; });
@@ -1456,7 +1471,7 @@ function fMezcla(f) {
 var finMes = hoyISO().slice(0, 7), finVista = 'resumen', finGraf = 'mensual', finTrab = '', finConfirma = '', fModalOk = null;
 var MESES3 = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
 var DIAS_SEM = [['1', 'Lun'], ['2', 'Mar'], ['3', 'Mié'], ['4', 'Jue'], ['5', 'Vie'], ['6', 'Sáb'], ['0', 'Dom']];
-var CATS = [['material', 'Material'], ['herramienta', 'Herramienta'], ['transporte', 'Transporte'], ['otro', 'Otro']];
+var CATS = [['material', 'Material'], ['herramienta', 'Herramienta'], ['transporte', 'Transporte'], ['comision', 'Comisión de terminal'], ['otro', 'Otro']];
 
 function fMesTxt(k) { var p = k.split('-'), t = new Date(+p[0], +p[1] - 1, 1).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' }); return t.charAt(0).toUpperCase() + t.slice(1); }
 function fMesMas(k, n) { var p = k.split('-'), d = new Date(+p[0], +p[1] - 1 + n, 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
@@ -1547,7 +1562,7 @@ function fVistaResumen() {
     (c.pre > 0 ? '<span class="f-et">Préstamos a trabajadores</span><span class="v">' + fMenos(c.pre) + '</span>' : '') +
     '<span class="f-et">Impuestos del mes</span><span class="v">' + fMenos(c.total) + '</span><hr>' +
     '<span class="f-et">Neto</span><span class="v s ' + (c.neto >= 0 ? 'f-ok' : 'f-pen') + '">' + money(c.neto) + '</span></div>' +
-    (function () { var tot = fSuma(c.cob, 'iva'), ya = fSuma(c.cob.filter(function (r) { return r.facturada; }), 'iva'); return tot > 0 ? '<div class="f-nota">De lo que entró, ' + money(tot) + ' es IVA: ' + (ya > 0 ? money(ya) + ' ya está facturado y cuenta en Impuestos; ' : '') + money(r2(tot - ya)) + ' no pasa a Impuestos hasta que envíes su factura.</div>' : ''; })() +
+    (function () { var tot = fSuma(c.cob, 'iva'), ya = fSuma(c.cob.filter(function (r) { return r.facturada; }), 'iva'); return tot > 0 ? '<div class="f-nota">De lo que entró, ' + money(tot) + ' es IVA: ' + (ya > 0 ? money(ya) + ' ya está facturado y cuenta en Impuestos; ' : '') + money(r2(tot - ya)) + ' no pasa a Impuestos hasta que se facture (Excel o factura global).</div>' : ''; })() +
     '<div class="f-nota">“Entró a la cuenta” es lo que cobraste en el mes: los anticipos que registraste y el resto de cada trabajo que marcaste como terminado. Incluye el IVA y ya descuenta el ISR que te retuvieron. Los impuestos son estimados.</div>');
   var ms = fMeses(), vals = ms.map(function (m) { return Math.max(fCalc(m.k).neto, 0); });
   h += fMarcos('<div class="f-chead"><div class="f-th">Neto por mes</div>' + fToggle() + '</div>' + fBarras(vals, ms, finMes));
@@ -1569,7 +1584,8 @@ function fVistaImpuestos() {
   var i = fImp(finMes), h = '';
   var vence = new Date(+fMesMas(finMes, 1).slice(0, 4), +fMesMas(finMes, 1).slice(5) - 1, 17, 12), dias = Math.ceil((vence - new Date()) / 86400000);
   h += '<div class="f-dark"><div class="et">A PAGAR APROXIMADO</div><div class="n">' + fGrande(i.total) + '</div><p>Vence el 17 de ' + esc(fMesTxt(fMesMas(finMes, 1)).split(' ')[0].toLowerCase()) + (dias > 0 ? ' · faltan ' + dias + ' días' : dias === 0 ? ' · vence hoy' : ' · ya venció') + '.</p></div>';
-  if (!i.fac.length) h += '<div class="f-vacio">Aún no hay facturas en este mes. Aparecen aquí cuando envías el Excel de facturación desde el Historial.</div>';
+  if (!i.fac.length) h += '<div class="f-vacio">Aún no hay facturas en este mes. Aparecen aquí cuando envías el Excel de facturación desde el Historial o marcas la factura global.</div>';
+  h += fCardGlobal();
   var ms = fMeses(), vals = ms.map(function (m) { return fImp(m.k).total; });
   h += fMarcos('<div class="f-chead"><div class="f-th">Impuestos por mes</div>' + fToggle() + '</div>' + fBarras(vals, ms, finMes) + '<div class="f-nota">ISR más IVA a pagar cada mes. Toca una barra para verla.</div>');
   h += fMarcos('<div class="f-th">ISR provisional <small>RESICO · TASA ' + i.tasa.toFixed(2) + ' %</small></div><div class="f-g">' +
@@ -1601,9 +1617,31 @@ function fVistaImpuestos() {
     '<div class="f-lbls" style="grid-column:auto;margin-top:6px">' + MESES3.map(function (t) { return '<span>' + t[0] + '</span>'; }).join('') + '</div>' +
     '<div class="f-leyenda"><span><u></u>Facturado sin IVA</span><span><u class="d"></u>Gastos con factura</span></div>' +
     '<div class="f-pb" style="background:#e1e6ec;margin-top:16px"><div style="width:' + pl.toFixed(1) + '%"></div></div><div class="f-pi" style="color:#5d5d60"><span>LÍMITE RESICO ' + fCorto(lim) + ' AL AÑO</span><span>' + pl.toFixed(1) + ' %</span></div>');
-  h += fMarcos('<div class="f-cab"><div class="f-th">Facturas del mes <small>' + i.fac.length + '</small></div></div>' + fLista('Facturas', i.fac, function (r) { return [esc((r.folio || '') + ' · ' + (r.cliente || '')), esc(fFechaCorta(r.fecha) + (r.con_iva === 'no' ? ' · sin IVA' : '')), money(r.subtotal)]; }));
+  h += fMarcos('<div class="f-cab"><div class="f-th">Facturas del mes <small>' + i.fac.length + '</small></div></div>' + fLista('Facturas', i.fac, function (r) { return [esc((r.folio || '') + ' · ' + (r.cliente || '')), esc(fFechaCorta(r.fecha) + (r.con_iva === 'no' ? ' · sin IVA' : '') + (r.global ? ' · factura global' : '')), money(r.subtotal)]; }));
   h += fMarcos('<div class="f-cab"><div class="f-th">Gastos con factura <small>' + i.gasF.length + '</small></div></div>' + fLista('Gastos', i.gasF, function (r) { return [esc(r.proveedor || r.concepto || 'Gasto'), esc(fFechaCorta(r.fecha) + ' · IVA ' + money(r.iva)), money(r.subtotal)]; }));
   return h;
+}
+
+/* ---- factura global de cobros con tarjeta a público en general ---- */
+function fCardGlobal() {
+  var pend = gPendientes(); if (!pend.length) return '';
+  var base = fSuma(pend, 'base'), iva = fSuma(pend, 'iva'), tot = fSuma(pend, 'monto');
+  return fMarcos('<div class="f-cab"><div class="f-th">Factura global pendiente <small>' + pend.length + '</small></div></div>' +
+    '<div class="f-nota" style="margin-top:6px">Cobros con tarjeta a público en general. Se facturan juntos con RFC XAXX010101000, nombre PÚBLICO EN GENERAL, régimen 616 y uso S01. Confirma el procedimiento con tu contador.</div>' +
+    fLista('Cobros', pend, function (r) { return [esc(r.obra + ' · ' + (r.cliente || '')), esc(fFechaCorta(r.fecha) + ' · base ' + money(r.base) + ' · IVA ' + money(r.iva)), money(r.monto)]; }, true) +
+    '<div class="f-g"><span class="f-et">Base (sin IVA)</span><span class="v">' + money(base) + '</span><span class="f-et">IVA</span><span class="v">' + money(iva) + '</span><hr><span class="f-et">Total a facturar</span><span class="v s">' + money(tot) + '</span></div>' +
+    '<button type="button" class="f-btn" data-fa="global">Ya emití la factura global</button>');
+}
+function fFormGlobal() {
+  var pend = gPendientes().filter(function (r) { return String(r.fecha).slice(0, 7) <= finMes; });
+  if (!pend.length) { aviso('No hay cobros pendientes hasta ' + fMesTxt(finMes).toLowerCase() + '.'); return; }
+  var base = fSuma(pend, 'base'), iva = fSuma(pend, 'iva'), tot = fSuma(pend, 'monto');
+  var cuerpo = '<p class="nota" style="margin:0 0 12px">Se marcarán ' + pend.length + (pend.length === 1 ? ' cobro' : ' cobros') + ' hasta ' + esc(fMesTxt(finMes).toLowerCase()) + ': base ' + money(base) + ' · IVA ' + money(iva) + ' · total ' + money(tot) + '. Cuentan en Impuestos del mes en que la emitiste.</p>' +
+    '<div class="campo"><label for="fm-fecha">Fecha en que emitiste la factura global</label><input id="fm-fecha" type="date" value="' + hoyISO() + '"></div>';
+  fAbreModal('Factura global emitida', cuerpo, 'Marcar como emitida', function () {
+    var n = gMarca(fv('fecha') || hoyISO(), finMes); pintaHistorial();
+    return n + (n === 1 ? ' cobro quedó facturado' : ' cobros quedaron facturados') + ' en la factura global.';
+  });
 }
 
 /* ---- obras ---- */
@@ -1784,6 +1822,7 @@ function fInit() {
     else if (a === 'gasto') fFormGasto();
     else if (a === 'editaGasto') fFormGasto(b.getAttribute('data-id'));
     else if (a === 'anticipo') aFormAnticipo(b.getAttribute('data-id'));
+    else if (a === 'global') fFormGlobal();
     else if (a === 'comp') aCompAccion(b.getAttribute('data-id'));
     else if (a === 'pago') fFormPago();
     else if (a === 'trab') { finTrab = b.getAttribute('data-id'); fPinta(); }
@@ -2459,7 +2498,21 @@ var aForm = null;
 function aPintaDesg() {
   var e = $('#fm-desg'); if (!e || !aForm) return;
   var g = aDesglose(aForm.datos, num(fv('monto')));
-  e.textContent = g ? 'De ese monto: ' + aDesgTxt(g) + '. No pasa a Impuestos hasta que envíes la factura.' : '';
+  e.textContent = g ? 'De ese monto: ' + aDesgTxt(g) + (aForm && aForm.datos.pg ? '. No pasa a Impuestos hasta que marques la factura global.' : '. No pasa a Impuestos hasta que envíes la factura.') : '';
+}
+
+/* ----- factura global: cobros con tarjeta de clientes sin factura propia (público en general) ----- */
+/* datos.pg = true con datos.factura: IVA sin ISR retenido. datos.pgFact = [{ id, fecha, base, iva, monto }] son los cobros ya incluidos en una factura global. */
+function gEsPG(d) { return !!(d && d.factura && d.pg); }
+function gEmitido(d, pid) { return (Array.isArray(d.pgFact) ? d.pgFact : []).some(function (r) { return r.id === pid; }); }
+function gPendientes() { return fTbl('Cobros').filter(function (r) { return r.pg && !r.facturada; }); }
+function gMarca(fechaEmision, mesTope) {
+  var n = 0;
+  gPendientes().filter(function (r) { return String(r.fecha).slice(0, 7) <= mesTope; }).forEach(function (r) {
+    var h = aHist(r.hid); if (!h) return;
+    h.datos.pgFact = (Array.isArray(h.datos.pgFact) ? h.datos.pgFact : []).concat([{ id: r.id.slice(r.hid.length + 1), fecha: fechaEmision, base: r.base, iva: r.iva, monto: r.monto }]); n++;
+  });
+  escribir(K_HIST, historial); return n;
 }
 
 /* ----- archivo del comprobante: las fotos se achican, los PDF se guardan tal cual ----- */
@@ -2572,7 +2625,7 @@ function aFilasObra(h) {
     return '<div>' + esc(f.tit) + '<div class="m">' + esc(fFechaCorta(f.fecha) + (f.desg ? ' · ' + aDesgTxt(f.desg) : '')) + '</div></div><span class="v">' + money(f.monto) + '</span><span style="display:flex;gap:6px">' +
       '<button type="button" class="f-mini" style="padding:6px 9px;font-size:12px" data-fa="comp" data-id="' + esc(clave) + '">' + (f.comp ? 'Comprobante ✓' : 'Adjuntar') + '</button>' +
       (f.borrable ? '<button type="button" class="f-x' + (conf ? ' conf' : '') + '" data-fa="del" data-hoja="Anticipos" data-id="' + esc(clave) + '" aria-label="Quitar pago">' + (conf ? '¿Sí?' : '×') + '</button>' : '') + '</span>';
-  }).join('') + '</div>' + (d.factura ? '<div class="f-nota">' + (d.factFecha ? 'Esta cotización ya está facturada: su IVA ya cuenta en Impuestos.' : 'Con factura: el IVA y el ISR de lo cobrado no pasan a Impuestos del mes hasta que envíes la factura.') + '</div>' : '');
+  }).join('') + '</div>' + (d.factura ? '<div class="f-nota">' + (d.pg ? 'Tarjeta, a público en general: el IVA de lo cobrado pasa a Impuestos cuando marques la factura global (Finanzas > Impuestos).' : d.factFecha ? 'Esta cotización ya está facturada: su IVA ya cuenta en Impuestos.' : 'Con factura: el IVA y el ISR de lo cobrado no pasan a Impuestos del mes hasta que envíes la factura.') + '</div>' : '');
 }
 
 function aInit() {
