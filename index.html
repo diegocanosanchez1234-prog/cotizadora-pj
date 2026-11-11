@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="7600e79262">
-<meta name="pj-fecha" content="2026-11-10 18:20">
+<meta name="pj-build" content="1a7a22466c">
+<meta name="pj-fecha" content="2026-11-10 18:27">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -2325,12 +2325,15 @@ function rCompartePdf() {
   } catch (e) { est.textContent = 'No se pudo armar el PDF. Revisa tu conexión e intenta otra vez.'; }
 }
 
-/* ----- reseña de Google al terminar un trabajo ----- */
+/* ----- recomendación en Facebook al terminar un trabajo ----- */
 function rMensajeResena(h, url) {
   var nombre = String(h.cliente || (h.datos && h.datos.cliente && h.datos.cliente.nombre) || '').trim().split(/\s+/)[0];
-  return 'Hola' + (nombre ? ' ' + nombre : '') + ', gracias por confiar en Pintores Juárez. Su trabajo (' + h.folio + ') ya quedó terminado. ' +
-    '¿Qué le pareció el trabajo y la atención de nuestro equipo? Si quedó conforme, nos ayudaría muchísimo con una recomendación en nuestra página de Facebook: entre a «Opiniones» y cuéntenos qué se pintó y en qué zona de Juárez. ' +
-    'Solo toma un minuto: ' + (url || '[aquí va tu enlace de reseñas]') + ' ¡Muchas gracias!';
+  return 'Hola' + (nombre ? ' ' + nombre : '') + ', gracias por confiar en Pintores Juárez. Su trabajo (' + h.folio + ') ya quedó terminado. ¿Qué le pareció el trabajo y la atención de nuestro equipo?\n\n' +
+    'Si quedó conforme, nos ayudaría muchísimo una recomendación en nuestra página de Facebook. Solo toma un minuto:\n' +
+    '1. Entre aquí: ' + (url || '[aquí va tu enlace de reseñas]') + '\n' +
+    '2. Cuando le pregunte si nos recomienda, toque «Sí».\n' +
+    '3. Cuéntenos qué se pintó y en qué zona de Juárez, y déjela como «Pública» para que otros la vean.\n\n' +
+    '¡Muchas gracias!';
 }
 function rUrlValida(u) { return /^https:\/\/[^\s]{6,300}$/i.test(u); }
 function abreResena(id) {
