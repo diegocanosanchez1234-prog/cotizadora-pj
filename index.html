@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="fa9460a393">
-<meta name="pj-fecha" content="2026-11-10 18:00">
+<meta name="pj-build" content="7600e79262">
+<meta name="pj-fecha" content="2026-11-10 18:20">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -190,6 +190,7 @@ details.avanzado summary{font-size:12.5px}
 .partida .importe{font-size:13.5px}
 .quita{width:44px;height:46px}
 .modo-firma .tabs,.modo-firma .barra small{display:none}
+.codigo-sync{font:600 19px var(--mono);letter-spacing:.06em;padding:14px 10px;border:1px solid var(--edge);background:#fff;color:#1D2D3D;word-break:break-all;text-align:center;margin:4px 0 12px;user-select:all;-webkit-user-select:all}
 #vf-doc .vista-doc{margin-top:0}
 /* ===== Tema claro en toda la app (como Finanzas). El encabezado se queda oscuro, igual que en el dashboard. ===== */
 :root{--deep:#f2f2f3;--panel:#ffffff;--paper:#1d1f20;--light:#416180;--line:rgba(29,31,32,.16);--edge:rgba(29,31,32,.28);--warn:#b4503a;color-scheme:light}
@@ -505,6 +506,11 @@ body.fin-claro{background:#f2f2f3}
       <p class="nota">Cuando marcas un trabajo como terminado, la app prepara un mensaje de WhatsApp para pedir la recomendación en tu página de Facebook. El enlace ya viene puesto; si algún día cambia, pégalo aquí.</p>
       <div class="campo"><label for="a-resena">Enlace de recomendaciones de Facebook</label><input id="a-resena" data-a="resenaUrl" type="url" autocomplete="off" autocapitalize="off" placeholder="https://www.facebook.com/…/reviews"></div>
     </div>
+    <div class="panel" id="sync-panel">
+      <h2>Sincronización y respaldo</h2>
+      <p class="nota" id="sync-txt"></p>
+      <div class="acciones" id="sync-acc"></div>
+    </div>
     <div class="panel">
       <h2>Versión de la app</h2>
       <p class="nota" id="ver-txt"></p>
@@ -635,7 +641,7 @@ function soloDigitos(s) { return String(s || '').replace(/\D/g, ''); }
 
 var memoria = {};
 function leer(k, def) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch (e) { return memoria[k] !== undefined ? memoria[k] : def; } }
-function escribir(k, v) { memoria[k] = v; try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
+function escribir(k, v) { memoria[k] = v; sMarca(k); try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
 
 /* ---------- datos ---------- */
 var AJ0 = { representante: 'Jesús Cano Mata', tel: '656 312 9242', correo: 'pintoresjuarez1@gmail.com', ciudad: 'Cd. Juárez, Chih.', folio: 1, vigencia: 20, anticipo: 50, garantia: 1, multa: 1, iva: 8, isr: 1.25, msi: 'Consulte plazos y tarjetas participantes.', firma: null, resenaUrl: 'https://www.facebook.com/profile.php?id=219713035468931&sk=reviews' };
@@ -1305,9 +1311,9 @@ function idb() {
 function idbOp(modo, fn) {
   return idb().then(function (db) { return new Promise(function (ok, no) { var tx = db.transaction('f', modo), rq = fn(tx.objectStore('f')); tx.oncomplete = function () { ok(rq && rq.result); }; tx.onerror = tx.onabort = function () { no(tx.error); }; }); });
 }
-function guardaArchivo(id, buf, nombre) { return idbOp('readwrite', function (s) { return s.put({ id: id, buf: buf, nombre: nombre }); }); }
+function guardaArchivo(id, buf, nombre) { return idbOp('readwrite', function (s) { return s.put({ id: id, buf: buf, nombre: nombre }); }).then(function (r) { sArchMarca(id, buf && buf.byteLength, nombre); return r; }); }
 function leeArchivo(id) { return idbOp('readonly', function (s) { return s.get(id); }); }
-function borraArchivo(id) { return idbOp('readwrite', function (s) { return s.delete(id); }); }
+function borraArchivo(id) { return idbOp('readwrite', function (s) { return s.delete(id); }).then(function (r) { sArchQuita(id); return r; }); }
 function facturaHtml(c, r) {
   if (r.ace + r.ter === 0) return '<p class="nota">Los datos de facturación aparecen aquí cuando el cliente acepta una cotización.</p>';
   var csf = c.csf
@@ -2871,6 +2877,323 @@ async function rModoFirma(id) {
   await pintar(); rPintaFirmar();
 }
 
+/* ---------- sincronización y respaldo cifrado entre dispositivos ----------
+   Un código de 26 caracteres (lo crea la app) da tres cosas: el id del respaldo, un token para
+   escribir y la llave AES con la que todo se cifra en el teléfono antes de subirlo.
+   Cada sincronización junta tres versiones (la última sincronizada, la de este dispositivo y la
+   de la nube) registro por registro, así no se pierden cambios hechos en dos dispositivos. */
+var K_SYNC = 'pjq.sync.v1', K_SYNC_ARCH = 'pjq.sync.arch';
+var sCfg = leer(K_SYNC, null);
+var sLlaves = null, sCorriendo = false, sOtraVez = false, sAplicando = false, sTimer = null, sEstadoTxt = '';
+var B32 = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+var TABLAS_FIN = ['Gastos', 'Trabajadores', 'Dias', 'Pagos', 'Prestamos'];
+
+function sGuardaCfg() { try { if (sCfg) localStorage.setItem(K_SYNC, JSON.stringify(sCfg)); else localStorage.removeItem(K_SYNC); } catch (e) {} }
+
+/* --- código --- */
+function sB32(bytes) {
+  var bits = 0, val = 0, out = '';
+  for (var i = 0; i < bytes.length; i++) { val = (val << 8) | bytes[i]; bits += 8; while (bits >= 5) { out += B32[(val >> (bits - 5)) & 31]; bits -= 5; } val &= (1 << bits) - 1; }
+  if (bits > 0) out += B32[(val << (5 - bits)) & 31];
+  return out;
+}
+function sDeB32(s) {
+  var bits = 0, val = 0, out = [];
+  for (var i = 0; i < s.length; i++) { var n = B32.indexOf(s[i]); if (n < 0) return null; val = (val << 5) | n; bits += 5; if (bits >= 8) { out.push((val >> (bits - 8)) & 255); bits -= 8; } val &= (1 << bits) - 1; }
+  return out.length >= 16 ? new Uint8Array(out.slice(0, 16)) : null;
+}
+function sNorm(c) { return String(c || '').toUpperCase().replace(/O/g, '0').replace(/[IL]/g, '1').replace(/[^0-9A-Z]/g, ''); }
+function sFormato(c) { return sNorm(c).replace(/(.{4})(?=.)/g, '$1-'); }
+function sCodigoValido(c) { var n = sNorm(c); return n.length === 26 && !!sDeB32(n); }
+function sCodigoNuevo() { return sFormato(sB32(crypto.getRandomValues(new Uint8Array(16)))); }
+function sHex(buf) { return Array.prototype.map.call(new Uint8Array(buf), function (b) { return b.toString(16).padStart(2, '0'); }).join(''); }
+async function sDeriva(codigo) {
+  var raw = sDeB32(sNorm(codigo)); if (!raw) throw new Error('codigo');
+  var base = await crypto.subtle.importKey('raw', raw, 'HKDF', false, ['deriveBits', 'deriveKey']);
+  var te = new TextEncoder(), sal = te.encode('pintores-juarez-sync-v1');
+  function p(info) { return { name: 'HKDF', hash: 'SHA-256', salt: sal, info: te.encode(info) }; }
+  return {
+    id: sHex(await crypto.subtle.deriveBits(p('id'), base, 256)),
+    token: sHex(await crypto.subtle.deriveBits(p('token'), base, 256)),
+    clave: await crypto.subtle.deriveKey(p('cifrado'), base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt'])
+  };
+}
+
+/* --- cifrado --- */
+async function sGz(buf, comprime) {
+  var cs = comprime ? new CompressionStream('gzip') : new DecompressionStream('gzip');
+  return new Response(new Blob([buf]).stream().pipeThrough(cs)).arrayBuffer();
+}
+async function sCifra(buf, tipo) {
+  var iv = crypto.getRandomValues(new Uint8Array(12));
+  var ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, sLlaves.clave, buf);
+  var out = new Uint8Array(13 + ct.byteLength); out[0] = tipo; out.set(iv, 1); out.set(new Uint8Array(ct), 13); return out;
+}
+async function sDescifra(buf) {
+  var u = new Uint8Array(buf);
+  var pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: u.slice(1, 13) }, sLlaves.clave, u.slice(13));
+  return u[0] === 2 ? sGz(pt, false) : pt;
+}
+async function sEmpaca(obj) {
+  var b = new TextEncoder().encode(JSON.stringify(obj)), gz = typeof CompressionStream === 'function';
+  return sCifra(gz ? await sGz(b, true) : b, gz ? 2 : 1);
+}
+async function sDesempaca(buf) { return JSON.parse(new TextDecoder().decode(await sDescifra(buf))); }
+
+/* --- nube --- */
+function sPide(metodo, ruta, cuerpo) {
+  return fetch(BUZON + '/s' + ruta, { method: metodo, headers: { 'X-Sync-Id': sLlaves.id, 'X-Sync-Token': sLlaves.token }, body: cuerpo, cache: 'no-store' });
+}
+
+/* --- comparar y juntar --- */
+function sCanon(v) {
+  if (Array.isArray(v)) return '[' + v.map(sCanon).join(',') + ']';
+  if (v && typeof v === 'object') return '{' + Object.keys(v).sort().filter(function (k) { return v[k] !== undefined; }).map(function (k) { return JSON.stringify(k) + ':' + sCanon(v[k]); }).join(',') + '}';
+  return JSON.stringify(v === undefined ? null : v);
+}
+function sCanonLista(a) { return (a || []).map(function (r) { return [String(r && r.id), sCanon(r)]; }).sort(function (x, y) { return x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0; }).map(function (x) { return x[1]; }).join('\n'); }
+function sCanonFoto(f) {
+  f = f || {};
+  return [sCanon(f.ajustes || {}), sCanonLista(f.historial), sCanonLista(f.clientes)].concat(TABLAS_FIN.map(function (t) { return sCanonLista((f.fin || {})[t]); })).join('\n#\n');
+}
+function sMapa(a) { var m = new Map(); (a || []).forEach(function (r) { if (r && r.id != null) m.set(String(r.id), r); }); return m; }
+/* regla de desempate: lo firmado le gana a lo no firmado; después, el dispositivo con el cambio más reciente */
+function sDesempata(l, r, ganaLocal) {
+  if (l === null || r === null) return l === null ? r : l;                 // editado contra borrado: gana lo editado
+  var fl = !!(l.datos && l.datos.firmaCliente), fr = !!(r.datos && r.datos.firmaCliente);
+  if (fl !== fr) return fl ? l : r;
+  return ganaLocal ? l : r;
+}
+function sUneLista(b, l, r, ganaLocal, c) {
+  var B = sMapa(b), L = sMapa(l), R = sMapa(r), ids = [], visto = {};
+  (l || []).concat(r || []).forEach(function (x) { var k = x && x.id != null ? String(x.id) : null; if (k !== null && !visto[k]) { visto[k] = 1; ids.push(k); } });
+  var out = [];
+  ids.forEach(function (id) {
+    var bv = B.has(id) ? B.get(id) : null, lv = L.has(id) ? L.get(id) : null, rv = R.has(id) ? R.get(id) : null;
+    var bc = bv === null ? null : sCanon(bv), lc = lv === null ? null : sCanon(lv), rc = rv === null ? null : sCanon(rv), v;
+    if (lc === rc) v = lv; else if (lc === bc) v = rv; else if (rc === bc) v = lv; else { c.n++; v = sDesempata(lv, rv, ganaLocal); }
+    if (v !== null) out.push(copia(v));
+  });
+  return out;
+}
+function sVacio(v) { return v === undefined || v === null || v === ''; }
+function sUneObj(b, l, r, ganaLocal, c) {
+  b = b || {}; l = l || {}; r = r || {};
+  var out = {}, ks = Object.keys(l).concat(Object.keys(r).filter(function (k) { return !(k in l); }));
+  ks.forEach(function (k) {
+    var bc = sCanon(b[k]), lc = sCanon(l[k]), rc = sCanon(r[k]), v;
+    if (lc === rc) v = l[k]; else if (lc === bc) v = r[k]; else if (rc === bc) v = l[k];
+    else if (sVacio(l[k]) || sVacio(r[k])) v = sVacio(l[k]) ? r[k] : l[k];
+    else { c.n++; v = ganaLocal ? l[k] : r[k]; }
+    if (v !== undefined) out[k] = copia(v);
+  });
+  return out;
+}
+function sUne(base, loc, rem, ganaLocal) {
+  base = base || {}; var c = { n: 0 }, fin = Object.assign({}, rem.fin || {}, loc.fin || {});
+  TABLAS_FIN.forEach(function (t) { fin[t] = sUneLista((base.fin || {})[t], (loc.fin || {})[t], (rem.fin || {})[t], ganaLocal, c); });
+  var aj = sUneObj(base.ajustes, loc.ajustes, rem.ajustes, base.ajustes ? ganaLocal : false, c);
+  aj.folio = Math.max(num((loc.ajustes || {}).folio), num((rem.ajustes || {}).folio), num(aj.folio)) || aj.folio;
+  var hist = sUneLista(base.historial, loc.historial, rem.historial, ganaLocal, c)
+    .sort(function (a, z) { return String((z.datos || {}).creada || z.fecha || '').localeCompare(String((a.datos || {}).creada || a.fecha || '')); });
+  return { foto: { v: 1, ajustes: aj, historial: hist, clientes: sUneLista(base.clientes, loc.clientes, rem.clientes, ganaLocal, c), fin: fin }, conflictos: c.n };
+}
+
+/* --- archivos (comprobantes y constancias) --- */
+function sArchMapa() { try { var v = localStorage.getItem(K_SYNC_ARCH); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
+function sArchGuardaMapa(m) { try { localStorage.setItem(K_SYNC_ARCH, JSON.stringify(m)); } catch (e) {} }
+function sArchMarca(id, tam, nombre) {
+  if (String(id).indexOf('sync:') === 0) return;
+  var m = sArchMapa(); if (!m) return;                       // aún no se ha hecho el inventario: se hará al sincronizar
+  m[id] = { n: nombre || '', s: tam || 0, m: Date.now() }; sArchGuardaMapa(m); sMarca('archivos');
+}
+function sArchQuita(id) { var m = sArchMapa(); if (!m || !(id in m)) return; delete m[id]; sArchGuardaMapa(m); sMarca('archivos'); }
+async function sArchLocal() {
+  var m = sArchMapa(); if (m) return m;
+  var todos = await idbOp('readonly', function (s) { return s.getAll(); }) || []; m = {};
+  todos.forEach(function (a) { if (a && a.id && String(a.id).indexOf('sync:') !== 0) m[a.id] = { n: a.nombre || '', s: a.buf ? a.buf.byteLength : 0, m: 0 }; });
+  sArchGuardaMapa(m); return m;
+}
+function sFirma(e) { return e ? e.s + '|' + e.m : null; }
+
+/* --- base: lo último que quedó igual en este dispositivo y en la nube --- */
+function sLeeBase() { return idbOp('readonly', function (s) { return s.get('sync:base'); }).then(function (r) { return r && r.json ? JSON.parse(r.json) : null; }).catch(function () { return null; }); }
+function sGuardaBase(b) { return idbOp('readwrite', function (s) { return s.put({ id: 'sync:base', json: JSON.stringify(b) }); }); }
+
+function sFoto() { return { v: 1, ajustes: copia(ajustes), historial: copia(historial), clientes: copia(clientes), fin: copia(finStore) }; }
+
+function sAplica(f) {
+  sAplicando = true;
+  try {
+    historial = f.historial || []; escribir(K_HIST, historial);
+    clientes = f.clientes || []; escribir(K_CLI, clientes);
+    ajustes = Object.assign({}, AJ0, f.ajustes || {}); escribir(K_AJ, ajustes);
+    finStore = f.fin || {}; TABLAS_FIN.forEach(function (n) { if (!Array.isArray(finStore[n])) finStore[n] = []; }); escribir(K_FIN, finStore);
+  } finally { sAplicando = false; }
+  if (q) {
+    var h = historial.find(function (x) { return x.id === q.id; });
+    if (h && h.datos && ((h.datos.estado || 'borrador') !== (q.estado || 'borrador') || (q.estado || 'borrador') !== 'borrador')) { q = copia(h.datos); escribir(K_BOR, q); llenaForma(); pintar(); }
+  }
+  pintaHistorial(); pintaClientes(); llenaAjustes(); if (!$('#vista-fin').hidden) fPinta();
+}
+
+/* --- sincronizar --- */
+function sMarca(k) {
+  if (sAplicando || !sCfg || !sCfg.codigo) return;
+  if ([K_HIST, K_CLI, K_AJ, K_FIN, 'archivos'].indexOf(k) < 0) return;
+  sCfg.sucio = Date.now(); sGuardaCfg();
+  clearTimeout(sTimer); sTimer = setTimeout(sSincroniza, 4000);
+}
+async function sSincroniza() {
+  if (!sCfg || !sCfg.codigo) return;
+  if (sCorriendo) { sOtraVez = true; return; }
+  sCorriendo = true; sEstado('trabajando');
+  try {
+    if (!sLlaves) sLlaves = await sDeriva(sCfg.codigo);
+    for (var intento = 0; intento < 4; intento++) {
+      var inicio = Date.now(), base = await sLeeBase();
+      var e = await sPide('GET', '');
+      if (e.status === 403) throw new Error('prohibido');
+      if (!e.ok && e.status !== 404) throw new Error('red');
+      var verR = e.ok ? (await e.json()).version : 0;
+      if (verR && verR === sCfg.version && !sCfg.sucio && base) break;             // nada nuevo de ningún lado
+      var remoto = null;
+      if (verR && verR === sCfg.version && base) remoto = { foto: base.foto, archivos: base.archivos, t: sCfg.ultima, e: base.e || 0 };
+      else if (verR) { var d = await sPide('GET', '/datos'); if (!d.ok) throw new Error('red'); verR = Number(d.headers.get('X-Version')) || verR; remoto = await sDesempaca(await d.arrayBuffer()); }
+      var loc = sFoto(), manL = await sArchLocal(), ganaLocal = !remoto || (sCfg.sucio || 0) > (remoto.e || Date.parse(remoto.t || 0) || 0);
+      var unido = remoto ? sUne(base && base.foto, loc, remoto.foto, ganaLocal) : { foto: loc, conflictos: 0 };
+      var manR = (remoto && remoto.archivos) || {}, manB = (base && base.archivos) || {};
+      var manU = remoto ? sUneObj(manB, manL, manR, ganaLocal, { n: 0 }) : copia(manL);
+      // subir los archivos nuevos o cambiados de este dispositivo
+      for (var id in manU) {
+        if (sFirma(manU[id]) === sFirma(manL[id]) && sFirma(manU[id]) !== sFirma(manR[id])) {
+          var a = await leeArchivo(id); if (!a || !a.buf) { delete manU[id]; continue; }
+          var up = await sPide('PUT', '/archivos/' + encodeURIComponent(id), await sCifra(a.buf, 1)); if (!up.ok) throw new Error('red');
+        }
+      }
+      // subir la información si cambió
+      var verN = verR, nuevo = { v: 1, t: new Date().toISOString(), e: Math.max(sCfg.sucio || 0, (remoto && remoto.e) || 0), foto: unido.foto, archivos: manU };   // e: hora del último cambio hecho a mano
+      if (!remoto || sCanonFoto(unido.foto) !== sCanonFoto(remoto.foto) || sCanon(manU) !== sCanon(manR)) {
+        var w = await sPide('PUT', '/datos?base=' + verR, await sEmpaca(nuevo));
+        if (w.status === 409) continue;                                              // otro dispositivo subió antes: volver a juntar
+        if (!w.ok) throw new Error('red');
+        verN = (await w.json()).version;
+        for (var idq in manR) if (!(idq in manU)) await sPide('DELETE', '/archivos/' + encodeURIComponent(idq)).catch(function () {});
+      } else { nuevo.t = remoto.t || nuevo.t; nuevo.e = remoto.e || 0; }
+      // traer lo de otros dispositivos
+      if (sCanonFoto(unido.foto) !== sCanonFoto(loc)) sAplica(unido.foto);
+      var mapa = await sArchLocal();
+      for (var idb in manU) {
+        if (sFirma(manU[idb]) !== sFirma(mapa[idb])) {
+          var g = await sPide('GET', '/archivos/' + encodeURIComponent(idb));
+          if (!g.ok) continue;
+          var buf = await sDescifra(await g.arrayBuffer());
+          await idbOp('readwrite', function (s) { return s.put({ id: idb, buf: buf, nombre: manU[idb].n }); });
+          mapa[idb] = copia(manU[idb]);
+        }
+      }
+      for (var idl in mapa) if (!(idl in manU) && (idl in manB)) { await idbOp('readwrite', function (s) { return s.delete(idl); }); delete mapa[idl]; }
+      sArchGuardaMapa(mapa);
+      await sGuardaBase({ foto: unido.foto, archivos: manU, e: nuevo.e });
+      sCfg.version = verN; sCfg.ultima = nuevo.t; if ((sCfg.sucio || 0) <= inicio) sCfg.sucio = 0; sGuardaCfg();
+      var vistos = {}, dup = unido.foto.historial.map(function (h) { return h.folio; }).filter(function (f) { if (vistos[f]) return true; vistos[f] = 1; return false; });
+      if (dup.length && sCanon(dup) !== sCfg.avisoDup) { sCfg.avisoDup = sCanon(dup); sGuardaCfg(); aviso('Ojo: hay dos cotizaciones con el folio ' + dup.join(', ') + ' (se hicieron en dos dispositivos a la vez). Duplica una para que tome folio nuevo.'); }
+      else if (unido.conflictos) aviso('Se juntaron cambios de otro dispositivo. ' + unido.conflictos + (unido.conflictos === 1 ? ' registro se editó' : ' registros se editaron') + ' en los dos: quedó la versión más reciente.');
+      break;
+    }
+    sEstado('ok');
+  } catch (err) {
+    sEstado(err && err.message === 'prohibido' ? 'prohibido' : navigator.onLine === false ? 'sinred' : 'error');
+  } finally {
+    sCorriendo = false;
+    if (sOtraVez) { sOtraVez = false; setTimeout(sSincroniza, 300); }
+  }
+}
+
+/* --- pantalla en Ajustes --- */
+function sHace(iso) {
+  var t = Date.parse(iso || ''); if (!t) return '';
+  var m = Math.round((Date.now() - t) / 60000);
+  return m < 1 ? 'hace un momento' : m < 60 ? 'hace ' + m + ' min' : 'el ' + fechaHora(iso);
+}
+function sEstado(e) { sEstadoTxt = e; sPinta(); }
+function sPinta() {
+  var txt = $('#sync-txt'), acc = $('#sync-acc'); if (!txt) return;
+  if (!sCfg || !sCfg.codigo) {
+    txt.textContent = 'Guarda una copia cifrada de todo (cotizaciones, clientes, finanzas, sueldos y comprobantes) y tenla igual en tu teléfono, iPad u otros dispositivos. Se protege con un código que crea la app y que solo tú tienes.';
+    acc.innerHTML = '<button class="btn p chico" type="button" data-s="crear">Activar y crear mi código</button><button class="btn chico" type="button" data-s="unir">Ya tengo un código</button>';
+    return;
+  }
+  var est = sEstadoTxt === 'trabajando' ? 'Sincronizando…'
+    : sEstadoTxt === 'sinred' ? 'Sin internet: tus cambios se subirán cuando haya conexión.'
+    : sEstadoTxt === 'error' ? 'No se pudo sincronizar. Se volverá a intentar; también puedes tocar «Sincronizar ahora».'
+    : sEstadoTxt === 'prohibido' ? 'El código no coincide con el respaldo. Desconecta este dispositivo y vuelve a escribir tu código.'
+    : sCfg.sucio ? 'Hay cambios por subir.'
+    : sCfg.ultima ? 'Sincronizado ' + sHace(sCfg.ultima) + '.' : 'Conectado.';
+  txt.textContent = est + ' Para agregar otro dispositivo, abre la cotizadora en él, entra a Ajustes › Sincronización y respaldo, toca «Ya tengo un código» y pega tu código.';
+  acc.innerHTML = '<button class="btn p chico" type="button" data-s="ahora">Sincronizar ahora</button><button class="btn chico" type="button" data-s="ver">Ver mi código</button><button class="btn chico" type="button" data-s="quitar">Desconectar este dispositivo</button>';
+}
+function sCajaCodigo(c) {
+  return '<div class="codigo-sync" id="fm-sync-cod-ver">' + esc(c) + '</div>' +
+    '<div class="acciones" style="margin-top:0;grid-template-columns:1fr 1fr"><button class="btn chico" type="button" data-s="copiar" data-c="' + esc(c) + '">Copiar código</button><button class="btn chico" type="button" data-s="compartir" data-c="' + esc(c) + '">Guardar con el menú</button></div>';
+}
+function sCrear() {
+  var c = sCodigoNuevo();
+  var cuerpo = '<p class="nota" style="margin:0 0 10px">Este es tu código de sincronización. Cópialo y guárdalo en un lugar seguro (Notas, tus contraseñas de iCloud o un papel). Lo vas a pegar en tus otros dispositivos.</p>' + sCajaCodigo(c) +
+    '<p class="nota" style="margin:12px 0 10px;font-weight:600">Sin este código nadie puede abrir tu respaldo, ni siquiera tú: si pierdes el código y tus dispositivos, no se puede recuperar.</p>' +
+    '<label class="interruptor" for="fm-sync-listo"><input type="checkbox" id="fm-sync-listo"><span>Ya guardé mi código en un lugar seguro.</span></label>';
+  fAbreModal('Tu código', cuerpo, 'Activar', function () {
+    if (!$('#fm-sync-listo').checked) { aviso('Primero guarda tu código y marca la casilla.'); return false; }
+    sCfg = { codigo: c, version: 0, sucio: Date.now(), ultima: '' }; sLlaves = null; sGuardaCfg(); sPinta(); sSincroniza();
+    return 'Sincronización activada. Subiendo tu información cifrada…';
+  });
+}
+function sUnir() {
+  var cuerpo = '<div class="campo"><label for="fm-sync-cod">Tu código de sincronización</label><input id="fm-sync-cod" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XX"></div>' +
+    '<p class="nota" style="margin:0">Lo que ya tengas en este dispositivo se junta con lo del respaldo; no se borra nada.</p>';
+  fAbreModal('Conectar este dispositivo', cuerpo, 'Conectar', function () {
+    var c = $('#fm-sync-cod').value;
+    if (!sCodigoValido(c)) { aviso('Ese código no está completo o tiene un error. Son 26 letras y números.'); return false; }
+    sConecta(sFormato(c)); return '';
+  });
+}
+async function sConecta(c) {
+  aviso('Buscando tu respaldo…');
+  try {
+    sLlaves = await sDeriva(c);
+    var e = await sPide('GET', '');
+    if (e.status === 404) { sLlaves = null; aviso('No hay ningún respaldo con ese código. Revisa que esté bien escrito.'); return; }
+    if (!e.ok) throw new Error('red');
+    var tieneDatos = historial.length || clientes.length || TABLAS_FIN.some(function (t) { return (finStore[t] || []).length; });
+    sCfg = { codigo: c, version: 0, sucio: tieneDatos ? 1 : 0, ultima: '' }; sGuardaCfg(); sPinta();
+    await sSincroniza();
+    if (sEstadoTxt === 'ok') aviso('Listo: este dispositivo ya tiene tu información y se mantendrá sincronizado.');
+  } catch (err) { sLlaves = null; aviso('No se pudo conectar. Revisa tu internet e intenta otra vez.'); }
+}
+function sVer() { fAbreModal('Tu código', '<p class="nota" style="margin:0 0 10px">Pégalo en tus otros dispositivos. No lo compartas con nadie más.</p>' + sCajaCodigo(sCfg.codigo), 'Listo', function () { return ''; }, 'Cerrar'); }
+function sQuitar() {
+  fAbreModal('Desconectar este dispositivo', '<p class="nota" style="margin:0">Este dispositivo deja de sincronizarse. Tu información se queda aquí y en el respaldo; tus otros dispositivos siguen igual. Para volver a conectarlo necesitas tu código.</p>', 'Desconectar', function () {
+    sCfg = null; sLlaves = null; sGuardaCfg(); idbOp('readwrite', function (s) { return s.delete('sync:base'); }).catch(function () {}); sPinta();
+    return 'Este dispositivo ya no se sincroniza.';
+  });
+}
+async function sCopia(c) { try { await navigator.clipboard.writeText(c); aviso('Código copiado.'); } catch (e) { aviso('No se pudo copiar. Mantén presionado el código para copiarlo.'); } }
+function sInit() {
+  $('#sync-acc').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-s]'); if (!b) return; var a = b.getAttribute('data-s');
+    if (a === 'crear') sCrear(); else if (a === 'unir') sUnir(); else if (a === 'ahora') sSincroniza(); else if (a === 'ver') sVer(); else if (a === 'quitar') sQuitar();
+  });
+  $('#fm-cuerpo').addEventListener('click', async function (e) {
+    var b = e.target.closest('[data-s]'); if (!b) return; var a = b.getAttribute('data-s'), c = b.getAttribute('data-c');
+    if (a === 'copiar') sCopia(c);
+    else if (a === 'compartir') { try { await navigator.share({ title: 'Código de sincronización · Pintores Juárez', text: 'Código de sincronización de la cotizadora (no lo compartas): ' + c }); } catch (x) { if (!(x && x.name === 'AbortError')) sCopia(c); } }
+  });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') sSincroniza(); });
+  window.addEventListener('online', sSincroniza);
+  setInterval(function () { if (sCfg && !sCorriendo) sPinta(); }, 60000);
+  sPinta(); sSincroniza();
+}
+
 /* ---------- navegación y ajustes ---------- */
 function cambiaTab(n, conservar) {
   if (n === 'nueva' && !conservar && q && q.guardada && (q.estado || 'borrador') !== 'borrador') resetea();
@@ -3002,7 +3325,7 @@ function arranca() {
     else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); }
   });
 }
-function inicio() { var m = /^#firmar=([A-Za-z0-9_-]{22})$/.exec(location.hash); if (m) rModoFirma(m[1]); else { arranca(); rInit(); } }
+function inicio() { var m = /^#firmar=([A-Za-z0-9_-]{22})$/.exec(location.hash); if (m) rModoFirma(m[1]); else { arranca(); rInit(); sInit(); } }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', inicio); else inicio();
 })();
 </script>
