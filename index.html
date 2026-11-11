@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="5324cae3a1">
-<meta name="pj-fecha" content="2026-11-10 17:37">
+<meta name="pj-build" content="fa9460a393">
+<meta name="pj-fecha" content="2026-11-10 18:00">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -2860,8 +2860,11 @@ async function rModoFirma(id) {
   window.addEventListener('resize', escala);
   window.addEventListener('hashchange', function () { location.reload(); });
   var r;
-  try { r = await rPide('/c/' + id); } catch (e) { rEstado('Sin conexión', 'No se pudo abrir la cotización. Revise su conexión a internet y vuelva a abrir el enlace.'); return; }
-  if (!r.ok || !r.d.doc || !r.d.doc.q) { rEstado('Enlace no disponible', 'Este enlace ya no está disponible. Si usted ya firmó, Pintores Juárez ya tiene su firma y puede pedirle el PDF por WhatsApp. Si no, pídale un enlace nuevo.'); return; }
+  for (var intento = 0; intento < 4 && !r; intento++) {
+    try { r = await rPide('/c/' + id); } catch (e) { if (intento < 3) { rEstado('Cotización', 'Conectando… (intento ' + (intento + 2) + ' de 4)'); await new Promise(function (ok) { setTimeout(ok, 1500 * (intento + 1)); }); } }
+  }
+  if (!r) { $('#vf-doc').hidden = true; rEstado('Sin conexión', 'No se pudo abrir la cotización. Revise su conexión a internet (pruebe con WiFi o datos) y toque recargar.'); return; }
+  if (!r.ok || !r.d.doc || !r.d.doc.q) { $('#vf-doc').hidden = true; rEstado('Enlace no disponible', 'Este enlace ya no está disponible. Si usted ya firmó, Pintores Juárez ya tiene su firma y puede pedirle el PDF por WhatsApp. Si no, pídale un enlace nuevo.'); return; }
   Object.assign(ajustes, r.d.doc.aj || {});
   q = r.d.doc.q; q.firmaCliente = null;
   if (r.d.firma) { q.firmaCliente = r.d.firma; q.estado = 'aceptada'; }
