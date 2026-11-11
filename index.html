@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="020dc5e71d">
-<meta name="pj-fecha" content="2026-11-10 18:53">
+<meta name="pj-build" content="2996321632">
+<meta name="pj-fecha" content="2026-11-10 19:13">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -18,9 +18,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==" crossorigin="anonymous"></script>
 <style>
 /* Marca v2: oscuro primero, acero como señal. Cotizadora de Pintores Juárez para celular. */
 :root{
@@ -120,7 +119,7 @@ details.avanzado summary{cursor:pointer;font:500 11px var(--mono);letter-spacing
 .fino .d-tit{font-size:24px}
 .d-sub{font:500 10.5px var(--mono);letter-spacing:.1em;color:var(--light);text-align:right;margin-top:6px;text-transform:uppercase}
 .d-cuerpo{padding:24px 48px 0;flex:1;display:flex;flex-direction:column;gap:16px;min-height:0}
-.d-mono{font:600 9.5px var(--mono);letter-spacing:.12em;color:var(--edge);text-transform:uppercase;margin-bottom:4px}
+.d-mono{font:600 9.5px var(--mono);letter-spacing:.12em;color:#4b5a69;text-transform:uppercase;margin-bottom:4px}
 .d-dos{display:grid;grid-template-columns:1fr 1fr;gap:24px}
 .d-dos b{font-weight:600}
 .d-ls{margin:0;padding-left:16px}
@@ -136,14 +135,14 @@ details.avanzado summary{cursor:pointer;font:500 11px var(--mono);letter-spacing
 .d-pago{display:grid;grid-template-columns:1fr 1fr 1.3fr;border:1px solid var(--deep)}
 .d-pago>div{padding:12px 14px;border-right:1px solid var(--deep)}
 .d-pago>div:last-child{border-right:0;background:var(--deep);color:var(--paper)}
-.d-pago .d-mono{color:var(--edge)}
+.d-pago .d-mono{color:#4b5a69}
 .d-pago>div:last-child .d-mono{color:var(--light)}
 .d-pago strong{font:600 24px/1.1 var(--display)}
 .d-pie{margin-top:auto;display:flex;justify-content:space-between;gap:12px;border-top:1px solid #d9dde2;padding:10px 48px 18px;font:500 10.5px var(--mono);letter-spacing:.06em;color:#4b5a69;text-transform:uppercase}
 .d-cols{display:grid;grid-template-columns:1fr 1fr;gap:26px;flex:1;min-height:0;overflow:hidden;font-size:10.8px;line-height:1.38}
 .d-cols.corta{flex:none}
 .d-cl{margin-bottom:9px}
-.d-cl h4{margin:0 0 2px;font:600 13px/1.1 var(--display);text-transform:uppercase;letter-spacing:.02em;color:var(--deep)}
+.d-cl h4{margin:0 0 2px;font:600 13px/1.1 var(--display);text-transform:uppercase;letter-spacing:.02em;color:#1D2D3D}
 .d-cl p{margin:0}
 .d-acept{border:1px solid var(--deep);margin:0 0 6px}
 .d-acept .cab{background:var(--deep);color:var(--paper);padding:9px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px}
@@ -783,7 +782,7 @@ function hojaCotizacion(x, c) {
     '<div class="g"><span>Total</span><span>' + money(c.total) + '</span></div></div>' +
     '<div class="d-pago"><div><div class="d-mono">Anticipo ' + num(x.anticipo) + ' %</div><strong>' + money(c.anticipo) + '</strong><div>Para apartar la fecha</div></div>' +
     '<div><div class="d-mono">Saldo</div><strong>' + money(c.saldo) + '</strong><div>El día que se termine el trabajo</div></div>' +
-    '<div><div class="d-mono">Formas de pago</div><div>Efectivo, transferencia, tarjeta y meses sin intereses.</div><div style="font-size:10.5px;color:#94BCE3;margin-top:3px">' + esc(ajustes.msi) + '</div></div></div>' +
+    '<div><div class="d-mono">Formas de pago</div><div>Efectivo, transferencia, tarjeta y meses sin intereses.</div><div style="font-size:10.5px;color:#416180;margin-top:3px">' + esc(ajustes.msi) + '</div></div></div>' +
     '</div>' + pieDoc() + '</section>';
 }
 function bloqueAceptacion(x, c, cod, grande) {
@@ -1347,6 +1346,7 @@ async function quitaCsf() {
 }
 var factId = null, factDisp = null;
 function abreFact(id) {
+  fCarga(URL_XLSX).catch(function () {});
   var h = historial.find(function (x) { return x.id === id; }); if (!h) return;
   var c = clientes.find(function (z) { return z.id === h.datos.clienteId; }) || {}, f = h.datos.fact || {};
   factId = id; factDisp = document.activeElement;
@@ -1387,7 +1387,7 @@ function xlsxFactura(h, o) {
 }
 async function generaFact() {
   var h = historial.find(function (x) { return x.id === factId; }); if (!h) { cierraFact(); return; }
-  if (!window.XLSX) { aviso('No cargó el generador de Excel. Revisa tu conexión e intenta otra vez.'); return; }
+  if (!window.XLSX) { try { await fCarga(URL_XLSX); } catch (e) { aviso('No cargó el generador de Excel. Revisa tu conexión e intenta otra vez.'); return; } }
   var o = { tipo: $('#mfa-tipo').value, metodo: $('#mfa-metodo').value, forma: $('#mfa-forma').value, uso: $('#mfa-uso').value };
   h.datos.fact = o; escribir(K_HIST, historial); cierraFact();
   var cli = clientes.find(function (z) { return z.id === h.datos.clienteId; }) || {};
@@ -1891,6 +1891,8 @@ function fInit() {
 }
 
 /* ---------- gasto desde una foto: el teléfono lee el ticket y llena el formulario ---------- */
+var URL_XLSX = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+var SRI_LIBS = { "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js": "sha512-q+4liFwdPC/bNdhUpZx6aXDx/h77yEQtn4I1slHydcbZK34nLaR3cAeYSJshoxIOq3mjEf7xJE8YWIUHMn+oCQ==", "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js": "sha512-BbrZ76UNZq5BhH7LL7pn9A4TKQpQeNCHOo65/akfelcIBbcVvYWOFQKPXIrykE3qZxYjmDX573oa4Ywsc7rpTw==", "https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js": "sha512-mpQLT7yiRJ06RkhNTYhVnvvr3c71il3h+wEI16ICc+fnFHxrBRoJrMmDJ8iBY04+U/FgTj7xah5Vbltq5pg+aQ==", "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js": "sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==", "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js": "sha256-vEDIoVGWI2sjFNsIVvcsoLSZgM1UE7jIUqc0n1/uCFk=" };
 var URL_OCR = 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js';
 var URL_QR = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
 var URL_PDF = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
@@ -1901,6 +1903,7 @@ function fCarga(url) {
   if (fLibs[url]) return fLibs[url];
   return (fLibs[url] = new Promise(function (ok, mal) {
     var s = document.createElement('script'); s.src = url; s.onload = ok;
+    if (SRI_LIBS[url]) { s.integrity = SRI_LIBS[url]; s.crossOrigin = 'anonymous'; }   // si el archivo cambia en el CDN, no se ejecuta
     s.onerror = function () { delete fLibs[url]; mal(new Error('carga')); };
     document.head.appendChild(s);
   }));
@@ -1941,12 +1944,16 @@ function fLineasPdf(items) {
   filas.sort(function (a, b) { return b.y - a.y; });
   return filas.map(function (r) { return r.p.sort(function (a, b) { return a.x - b.x; }).map(function (z) { return z.s; }).join(' ').replace(/\s+/g, ' ').trim(); }).join('\n');
 }
+var fPdfWorker = null;
 function fPdf(file) {
   return fCarga(URL_PDF).then(function () {
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL_PDFW;
+    if (!fPdfWorker) fPdfWorker = fetch(URL_PDFW, { integrity: SRI_LIBS[URL_PDFW] }).then(function (r) { if (!r.ok) throw new Error('worker'); return r.blob(); }).then(function (b) { return URL.createObjectURL(b); });
+    return fPdfWorker;
+  }).then(function (w) {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = w;
     return file.arrayBuffer();
   }).then(function (buf) {
-    return window.pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+    return window.pdfjsLib.getDocument({ data: new Uint8Array(buf), isEvalSupported: false }).promise;
   }).then(function (doc) {
     var textos = [], cadena = Promise.resolve(), n = Math.min(doc.numPages, 3);
     for (var k = 1; k <= n; k++) (function (k) {
