@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="1a7a22466c">
-<meta name="pj-fecha" content="2026-11-10 18:27">
+<meta name="pj-build" content="25ec23b770">
+<meta name="pj-fecha" content="2026-11-10 18:49">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -644,9 +644,9 @@ function leer(k, def) { try { var v = localStorage.getItem(k); return v ? JSON.p
 function escribir(k, v) { memoria[k] = v; sMarca(k); try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
 
 /* ---------- datos ---------- */
-var AJ0 = { representante: 'Jesús Cano Mata', tel: '656 312 9242', correo: 'pintoresjuarez1@gmail.com', ciudad: 'Cd. Juárez, Chih.', folio: 1, vigencia: 20, anticipo: 50, garantia: 1, multa: 1, iva: 8, isr: 1.25, msi: 'Consulte plazos y tarjetas participantes.', firma: null, resenaUrl: 'https://www.facebook.com/profile.php?id=219713035468931&sk=reviews' };
+var AJ0 = { representante: 'Jesús Cano Mata', tel: '656 312 9242', correo: 'pintoresjuarez1@gmail.com', ciudad: 'Cd. Juárez, Chih.', folio: 1, vigencia: 20, anticipo: 50, garantia: 1, multa: 1, iva: 8, isr: 1.25, msi: 'Consulte plazos y tarjetas participantes.', firma: null, resenaUrl: 'https://www.facebook.com/Jesuscano123/reviews' };
 var ajustes = Object.assign({}, AJ0, leer(K_AJ, {}));
-if (!String(ajustes.resenaUrl || '').trim() || /g\.page\/r\/CVH0ZL30KbaYEBM|facebook\.com\/219713035468931\/reviews/.test(String(ajustes.resenaUrl))) { ajustes.resenaUrl = AJ0.resenaUrl; escribir(K_AJ, ajustes); }
+if (!String(ajustes.resenaUrl || '').trim() || /g\.page\/r\/CVH0ZL30KbaYEBM|facebook\.com\/219713035468931\/reviews|profile\.php\?id=219713035468931&sk=reviews/.test(String(ajustes.resenaUrl))) { ajustes.resenaUrl = AJ0.resenaUrl; escribir(K_AJ, ajustes); }
 var historial = leer(K_HIST, []);
 var clientes = leer(K_CLI, []);
 var q = null;          // cotización activa
