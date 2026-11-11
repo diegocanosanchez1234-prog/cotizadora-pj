@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="a39e9b21ea">
-<meta name="pj-fecha" content="2026-11-06 15:49">
+<meta name="pj-build" content="5324cae3a1">
+<meta name="pj-fecha" content="2026-11-10 17:37">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -189,6 +189,8 @@ details.avanzado summary{font-size:12.5px}
 .partida input{font-size:17px;min-height:46px}
 .partida .importe{font-size:13.5px}
 .quita{width:44px;height:46px}
+.modo-firma .tabs,.modo-firma .barra small{display:none}
+#vf-doc .vista-doc{margin-top:0}
 /* ===== Tema claro en toda la app (como Finanzas). El encabezado se queda oscuro, igual que en el dashboard. ===== */
 :root{--deep:#f2f2f3;--panel:#ffffff;--paper:#1d1f20;--light:#416180;--line:rgba(29,31,32,.16);--edge:rgba(29,31,32,.28);--warn:#b4503a;color-scheme:light}
 .barra{--deep:#1D2D3D;--paper:#F2F2F3;--light:#94BCE3;--line:#2C455D;--edge:#416180;--panel:#233549;color:#F2F2F3}
@@ -425,6 +427,7 @@ body.fin-claro{background:#f2f2f3}
       <div class="aviso mal" id="faltan" hidden></div>
       <div class="acciones">
         <button class="btn p" id="btn-firma" type="button">Firmar con el cliente</button>
+        <button class="btn" id="btn-remota" type="button">Enviar para firmar a distancia</button>
         <button class="btn c" id="btn-pdf" type="button">Compartir PDF con el menú</button>
         <a class="btn" id="btn-wa" target="_blank" rel="noopener" href="https://wa.me/">Abrir chat de WhatsApp</a>
         <div id="cal-links" class="acciones" style="margin-top:0"></div>
@@ -432,6 +435,7 @@ body.fin-claro{background:#f2f2f3}
         <button class="btn" id="btn-nueva-abajo" type="button">＋ Nueva cotización</button>
         
       </div>
+      <p class="nota" style="margin-top:14px;font-weight:600" id="remota-nota" hidden></p>
       <p class="nota" style="margin-top:14px" id="ayuda-envio"></p>
     </div>
 
@@ -518,6 +522,20 @@ body.fin-claro{background:#f2f2f3}
       <p class="nota" id="pj-estado" style="margin-top:10px"></p>
     </div>
   </section>
+  <!-- ===== FIRMA A DISTANCIA (lo que ve el cliente) ===== -->
+  <section class="vista" id="vista-firmar" hidden>
+    <div class="panel"><h2 id="vf-tit">Cotización</h2><p class="nota" id="vf-txt" style="margin:0">Cargando la cotización…</p></div>
+    <div id="vf-doc"></div>
+    <div class="panel" id="vf-acc" hidden>
+      <div class="resumen" id="vf-resumen"></div>
+      <div class="acciones">
+        <button class="btn p" id="vf-firmar" type="button">Firmar cotización</button>
+        <button class="btn c" id="vf-pdf" type="button">Descargar PDF</button>
+        <a class="btn" id="vf-wa" target="_blank" rel="noopener" href="https://wa.me/">Preguntar por WhatsApp</a>
+      </div>
+      <p class="nota" id="vf-nota" style="margin-top:12px"></p>
+    </div>
+  </section>
   </main>
 </div>
 
@@ -526,7 +544,7 @@ body.fin-claro{background:#f2f2f3}
   <div class="caja">
     <h2 id="mf-tit" style="font-size:30px;margin-bottom:12px">Aceptación del cliente</h2>
     <div id="mf-resumen"></div>
-    <p class="nota" style="margin:12px 0">El cliente debe leer las dos hojas de términos y condiciones. Al firmar acepta la cotización y esos términos.</p>
+    <p class="nota" style="margin:12px 0" id="mf-nota">El cliente debe leer las dos hojas de términos y condiciones. Al firmar acepta la cotización y esos términos.</p>
     <label class="interruptor" for="mf-acepto"><input type="checkbox" id="mf-acepto"><span>Leí y acepto la cotización y los términos y condiciones.</span></label>
     <div class="campo" style="margin-top:14px"><label for="mf-nombre">Nombre de quien firma</label><input id="mf-nombre" autocapitalize="words"></div>
     <div class="etq" style="margin-bottom:6px">Firma con el dedo</div>
@@ -768,7 +786,7 @@ function bloqueAceptacion(x, c, cod, grande) {
   var firmaPj = ajustes.firma ? '<img alt="Firma de la empresa" src="' + trazosAPng(ajustes.firma, '#1D2D3D') + '">' : '';
   return '<div class="d-acept' + (grande ? ' grande' : '') + '"><div class="cab"><b>Aceptación</b><span>' + (fc ? 'ACEPTADA · ' + esc(fechaHora(fc.fecha)).toUpperCase() : 'PENDIENTE DE FIRMA') + '</span></div>' +
     '<div class="d-resum"><div><div class="d-mono">Total</div><strong>' + money(c.total) + '</strong></div><div><div class="d-mono">Anticipo ' + num(x.anticipo) + ' %</div><strong>' + money(c.anticipo) + '</strong></div><div><div class="d-mono">Saldo al terminar</div><strong>' + money(c.saldo) + '</strong></div><div><div class="d-mono">Garantía</div><strong>' + mesesTxt(x.cond.garantia) + '</strong></div></div>' +
-    '<div class="d-firmas"><div class="d-firma"><div class="d-mono">Cliente</div><div class="trazo">' + firmaCli + '</div><div class="nombre">' + esc(fc ? fc.nombre : (x.cliente.nombre || 'Nombre y firma del cliente')) + '</div><div class="peq">' + (fc ? 'Firmó en pantalla · ' + esc(fechaHora(fc.fecha)) : 'Fecha y hora: ______________') + '</div></div>' +
+    '<div class="d-firmas"><div class="d-firma"><div class="d-mono">Cliente</div><div class="trazo">' + firmaCli + '</div><div class="nombre">' + esc(fc ? fc.nombre : (x.cliente.nombre || 'Nombre y firma del cliente')) + '</div><div class="peq">' + (fc ? (fc.remota ? 'Firmó a distancia · ' : 'Firmó en pantalla · ') + esc(fechaHora(fc.fecha)) : 'Fecha y hora: ______________') + '</div></div>' +
     '<div class="d-firma"><div class="d-mono">Pintores Juárez</div><div class="trazo">' + firmaPj + '</div><div class="nombre">' + esc(ajustes.representante) + '</div><div class="peq">Pintores Juárez · ' + esc(ajustes.ciudad) + '</div></div></div>' +
     '<div class="d-cod"><span>Código de verificación ' + esc(cod) + '</span><span>Folio ' + esc(x.folio) + '</span></div></div>';
 }
@@ -876,7 +894,7 @@ function pintaResumen() {
     var s = $('#sello-estado'); s.textContent = ETQ[est]; s.className = 'sello ' + (est === 'no_aceptada' ? 'no' : est === 'terminada' ? 'hecho' : 'ok');
     $('#estado-texto').textContent = est === 'no_aceptada'
       ? 'No aceptada' + (q.fechaEstado ? ' el ' + fechaLarga(q.fechaEstado) : '') + (q.motivo ? '. Motivo: ' + q.motivo : '') + '. Sigue en el historial y en la ficha del cliente.'
-      : 'Firmada por ' + q.firmaCliente.nombre + ' el ' + conPunto(fechaHora(q.firmaCliente.fecha)) + (est === 'terminada' && q.fechaEstado ? ' Trabajo terminado el ' + fechaLarga(q.fechaEstado) + '.' : '') + ' Una cotización firmada ya no se puede editar: duplícala para hacer cambios.';
+      : 'Firmada por ' + q.firmaCliente.nombre + (q.firmaCliente.remota ? ' a distancia' : '') + ' el ' + conPunto(fechaHora(q.firmaCliente.fecha)) + (est === 'terminada' && q.fechaEstado ? ' Trabajo terminado el ' + fechaLarga(q.fechaEstado) + '.' : '') + ' Una cotización firmada ya no se puede editar: duplícala para hacer cambios.';
     $('#btn-terminado').hidden = est !== 'aceptada'; $('#btn-reabrir').hidden = est !== 'no_aceptada';
     var ace = est === 'aceptada';
     $('#anticipo-linea').hidden = !ace; if (ace) $('#anticipo-linea').textContent = aLinea(q);
@@ -887,6 +905,8 @@ function pintaResumen() {
   $('#btn-no').hidden = est !== 'borrador';
   $('#btn-firma').hidden = est === 'no_aceptada';
   $('#btn-firma').disabled = firmada; $('#btn-firma').textContent = firmada ? 'Cotización firmada' : 'Firmar con el cliente';
+  var rb = $('#btn-remota'); if (rb) { rb.hidden = est !== 'borrador'; if (!rb.disabled) rb.textContent = q.remota ? 'Volver a enviar enlace para firmar' : 'Enviar para firmar a distancia'; }
+  var rn = $('#remota-nota'); if (rn) { rn.hidden = !(q.remota && est === 'borrador'); rn.textContent = rNota(q); }
   var faltan = [];
   if (!q.cliente.nombre.trim()) faltan.push('el nombre del cliente');
   if (c.sub <= 0) faltan.push('al menos una partida con precio');
@@ -950,12 +970,13 @@ function abre(id) {
 function duplica(id) {
   var h = historial.find(function (x) { return x.id === id; }); if (!h) return;
   q = copia(h.datos); q.id = aId(); q.folio = folioTxt(ajustes.folio); q.fecha = hoyISO(); q.estado = 'borrador'; q.motivo = ''; q.fechaEstado = null; q.guardada = false; q.firmaCliente = null; q.creada = new Date().toISOString();
-  q.anticipos = []; delete q.compFinal; delete q.pgFact; delete q.factFecha; delete q.resenaEnviada;
+  q.anticipos = []; delete q.compFinal; delete q.pgFact; delete q.factFecha; delete q.resenaEnviada; delete q.remota;
   escribir(K_BOR, q); llenaForma(); pintar(); cambiaTab('nueva', true); window.scrollTo(0, 0); aviso('Cotización duplicada con folio nuevo.');
 }
 var pendienteBorrar = null;
 function borra(id) {
   if (pendienteBorrar !== id) { pendienteBorrar = id; aviso('Toca “Eliminar” otra vez para confirmar.'); setTimeout(function () { pendienteBorrar = null; }, 4000); return; }
+  var hb = aHist(id); if (hb && hb.datos && hb.datos.remota) rBorra(hb.datos.remota);
   aBorraArchivos(aHist(id)); historial = historial.filter(function (x) { return x.id !== id; }); escribir(K_HIST, historial); pendienteBorrar = null; if (q && q.id === id) resetea(); pintaHistorial(); pintaClientes(); aviso('Cotización eliminada.');
 }
 
@@ -1067,6 +1088,7 @@ async function aceptaFirma() {
   var falla = !$('#mf-acepto').checked ? 'El cliente debe marcar que leyó y acepta.' : !nombre ? 'Escribe el nombre de quien firma.' : padCli.vacio() ? 'Falta la firma con el dedo.' : '';
   if (falla) { err.textContent = falla; err.hidden = false; return; }
   q.firmaCliente = { nombre: nombre, trazos: padCli.trazos(), fecha: new Date().toISOString(), codigo: await codigoVerif(q) };
+  if (q.remota) { rBorra(q.remota); delete q.remota; }
   q.estado = 'aceptada'; guardar(true); cierraFirma(); resetea(); cambiaTab('historial'); aviso('Cotización firmada y guardada en el historial. Ahí puedes enviar el PDF.');
 }
 
@@ -1154,7 +1176,8 @@ function filaCot(h) {
   var meta = esc(fechaLarga(h.fecha)) + ' · ' + money(h.total) + (d.factura && d.pg ? ' · Factura global' : '') + (d.cliente && d.cliente.dom ? ' · ' + esc(d.cliente.dom) : '');
   var extra = e === 'no_aceptada' ? '<div class="motivo">No aceptada' + (d.fechaEstado ? ' el ' + esc(fechaLarga(d.fechaEstado)) : '') + (d.motivo ? ' · ' + esc(d.motivo) : '') + '</div>'
     : e === 'terminada' && d.fechaEstado ? '<div class="motivo">Trabajo terminado el ' + esc(fechaLarga(d.fechaEstado)) + '</div>'
-    : e === 'aceptada' ? '<div class="motivo">' + esc(aLinea(d)) + '</div>' : '';
+    : e === 'aceptada' ? '<div class="motivo">' + esc(aLinea(d)) + '</div>'
+    : e === 'borrador' && d.remota ? '<div class="motivo">' + (d.remota.vencido ? 'El enlace para firmar venció: vuelve a enviarlo' : d.remota.noCoincide ? 'Firmó una versión anterior: vuelve a enviar el enlace' : 'Enlace para firmar enviado · esperando firma') + '</div>' : '';
   var btns = '<button class="btn chico" data-abrir="' + id + '" type="button">Abrir</button><button class="btn chico" data-pdf="' + id + '" type="button">Compartir PDF</button>'
     + (e === 'borrador' || e === 'aceptada' ? '<button class="btn chico" data-no="' + id + '" type="button">No aceptada</button>' : '')
     + (e === 'aceptada' && aResta(d) > 0 ? '<button class="btn chico" data-ant="' + id + '" type="button">' + (aPagos(d).length ? 'Otro pago' : 'Anticipo') + '</button>' : '')
@@ -1180,6 +1203,7 @@ function pintaHistorial() {
 function marcaEstado(id, estado, motivo) {
   if (q && q.id === id && !q.guardada) guardar(true);
   var h = historial.find(function (x) { return x.id === id; }); if (!h) return;
+  if (estado === 'no_aceptada' && h.datos.remota) { rBorra(h.datos.remota); delete h.datos.remota; }
   h.estado = estado; h.datos.estado = estado; h.datos.motivo = motivo || ''; h.datos.fechaEstado = estado === 'borrador' ? null : hoyISO();
   escribir(K_HIST, historial);
   if (q && q.id === id) {
@@ -2670,6 +2694,180 @@ function aInit() {
 }
 
 
+/* ---------- firma a distancia: buzón en línea (Cloudflare) ---------- */
+var BUZON = 'https://pj-firmas.pintoresjuarez.workers.dev';
+var APP_URL = 'https://diegocanosanchez1234-prog.github.io/cotizadora-pj/';
+var rId = null;
+function rUrl(id) { return APP_URL + '#firmar=' + id; }
+async function rPide(ruta, op) {
+  var r = await fetch(BUZON + ruta, Object.assign({ cache: 'no-store' }, op || {}));
+  var d = null; try { d = await r.json(); } catch (e) {}
+  return { ok: r.ok, status: r.status, d: d || {} };
+}
+function rDoc(x) {
+  var d = copia(x);
+  ['firmaCliente', 'anticipos', 'compFinal', 'pgFact', 'factFecha', 'resenaEnviada', 'remota', 'clienteId', 'motivo', 'fechaEstado'].forEach(function (k) { delete d[k]; });
+  return { q: d, aj: { representante: ajustes.representante, tel: ajustes.tel, correo: ajustes.correo, ciudad: ajustes.ciudad, msi: ajustes.msi, firma: ajustes.firma } };
+}
+function rBorra(rm) {
+  if (!rm || !rm.id) return;
+  rPide('/c/' + rm.id, { method: 'DELETE', headers: { 'X-Borra': rm.borra || '' } }).catch(function () {});
+}
+
+/* --- lado del dueño: enviar el enlace --- */
+function rNota(x) {
+  var rm = x.remota; if (!rm) return '';
+  if (rm.vencido) return 'El enlace para firmar venció o ya no existe. Vuelve a enviarlo.';
+  if (rm.noCoincide) return 'El cliente firmó una versión anterior de esta cotización. Vuelve a enviar el enlace para que firme la versión actual.';
+  return 'Enlace para firmar enviado el ' + conPunto(fechaHora(rm.enviado)) + ' Cuando el cliente firme, la cotización se marca sola como aceptada al abrir la app. Si cambias algo, vuelve a enviar el enlace.';
+}
+function rMensaje() {
+  var c = calc(q), n = q.cliente.nombre.trim();
+  return 'Hola' + (n ? ' ' + n : '') + ', le comparto su cotización ' + q.folio + ' de Pintores Juárez por ' + money(c.total) + '. Puede revisarla completa y firmarla desde su celular en este enlace: ' + rUrl(q.remota.id);
+}
+function rModalEnvio() {
+  var txt = rMensaje(), tel = soloDigitos(q.cliente.tel);
+  var cuerpo = '<p class="nota" style="margin:0 0 12px">El cliente abre el enlace, revisa la cotización y los términos, y firma con el dedo. No necesita instalar nada. Cuando firme, la cotización se marca sola como aceptada en tu historial.</p>' +
+    '<div class="acciones" style="margin-top:0">' +
+    '<a class="btn p" target="_blank" rel="noopener" href="' + esc(enlaceChat(txt)) + '">' + (tel.length >= 10 ? 'Enviar por WhatsApp al cliente' : 'Enviar por WhatsApp') + '</a>' +
+    '<button class="btn" type="button" data-rcomparte="1">Compartir con el menú</button>' +
+    '<button class="btn" type="button" data-rcopia="1">Copiar enlace</button></div>' +
+    '<p class="nota" style="margin:10px 0 0;word-break:break-all">' + esc(rUrl(q.remota.id)) + '</p>';
+  fAbreModal('Enviar para firmar', cuerpo, 'Listo', function () { return ''; }, 'Cerrar');
+}
+async function rEnviar() {
+  if (!validaParaEnviar()) return;
+  if ((q.estado || 'borrador') !== 'borrador') { aviso('Esta cotización ya no está en borrador.'); return; }
+  var b = $('#btn-remota'); b.disabled = true; b.textContent = 'Preparando enlace…';
+  try {
+    guardar(true);
+    var cod = await codigoVerif(q);
+    if (!(q.remota && q.remota.codigo === cod && !q.remota.vencido && !q.remota.noCoincide)) {
+      var viejo = q.remota;
+      var r = await rPide('/c', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ doc: rDoc(q) }) });
+      if (!r.ok || !r.d.id) throw new Error('buzon');
+      q.remota = { id: r.d.id, borra: r.d.borra, codigo: cod, enviado: new Date().toISOString() };
+      guardar(true);
+      if (viejo) rBorra(viejo);
+    }
+    rModalEnvio();
+  } catch (e) { aviso('No se pudo crear el enlace. Revisa tu conexión a internet e intenta otra vez.'); }
+  finally { b.disabled = false; pintaResumen(); }
+}
+
+/* --- lado del dueño: recoger firmas --- */
+var rRevisando = false;
+async function rRevisa() {
+  if (rRevisando) return;
+  var pend = historial.filter(function (h) { return h.datos && h.datos.remota && !h.datos.remota.vencido && estadoDe(h) === 'borrador'; });
+  if (!pend.length) return;
+  rRevisando = true;
+  var firmadas = [], cambio = false;
+  try {
+    for (var i = 0; i < pend.length; i++) {
+      var h = pend[i], rm = h.datos.remota, r;
+      try { r = await rPide('/c/' + rm.id); } catch (e) { break; }
+      if (r.status === 404) { rm.vencido = true; cambio = true; continue; }
+      if (!r.ok || !r.d.firma) continue;
+      var f = r.d.firma, cod = await codigoVerif(h.datos);
+      if (f.codigo !== cod) { if (!rm.noCoincide) { rm.noCoincide = true; cambio = true; aviso(h.folio + ': el cliente firmó una versión anterior. Vuelve a enviar el enlace.'); } continue; }
+      h.datos.firmaCliente = { nombre: f.nombre, trazos: f.trazos, fecha: f.fecha, codigo: f.codigo, remota: true, ua: f.ua || '' };
+      h.datos.estado = 'aceptada'; h.estado = 'aceptada';
+      delete h.datos.remota; rBorra(rm);
+      firmadas.push(h); cambio = true;
+    }
+  } finally { rRevisando = false; }
+  if (!cambio) return;
+  escribir(K_HIST, historial);
+  firmadas.forEach(function (h) { if (q && q.id === h.id) { q = copia(h.datos); escribir(K_BOR, q); llenaForma(); pintar(); } });
+  if (q) { var hq = historial.find(function (x) { return x.id === q.id; }); if (hq && hq.datos.remota) { q.remota = copia(hq.datos.remota); escribir(K_BOR, q); pintaResumen(); } }
+  pintaHistorial(); pintaClientes();
+  if (firmadas.length) aviso(firmadas.length === 1 ? firmadas[0].folio + ': ' + firmadas[0].datos.firmaCliente.nombre + ' firmó desde su teléfono. Ya está aceptada.' : firmadas.length + ' cotizaciones se firmaron a distancia. Ya están aceptadas.');
+}
+function rInit() {
+  $('#btn-remota').addEventListener('click', rEnviar);
+  $('#fm-cuerpo').addEventListener('click', async function (e) {
+    var b = e.target.closest('button'); if (!b || !q || !q.remota) return;
+    if (b.hasAttribute('data-rcopia')) {
+      try { await navigator.clipboard.writeText(rUrl(q.remota.id)); aviso('Enlace copiado.'); } catch (x) { aviso('No se pudo copiar. Mantén presionado el enlace para copiarlo.'); }
+    } else if (b.hasAttribute('data-rcomparte')) {
+      try { await navigator.share({ text: rMensaje() }); } catch (x) { if (!(x && x.name === 'AbortError')) aviso('Este navegador no permite compartir. Usa “Copiar enlace”.'); }
+    }
+  });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') rRevisa(); });
+  window.addEventListener('online', rRevisa);
+  rRevisa();
+}
+
+/* --- lado del cliente: ver y firmar --- */
+function rEstado(titulo, texto) { $('#vf-tit').textContent = titulo; $('#vf-txt').textContent = texto; }
+function rPintaFirmar() {
+  var c = calc(q), fc = q.firmaCliente, d = soloDigitos(ajustes.tel); if (d.length === 10) d = '52' + d;
+  $('#vf-tit').textContent = 'Cotización ' + q.folio;
+  $('#vf-txt').textContent = fc
+    ? 'Firmada por ' + fc.nombre + ' el ' + conPunto(fechaHora(fc.fecha)) + ' Pintores Juárez ya recibió su firma. Gracias.'
+    : 'Pintores Juárez le envía esta cotización. Revise las hojas y los términos y condiciones; al final de la página puede firmarla con el dedo.';
+  $('#vf-resumen').innerHTML = '<span class="l">Total</span><span class="t v">' + money(c.total) + '</span><span class="l">Anticipo ' + num(q.anticipo) + ' %</span><span class="v">' + money(c.anticipo) + '</span><span class="l">Saldo al terminar</span><span class="v">' + money(c.saldo) + '</span>';
+  $('#vf-acc').hidden = false;
+  $('#vf-firmar').hidden = !!fc;
+  $('#vf-nota').textContent = fc ? 'Puede guardar una copia en PDF con el botón de arriba.' : 'Al firmar acepta la cotización y los términos y condiciones. Si tiene dudas, escríbanos antes de firmar.';
+  $('#vf-wa').href = 'https://wa.me/' + d + '?text=' + encodeURIComponent('Hola, tengo una duda sobre la cotización ' + q.folio + '.');
+  rPdfEtq();
+}
+var rPdf = { key: '', blob: null };
+function rPdfEtq() { var b = $('#vf-pdf'); if (!b.disabled) b.textContent = rPdf.key === JSON.stringify(q.firmaCliente) ? 'PDF listo: toque para guardarlo' : (q.firmaCliente ? 'Descargar PDF firmado' : 'Descargar PDF'); }
+async function rDescarga() {
+  var k = JSON.stringify(q.firmaCliente), b = $('#vf-pdf');
+  if (rPdf.key === k && rPdf.blob) {
+    var f = archivoParaCompartir(rPdf.blob, nombreArchivo('pdf'));
+    if (f) { try { await navigator.share({ files: [f], title: 'Cotización ' + q.folio }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+    descargaSync(rPdf.blob, nombreArchivo('pdf')); return;
+  }
+  b.disabled = true; b.textContent = 'Preparando PDF…';
+  try { rPdf = { key: k, blob: await generaPdf() }; } catch (e) { aviso('No se pudo preparar el PDF. Intente otra vez.'); }
+  b.disabled = false; rPdfEtq();
+  if (rPdf.blob && rPdf.key === k) aviso('PDF listo. Toque el botón otra vez para guardarlo.');
+}
+function rLimita(t) { return t.map(function (s) { return s.map(function (p) { return [Math.max(-50, Math.min(700, p[0])), Math.max(-50, Math.min(700, p[1]))]; }); }); }
+async function rFirmaCliente() {
+  var err = $('#mf-error'), nombre = $('#mf-nombre').value.trim();
+  var falla = !$('#mf-acepto').checked ? 'Marque que leyó y acepta la cotización.' : !nombre ? 'Escriba su nombre.' : padCli.vacio() ? 'Falta su firma con el dedo.' : '';
+  if (falla) { err.textContent = falla; err.hidden = false; return; }
+  var b = $('#mf-ok'); b.disabled = true; b.textContent = 'Enviando firma…'; err.hidden = true;
+  try {
+    var cod = await codigoVerif(q), tr = rLimita(padCli.trazos());
+    var r = await rPide('/c/' + rId + '/firma', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nombre: nombre, trazos: tr, codigo: cod }) });
+    if (r.status === 409) { err.textContent = 'Esta cotización ya estaba firmada.'; err.hidden = false; return; }
+    if (!r.ok) throw new Error('firma');
+    q.firmaCliente = { nombre: nombre, trazos: tr, fecha: r.d.fecha || new Date().toISOString(), codigo: cod, remota: true }; q.estado = 'aceptada';
+    cierraFirma(); await pintar(); rPintaFirmar(); window.scrollTo(0, 0);
+    aviso('¡Listo! Su firma se envió a Pintores Juárez.');
+  } catch (e) { err.textContent = 'No se pudo enviar la firma. Revise su conexión a internet e intente otra vez.'; err.hidden = false; }
+  finally { b.disabled = false; b.textContent = 'Aceptar y firmar'; }
+}
+async function rModoFirma(id) {
+  rId = id;
+  document.body.classList.add('modo-firma');
+  document.title = 'Cotización · Pintores Juárez';
+  $('#logo-app').src = LOGO_BLANCO;
+  $('#vista-nueva').hidden = true; $('#vista-firmar').hidden = false;
+  $('#vf-doc').appendChild($('#vista-doc'));
+  $('#mf-nota').textContent = 'Al firmar acepta la cotización y los términos y condiciones que acaba de revisar.';
+  padCli = lienzo($('#lienzo-cli'));
+  $('#mf-ok').addEventListener('click', rFirmaCliente); $('#mf-cancela').addEventListener('click', cierraFirma); $('#mf-limpia').addEventListener('click', function () { padCli.limpia(); });
+  $('#vf-firmar').addEventListener('click', abreFirma);
+  $('#vf-pdf').addEventListener('click', rDescarga);
+  window.addEventListener('resize', escala);
+  window.addEventListener('hashchange', function () { location.reload(); });
+  var r;
+  try { r = await rPide('/c/' + id); } catch (e) { rEstado('Sin conexión', 'No se pudo abrir la cotización. Revise su conexión a internet y vuelva a abrir el enlace.'); return; }
+  if (!r.ok || !r.d.doc || !r.d.doc.q) { rEstado('Enlace no disponible', 'Este enlace ya no está disponible. Si usted ya firmó, Pintores Juárez ya tiene su firma y puede pedirle el PDF por WhatsApp. Si no, pídale un enlace nuevo.'); return; }
+  Object.assign(ajustes, r.d.doc.aj || {});
+  q = r.d.doc.q; q.firmaCliente = null;
+  if (r.d.firma) { q.firmaCliente = r.d.firma; q.estado = 'aceptada'; }
+  await pintar(); rPintaFirmar();
+}
+
 /* ---------- navegación y ajustes ---------- */
 function cambiaTab(n, conservar) {
   if (n === 'nueva' && !conservar && q && q.guardada && (q.estado || 'borrador') !== 'borrador') resetea();
@@ -2801,7 +2999,8 @@ function arranca() {
     else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); }
   });
 }
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arranca); else arranca();
+function inicio() { var m = /^#firmar=([A-Za-z0-9_-]{22})$/.exec(location.hash); if (m) rModoFirma(m[1]); else { arranca(); rInit(); } }
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', inicio); else inicio();
 })();
 </script>
 </body>
