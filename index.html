@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="31fca5aba2">
-<meta name="pj-fecha" content="2026-11-13 14:24">
+<meta name="pj-build" content="f81032d06e">
+<meta name="pj-fecha" content="2026-11-13 15:18">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -224,7 +224,7 @@ body.fin-claro{background:#f2f2f3}
 #vista-fin .f-mes b{font:600 32px/1 var(--display);text-transform:uppercase}
 #vista-fin .f-fl{border:1px solid rgba(29,31,32,.16);width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:#416180;font-size:22px;background:#fff;cursor:pointer}
 #vista-fin .f-seg{display:flex;border:1px solid rgba(29,31,32,.16);padding:3px;gap:2px;margin-bottom:22px;background:#fff}
-#vista-fin .f-seg button{flex:1;border:0;background:none;padding:11px 2px;font:500 14px var(--body);color:#1d1f20;cursor:pointer}
+#vista-fin .f-seg button{flex:1;border:0;background:none;padding:11px 2px;font:500 13px var(--body);color:#1d1f20;cursor:pointer}
 #vista-fin .f-seg button[aria-pressed="true"]{background:#1D2D3D;color:#f2f2f3}
 #vista-fin .f-estado{font:500 11px var(--mono);letter-spacing:.08em;color:#5d5d60;text-transform:uppercase;margin:-10px 0 16px;display:flex;justify-content:space-between;gap:10px}
 #vista-fin .f-estado button{border:0;background:none;color:#416180;font:inherit;text-decoration:underline;cursor:pointer;padding:12px 4px;margin:-12px -4px;min-height:40px}
@@ -1418,7 +1418,7 @@ async function generaFact() {
 /* ---------- datos de finanzas: todo se guarda en este teléfono ---------- */
 var K_FIN = 'pjq.fin.v2';
 var finStore = leer(K_FIN, null) || {};
-['Gastos', 'Trabajadores', 'Dias', 'Pagos', 'Prestamos'].forEach(function (n) { if (!Array.isArray(finStore[n])) finStore[n] = []; });
+['Gastos', 'Trabajadores', 'Dias', 'Pagos', 'Prestamos', 'Banco', 'Estados', 'Reglas'].forEach(function (n) { if (!Array.isArray(finStore[n])) finStore[n] = []; });
 var ALIAS_FIN = { gasto: 'Gastos', trabajador: 'Trabajadores', dia: 'Dias', pago: 'Pagos', prestamo: 'Prestamos' };
 function fGuarda() { escribir(K_FIN, finStore); }
 /* un pago liquida lo que se entrega más lo que se descuenta por préstamos */
@@ -1503,7 +1503,7 @@ function fEncola(it) {
 /* al importar un respaldo: se agrega lo que falte, sin pisar lo que ya hay */
 function fMezcla(f) {
   var n = 0; if (!f || typeof f !== 'object') return 0;
-  ['Gastos', 'Trabajadores', 'Dias', 'Pagos', 'Prestamos'].forEach(function (nombre) {
+  ['Gastos', 'Trabajadores', 'Dias', 'Pagos', 'Prestamos', 'Banco', 'Estados', 'Reglas'].forEach(function (nombre) {
     (Array.isArray(f[nombre]) ? f[nombre] : []).forEach(function (r) {
       if (r && r.id && !finStore[nombre].some(function (x) { return x.id === r.id; })) { finStore[nombre].push(r); n++; }
     });
@@ -1583,10 +1583,10 @@ function fCurva(pts, top) {
 function fPinta() {
   var cont = $('#fin-cont'); if (!cont) return;
   var cab = '<div class="f-mes"><button type="button" class="f-fl" data-fa="mesmas" data-n="-1" aria-label="Mes anterior">‹</button><b>' + esc(fMesTxt(finMes)) + '</b><button type="button" class="f-fl" data-fa="mesmas" data-n="1" aria-label="Mes siguiente">›</button></div>' +
-    '<div class="f-seg" role="group" aria-label="Sección">' + [['resumen', 'Resumen'], ['impuestos', 'Impuestos'], ['obras', 'Obras'], ['sueldos', 'Sueldos']].map(function (v) {
+    '<div class="f-seg" role="group" aria-label="Sección">' + [['resumen', 'Resumen'], ['impuestos', 'Impuestos'], ['obras', 'Obras'], ['sueldos', 'Sueldos'], ['banco', 'Banco']].map(function (v) {
       return '<button type="button" data-fa="vista" data-v="' + v[0] + '" aria-pressed="' + (finVista === v[0]) + '">' + v[1] + '</button>'; }).join('') + '</div>';
   var estado = '<div class="f-estado"><span>Todo se guarda en este teléfono</span><button type="button" data-fa="respaldo">Respaldar</button></div>';
-  var cuerpo = estado + (finVista === 'impuestos' ? fVistaImpuestos() : finVista === 'obras' ? fVistaObras() : finVista === 'sueldos' ? fVistaSueldos() : fVistaResumen());
+  var cuerpo = estado + (finVista === 'impuestos' ? fVistaImpuestos() : finVista === 'obras' ? fVistaObras() : finVista === 'sueldos' ? fVistaSueldos() : finVista === 'banco' ? fVistaBanco() : fVistaResumen());
   cont.innerHTML = cab + cuerpo;
 }
 function fHace(ts) { var m = Math.round((Date.now() - (ts || 0)) / 60000); return !ts ? 'nunca' : m < 1 ? 'hace un momento' : m < 60 ? 'hace ' + m + ' min' : m < 1440 ? 'hace ' + Math.round(m / 60) + ' h' : 'hace ' + Math.round(m / 1440) + ' d'; }
@@ -1704,6 +1704,391 @@ function fFormSaldo() {
       ajustes.saldoAjuste = r2(parseFloat(v) - calc0); escribir(K_AJ, ajustes);
       return 'Listo: tu saldo quedó ajustado a ' + money(parseFloat(v)) + '.';
     });
+}
+
+/* ---------- Banco: estado de cuenta de BBVA (PDF) → movimientos, vínculos sin duplicar y cuadre de efectivo ----------
+   finStore.Banco   = [{ id, fecha, tipo: 'cargo'|'abono', monto, desc, est: 'pend'|'lig'|'efe'|'sat'|'ign', liga: 'gasto:<id>'|'pago:<id>'|'prestamo:<id>'|'cobro:<cotización>|<pago>', creado, edo }]
+   finStore.Estados = [{ id, desde, hasta, saldoIni, saldoFin, nombre, subido, n }]
+   finStore.Reglas  = [{ id, clave, tipo, accion, dato }]   (lo que aprendió: «esta descripción es el sueldo de Pedro»)
+   El PDF se lee en este teléfono: no se guarda ni se envía. Cada movimiento tiene un id fijo (fecha, tipo, monto y descripción), por eso subir el mismo estado dos veces no duplica nada. */
+var B_MES_ABR = { ENE: 1, FEB: 2, MAR: 3, ABR: 4, MAY: 5, JUN: 6, JUL: 7, AGO: 8, SEP: 9, SET: 9, OCT: 10, NOV: 11, DIC: 12 };
+var B_MES_NOM = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+var bAmt = /^-?\$?\d{1,3}(?:,\d{3})*\.\d{2}-?$/, bCtx = null, bTextoLeido = '';
+function bNumTxt(s) { var neg = /^-|-$/.test(String(s)); var v = parseFloat(String(s).replace(/[$,\-]/g, '')); return neg ? -v : v; }
+function bNorm(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim(); }
+function bClave(desc) { return bNorm(desc).replace(/\b[A-Z0-9]{9,}\b/g, '').replace(/\b\d{4,}\b/g, '').replace(/\s+/g, ' ').trim().slice(0, 70); }
+function bHash(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); }
+function bMes(s) { s = bNorm(s); if (/^\d+$/.test(s)) return +s; if (B_MES_ABR[s.slice(0, 3)]) return B_MES_ABR[s.slice(0, 3)]; return 0; }
+function bIso(y, m, d) { return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0'); }
+
+/* --- lector del PDF: pdf.js saca cada texto con su posición y de ahí se arman los renglones y las columnas --- */
+function bPdfDoc(file) {
+  return fCarga(URL_PDF).then(function () {
+    if (!fPdfWorker) fPdfWorker = fetch(URL_PDFW, { integrity: SRI_LIBS[URL_PDFW] }).then(function (r) { if (!r.ok) throw new Error('worker'); return r.blob(); }).then(function (b) { return URL.createObjectURL(b); });
+    return fPdfWorker;
+  }).then(function (w) { window.pdfjsLib.GlobalWorkerOptions.workerSrc = w; return file.arrayBuffer(); })
+    .then(function (buf) { return window.pdfjsLib.getDocument({ data: new Uint8Array(buf), isEvalSupported: false }).promise; });
+}
+function bFilas(items) {
+  var filas = [];
+  items.forEach(function (it) {
+    if (!it.str || !it.str.trim()) return;
+    var y = it.transform[5], x = it.transform[4], w = it.width || 0, r = filas.find(function (z) { return Math.abs(z.y - y) < 2.5; });
+    if (!r) { r = { y: y, p: [] }; filas.push(r); }
+    r.p.push({ x: x, w: w, c: x + w / 2, s: it.str.trim() });
+  });
+  filas.sort(function (a, b) { return b.y - a.y; });
+  filas.forEach(function (r) { r.p.sort(function (a, b) { return a.x - b.x; }); r.t = r.p.map(function (z) { return z.s; }).join(' ').replace(/\s+/g, ' '); });
+  return filas;
+}
+function bUltimoMonto(t) { var m = String(t).match(/-?\$?\d{1,3}(?:,\d{3})*\.\d{2}-?/g); return m ? bNumTxt(m[m.length - 1]) : null; }
+function bParse(filas) {
+  var r = { movs: [], avisos: [], saldoIni: null, saldoFin: null, totAbonos: null, totCargos: null, desde: '', hasta: '' };
+  var norm = filas.map(function (f) { return bNorm(f.t); }), full = norm.join('\n');
+  var mp = /PERIODO\s*(?:DEL)?\s*(\d{1,2})[\/\-\s]([0-9]{1,2}|[A-Z]{3})[\/\-\s](\d{4})\s*AL\s*(\d{1,2})[\/\-\s]([0-9]{1,2}|[A-Z]{3})[\/\-\s](\d{4})/.exec(full), ml = /DEL\s+(\d{1,2})\s+AL\s+(\d{1,2})\s+DE\s+([A-Z]+)\s+(?:DE\s+)?(\d{4})/.exec(full);
+  if (mp && bMes(mp[2]) && bMes(mp[5])) { r.desde = bIso(+mp[3], bMes(mp[2]), +mp[1]); r.hasta = bIso(+mp[6], bMes(mp[5]), +mp[4]); }
+  else if (ml && B_MES_NOM.indexOf(ml[3]) >= 0) { var mm = B_MES_NOM.indexOf(ml[3]) + 1; r.desde = bIso(+ml[4], mm, +ml[1]); r.hasta = bIso(+ml[4], mm, +ml[2]); }
+  /* totales del estado de cuenta: sirven para comprobar que se leyó bien */
+  norm.forEach(function (t, i) {
+    var v = bUltimoMonto(filas[i].t);
+    if (v === null && i + 1 < norm.length && !/[A-Z]{3}/.test(norm[i + 1])) v = bUltimoMonto(filas[i + 1].t);
+    if (v === null) return;
+    if (/SALDO ANTERIOR|SALDO INICIAL/.test(t) && r.saldoIni === null) r.saldoIni = v;
+    else if (/SALDO FINAL|SALDO ACTUAL|SALDO AL CORTE/.test(t) && !/PROMEDIO/.test(t) && r.saldoFin === null) r.saldoFin = v;
+    else if (/DEPOSITOS.*ABONOS|TOTAL ABONOS|ABONOS \(\+\)/.test(t) && r.totAbonos === null) r.totAbonos = Math.abs(v);
+    else if (/RETIROS.*CARGOS|TOTAL CARGOS|CARGOS \(-\)/.test(t) && r.totCargos === null) r.totCargos = Math.abs(v);
+  });
+  var cx = null, ax = null, sx = [], tabla = false, mov = null, crudos = [];
+  function col(c) {
+    var cand = [['c', cx], ['a', ax]].concat(sx.map(function (x) { return ['s', x]; })), best = null;
+    cand.forEach(function (k) { var d = Math.abs(c - k[1]); if (!best || d < best.d) best = { k: k[0], d: d }; });
+    var sep = Math.abs(ax - cx) || 60;
+    return best && best.d <= sep * 0.7 ? best.k : 's';
+  }
+  function absorbe(f, primera) {
+    f.p.forEach(function (z, idx) {
+      if (bAmt.test(z.s)) {
+        var k = col(z.c), v = Math.abs(bNumTxt(z.s));
+        if (k === 'c' && mov.c === null) mov.c = v; else if (k === 'a' && mov.a === null) mov.a = v;
+        return;
+      }
+      var s = z.s; if (primera && idx < 2) s = s.replace(/^(\d{1,2}\/[A-Za-z]{3}\s*){1,2}/, '');
+      if (s) mov.desc.push(s);
+    });
+  }
+  function cierra() {
+    if (!mov) return;
+    var d = mov.desc.join(' ').replace(/\s+/g, ' ').trim();
+    if (mov.c !== null && mov.a !== null) r.avisos.push('Un movimiento trae cargo y abono a la vez: ' + d.slice(0, 40));
+    else if (mov.c === null && mov.a === null) r.avisos.push('No encontré el monto de: ' + d.slice(0, 50));
+    else crudos.push({ d: mov.d, m: mov.m, tipo: mov.c !== null ? 'cargo' : 'abono', monto: r2(mov.c !== null ? mov.c : mov.a), desc: d });
+    mov = null;
+  }
+  for (var i = 0; i < filas.length; i++) {
+    var f = filas[i], t = norm[i];
+    if (/CARGOS/.test(t) && /ABONOS/.test(t) && !f.p.some(function (z) { return bAmt.test(z.s); })) {
+      var pc = f.p.find(function (z) { return /CARGOS/.test(bNorm(z.s)); }), pa = f.p.find(function (z) { return /ABONOS/.test(bNorm(z.s)); });
+      if (pc && pa) {
+        cx = pc.c; ax = pa.c; sx = [];
+        for (var k = i; k < Math.min(i + 3, filas.length); k++) filas[k].p.forEach(function (z) { if (/^(OPERACION|LIQUIDACION|SALDO)$/.test(bNorm(z.s)) && z.c > ax + 5) sx.push(z.c); });
+        cierra(); tabla = true; continue;
+      }
+    }
+    if (!tabla) continue;
+    if (/TOTAL DE MOVIMIENTOS|TOTAL MOVIMIENTOS|ESTIMAD[OA] CLIENT|LE INFORMAMOS|SALDO PROMEDIO|INFORMACION FISCAL/.test(t)) { cierra(); tabla = false; continue; }
+    var d0 = f.p[0] && /^(\d{1,2})\/([A-Z]{3})\b/.exec(bNorm(f.p[0].s));
+    if (d0 && B_MES_ABR[d0[2]]) { cierra(); mov = { d: +d0[1], m: B_MES_ABR[d0[2]], desc: [], c: null, a: null }; absorbe(f, true); continue; }
+    if (mov && !/^(OPER\b|LIQ\b|FECHA|SALDO|OPERACION|LIQUIDACION|DETALLE|PAGINA|ESTADO DE CUENTA|NO\. DE CUENTA|CLABE|PERIODO|BBVA)/.test(t) && mov.desc.length < 12) absorbe(f, false);
+  }
+  cierra();
+  var y0 = r.desde ? +r.desde.slice(0, 4) : new Date().getFullYear(), m0 = r.desde ? +r.desde.slice(5, 7) : 1, y1 = r.hasta ? +r.hasta.slice(0, 4) : y0;
+  if (!r.desde) r.avisos.push('No encontré el periodo del estado de cuenta: se supuso el año actual.');
+  crudos.forEach(function (x) { r.movs.push({ fecha: bIso(x.m >= m0 ? y0 : y1, x.m, x.d), tipo: x.tipo, monto: x.monto, desc: x.desc }); });
+  var ab = fSuma(r.movs.filter(function (x) { return x.tipo === 'abono'; }), 'monto'), ca = fSuma(r.movs.filter(function (x) { return x.tipo === 'cargo'; }), 'monto');
+  r.ab = ab; r.ca = ca;
+  if (r.totAbonos !== null && Math.abs(r.totAbonos - ab) > 0.02) r.avisos.push('Los abonos que leí suman ' + money(ab) + ' pero el estado dice ' + money(r.totAbonos) + '.');
+  if (r.totCargos !== null && Math.abs(r.totCargos - ca) > 0.02) r.avisos.push('Los cargos que leí suman ' + money(ca) + ' pero el estado dice ' + money(r.totCargos) + '.');
+  if (r.saldoIni !== null && r.saldoFin !== null && r.totAbonos === null && Math.abs(r.saldoIni + ab - ca - r.saldoFin) > 0.02) r.avisos.push('El saldo inicial, los movimientos y el saldo final no cuadran (diferencia de ' + money(r2(r.saldoIni + ab - ca - r.saldoFin)) + ').');
+  if (r.saldoFin === null && r.saldoIni !== null) r.saldoFin = r2(r.saldoIni + ab - ca);
+  var vistos = {};
+  r.movs.forEach(function (m) { var base = [m.fecha, m.tipo, m.monto.toFixed(2), bClave(m.desc)].join('|'); vistos[base] = (vistos[base] || 0) + 1; m.id = 'b' + bHash(base + '|' + vistos[base]); });
+  return r;
+}
+function bLeePdf(file) {
+  return bPdfDoc(file).then(function (doc) {
+    var filas = [], cad = Promise.resolve(), n = Math.min(doc.numPages, 40);
+    for (var k = 1; k <= n; k++) (function (k) { cad = cad.then(function () { return doc.getPage(k); }).then(function (pg) { return pg.getTextContent(); }).then(function (tc) { filas = filas.concat(bFilas(tc.items)); }); })(k);
+    return cad.then(function () { bTextoLeido = filas.map(function (f) { return f.t; }).join('\n'); return bParse(filas); });
+  });
+}
+
+/* --- subir el estado de cuenta --- */
+function bSubir(file) {
+  if (!fEsPdf(file)) { aviso('Sube el estado de cuenta en PDF.'); return; }
+  aviso('Leyendo el estado de cuenta…');
+  bLeePdf(file).then(function (r) {
+    if (!r.movs.length) {
+      fAbreModal('No pude leer el PDF', '<p class="nota" style="margin:0 0 10px">No encontré la tabla de movimientos. Puede ser un formato distinto al de BBVA que esperaba. Toca «Copiar texto leído» y pégalo en el chat para que lo ajuste (revisa antes que no quieras compartir datos de tu cuenta).</p><button type="button" class="btn chico" data-ba-copia="1" style="width:100%">Copiar texto leído</button>', 'Cerrar', function () { return ''; }, 'Cancelar');
+      return;
+    }
+    var ya = {}; fTbl('Banco').forEach(function (m) { ya[m.id] = 1; });
+    var nuevos = r.movs.filter(function (m) { return !ya[m.id]; });
+    var cuerpo = '<p class="nota" style="margin:0 0 10px">' + esc(file.name) + '<br>' + (r.desde ? 'Del ' + esc(fechaLarga(r.desde)) + ' al ' + esc(fechaLarga(r.hasta)) + '. ' : '') + r.movs.length + ' movimientos: ' + nuevos.length + ' nuevos y ' + (r.movs.length - nuevos.length) + ' que ya estaban (no se duplican).</p>' +
+      '<div class="f-g"><span class="f-et">Abonos</span><span class="v">' + money(r.ab) + '</span><span class="f-et">Cargos</span><span class="v">' + money(r.ca) + '</span>' +
+      (r.saldoIni !== null ? '<span class="f-et">Saldo inicial</span><span class="v">' + money(r.saldoIni) + '</span>' : '') + (r.saldoFin !== null ? '<span class="f-et">Saldo final</span><span class="v s">' + money(r.saldoFin) + '</span>' : '') + '</div>' +
+      (r.avisos.length ? '<div class="aviso mal" style="margin:10px 0">' + r.avisos.map(esc).join('<br>') + '<br>Revisa la lista antes de importar.</div>' : '<p class="nota" style="margin:10px 0;color:#1c7a4c;font-weight:600">Los totales coinciden con el estado de cuenta.</p>') +
+      '<details><summary class="nota" style="cursor:pointer;margin:0">Ver los movimientos que leí</summary><div style="max-height:200px;overflow:auto;font:12px var(--mono);margin-top:8px">' +
+      r.movs.map(function (m) { return esc(m.fecha.slice(5) + ' ' + (m.tipo === 'abono' ? '+' : '-') + m.monto.toFixed(2) + ' ' + m.desc.slice(0, 40)) + (ya[m.id] ? ' (ya estaba)' : ''); }).join('<br>') + '</div></details>';
+    fAbreModal('Estado de cuenta de BBVA', cuerpo, nuevos.length ? 'Importar ' + nuevos.length + ' movimientos' : 'Listo', function () {
+      if (!nuevos.length) return 'Ya tenías todos esos movimientos.';
+      return bImporta(r, nuevos, file.name);
+    }, 'Cancelar');
+  }).catch(function (e) {
+    aviso(e && e.name === 'PasswordException' ? 'Ese PDF tiene contraseña. Ábrelo, quítala y guárdalo otra vez.' : 'No se pudo leer el PDF. Revisa tu conexión e intenta otra vez.');
+  });
+}
+function bImporta(r, nuevos, nombre) {
+  var eid = 'e' + bHash(nombre + (r.desde || '') + nuevos.length + Date.now());
+  fTbl('Estados').push({ id: eid, desde: r.desde || nuevos[0].fecha, hasta: r.hasta || nuevos[nuevos.length - 1].fecha, saldoIni: r.saldoIni, saldoFin: r.saldoFin, nombre: nombre, subido: hoyISO(), n: r.movs.length });
+  nuevos.forEach(function (m) { fTbl('Banco').push({ id: m.id, fecha: m.fecha, tipo: m.tipo, monto: m.monto, desc: m.desc, est: 'pend', liga: '', edo: eid }); });
+  var a = bAuto(); fGuarda(); finVista = 'banco';
+  var pend = fTbl('Banco').filter(function (m) { return m.est === 'pend'; }).length;
+  return 'Importé ' + nuevos.length + ' movimientos: ' + a.lig + ' ya estaban registrados, ' + (a.reg + a.efe + a.sat) + ' se clasificaron solos y ' + pend + ' quedan por revisar.';
+}
+
+/* --- emparejar con lo ya registrado --- */
+function bLigados() { var s = {}; fTbl('Banco').forEach(function (m) { if (m.liga) s[m.liga] = m.id; }); return s; }
+function bDias(a, b) { return Math.abs(Date.parse(a + 'T12:00:00') - Date.parse(b + 'T12:00:00')) / 86400000; }
+function bCandidatos(m) {
+  var lig = bLigados(), out = [], trab = fTbl('Trabajadores');
+  function add(tipo, id, fecha, monto, tit) { if (lig[tipo + ':' + id]) return; out.push({ k: tipo + ':' + id, fecha: fecha, monto: num(monto), tit: tit, dif: r2(Math.abs(num(monto) - m.monto)), dias: bDias(fecha, m.fecha) }); }
+  if (m.tipo === 'cargo') {
+    fTbl('Gastos').forEach(function (g) { add('gasto', g.id, g.fecha, g.total, 'Gasto · ' + (g.proveedor || g.concepto || 'sin nombre')); });
+    fTbl('Pagos').forEach(function (p) { var w = trab.find(function (x) { return x.id === p.trabajador; }); add('pago', p.id, p.fecha, p.monto, 'Pago a ' + (w ? w.nombre : 'trabajador')); });
+    fTbl('Prestamos').forEach(function (p) { var w = trab.find(function (x) { return x.id === p.trabajador; }); add('prestamo', p.id, p.fecha, p.monto, 'Préstamo a ' + (w ? w.nombre : 'trabajador')); });
+  } else {
+    fTbl('Cobros').filter(function (c) { return c.forma !== 'efectivo'; }).forEach(function (c) { add('cobro', c.id, c.fecha, c.monto, 'Cobro ' + c.obra + ' · ' + (c.cliente || '')); });
+  }
+  return out;
+}
+function bTrabajadorDe(n) {
+  var mejor = null;
+  fTbl('Trabajadores').filter(function (w) { return w.activo !== 'no'; }).forEach(function (w) {
+    var tk = bNorm(w.nombre).split(' ').filter(function (x) { return x.length >= 3; }); if (!tk.length) return;
+    var hit = tk.filter(function (x) { return n.indexOf(x) >= 0; }).length;
+    if ((tk.length === 1 && hit === 1) || hit >= 2) { if (!mejor || hit > mejor.hit) mejor = { w: w, hit: hit }; }
+  });
+  return mejor && mejor.w;
+}
+function bSugiere(m) {
+  var n = bNorm(m.desc);
+  if (m.tipo === 'cargo') {
+    if (/\bCOM\b|COMISION|CUOTA|MANEJO DE CUENTA|ANUALIDAD/.test(n)) return 'comision';
+    if (/ADMINISTRACION TRIBUTARIA|\bSAT\b|DECLARACION|IMPUESTOS FEDERALES|PAGO REFERENCIADO/.test(n)) return 'sat';
+    if (/RETIRO|RET CAJ|CAJERO|SIN TARJETA|\bATM\b/.test(n)) return 'efe';
+    var w = bTrabajadorDe(n); if (w) return 'sueldo:' + w.id;
+  } else {
+    if (/DEP(OSITO)?\.? (EN )?(EFECTIVO|VENTANILLA|CAJERO|SUCURSAL)|EFECTIVO/.test(n)) return 'efe';
+    if (/VENTAS|\bTPV\b|ADQUIRENTE|CLIP|MERCADO PAGO|ZETTLE|SUMUP|STRIPE|TERMINAL/.test(n)) return 'tarjeta';
+  }
+  return '';
+}
+function bLiga(m, k) { m.est = 'lig'; m.liga = k; m.creado = false; }
+function bAuto() {
+  var r = { lig: 0, efe: 0, sat: 0, reg: 0 };
+  fTbl('Banco').filter(function (m) { return m.est === 'pend'; }).sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)); }).forEach(function (m) {
+    var ex = bCandidatos(m).filter(function (c) { return c.dif <= 0.01 && c.dias <= 10; });
+    if (ex.length === 1) { bLiga(m, ex[0].k); r.lig++; return; }
+    if (ex.length > 1) return;
+    var clave = bClave(m.desc), rg = fTbl('Reglas').find(function (x) { return x.clave === clave && x.tipo === m.tipo; });
+    if (rg && bAplicaRegla(m, rg)) { r.reg++; return; }
+    var s = bSugiere(m);
+    if (s === 'efe') { m.est = 'efe'; r.efe++; } else if (s === 'sat') { m.est = 'sat'; r.sat++; }
+  });
+  return r;
+}
+
+/* --- crear lo que falta (cada registro nace ya vinculado al movimiento) --- */
+function bCreaGasto(m, d) {
+  var id = aId(), fac = d.fac === 'si' ? 'si' : 'no', iva = fac === 'si' ? (d.iva !== undefined ? num(d.iva) : r2(m.monto * num(d.r))) : 0;
+  fEncola({ accion: 'gasto', id: id, fecha: m.fecha, proveedor: d.prov || '', concepto: d.conc || '', categoria: d.cat || 'otro', obra: d.obra || '', facturado: fac, total: m.monto, iva: iva, uuid: '' });
+  m.est = 'lig'; m.liga = 'gasto:' + id; m.creado = true;
+}
+function bCreaPersona(m, tipo, trabId, nota) {
+  var id = aId();
+  if (tipo === 'sueldo') { fEncola({ accion: 'pago', id: id, trabajador: trabId, fecha: m.fecha, monto: m.monto, descuento: 0, descuentos: [], nota: nota || 'Transferencia' }); m.liga = 'pago:' + id; }
+  else { fEncola({ accion: 'prestamo', id: id, trabajador: trabId, fecha: m.fecha, monto: m.monto, nota: nota || 'Transferencia', forma: 'unico', valor: 0 }); m.liga = 'prestamo:' + id; }
+  m.est = 'lig'; m.creado = true;
+}
+function bCreaCobro(m, hid, fac, forma) {
+  var h = aHist(hid); if (!h || !h.datos) return false;
+  var a = { id: aId(), fecha: m.fecha, monto: r2(m.monto), forma: forma }; if (h.datos.factura) a.fac = fac;
+  h.datos.anticipos = aPagos(h.datos).concat([a]); aSync(h);
+  m.est = 'lig'; m.liga = 'cobro:' + h.id + '|' + a.id; m.creado = true; return true;
+}
+function bAplicaRegla(m, rg) {
+  var a = rg.accion;
+  if (a === 'efe' || a === 'sat' || a === 'ign') { m.est = a; return true; }
+  if (a === 'sueldo' || a === 'prestamo') { var w = fTbl('Trabajadores').find(function (x) { return x.id === rg.dato && x.activo !== 'no'; }); if (!w) return false; bCreaPersona(m, a, w.id, ''); return true; }
+  if (a === 'gasto') { var d; try { d = JSON.parse(rg.dato); } catch (e) { return false; } bCreaGasto(m, d); return true; }
+  return false;
+}
+function bGuardaRegla(m, accion, dato) {
+  var clave = bClave(m.desc); if (!clave) return;
+  var rg = fTbl('Reglas').find(function (x) { return x.clave === clave && x.tipo === m.tipo; });
+  if (rg) { rg.accion = accion; rg.dato = dato; } else fTbl('Reglas').push({ id: 'r' + bHash(m.tipo + clave), clave: clave, tipo: m.tipo, accion: accion, dato: dato });
+}
+function bDeshace(m) {
+  if (m.creado && m.liga) {
+    var p = m.liga.split(':'), id = p.slice(1).join(':');
+    if (p[0] === 'gasto') fEncola({ accion: 'borrar', hoja: 'Gastos', id: id });
+    else if (p[0] === 'pago') fEncola({ accion: 'borrar', hoja: 'Pagos', id: id });
+    else if (p[0] === 'prestamo') fEncola({ accion: 'borrar', hoja: 'Prestamos', id: id });
+    else if (p[0] === 'cobro') aQuita(id);
+  }
+  m.est = 'pend'; m.liga = ''; m.creado = false;
+}
+
+/* --- clasificar un movimiento --- */
+function bListaCand(m) {
+  var l = bCandidatos(m).filter(function (c) { return c.dias <= 25; });
+  l.sort(function (a, b) { return (a.dif - b.dif) || (a.dias - b.dias); });
+  return l.slice(0, 12);
+}
+function bProveedor(desc) { return bNorm(desc).split(' ').filter(function (x) { return !/\d/.test(x) && x.length > 1 && !/^(SPEI|ENVIADO|RECIBIDO|COMPRA|PAGO|TARJETA|TRASPASO)$/.test(x); }).join(' ').slice(0, 40); }
+function bClasifica(id) {
+  var m = fTbl('Banco').find(function (x) { return x.id === id; }); if (!m) return; bCtx = m;
+  var sug = bSugiere(m), cands = bListaCand(m), ab = m.tipo === 'abono', trabs = fTbl('Trabajadores').filter(function (w) { return w.activo !== 'no'; });
+  var init = m.est !== 'pend' ? '' : sug.indexOf('sueldo:') === 0 ? 'sueldo' : sug === 'comision' ? 'gasto' : (sug === 'efe' || sug === 'sat') ? sug : sug === 'tarjeta' ? 'cobro' : cands.length && cands[0].dif <= Math.max(1, m.monto * 0.06) ? 'lig' : '';
+  var opc = ab ? [['cobro', 'Cobro de una obra'], ['efe', 'Depósito de efectivo'], ['lig', 'Ya registrado'], ['ign', 'Ignorar']]
+    : [['gasto', 'Gasto'], ['sueldo', 'Sueldo'], ['prestamo', 'Préstamo'], ['sat', 'Impuestos'], ['efe', 'Retiro de efectivo'], ['lig', 'Ya registrado'], ['ign', 'Ignorar']];
+  if (m.est !== 'pend') opc.unshift(['pend', 'Volver a pendiente']);
+  var tsel = function (idSel, pre) { return '<select id="' + idSel + '"><option value="">Elige…</option>' + trabs.map(function (w) { return '<option value="' + esc(w.id) + '"' + (pre === w.id ? ' selected' : '') + '>' + esc(w.nombre) + '</option>'; }).join('') + '</select>'; };
+  var preT = sug.indexOf('sueldo:') === 0 ? sug.slice(7) : '';
+  var obras = historial.filter(function (h) { var e = estadoDe(h); return h.datos && (e === 'aceptada' || e === 'terminada'); }).sort(function (a, b) { return (aResta(b.datos) > 0) - (aResta(a.datos) > 0) || String(b.fecha).localeCompare(String(a.fecha)); });
+  var cuerpo = '<p class="nota" style="margin:0 0 4px">' + esc(fechaLarga(m.fecha)) + ' · ' + (ab ? 'Abono' : 'Cargo') + ' de <b>' + esc(money(m.monto)) + '</b></p><p class="nota" style="margin:0 0 12px;word-break:break-word">' + esc(m.desc || '(sin descripción)') + '</p>' +
+    '<div class="campo"><label>¿Qué es?</label>' + fChips('bacc', opc, [init], false) + '</div>' +
+    '<div data-bsec="gasto" hidden><div class="campo"><label for="fm-prov">Proveedor</label><input id="fm-prov" value="' + esc(bProveedor(m.desc)) + '"></div>' +
+    '<div class="campo"><label for="fm-conc">Concepto</label><input id="fm-conc" placeholder="Qué se pagó"></div>' +
+    '<div class="campo"><label>Tipo de gasto</label>' + fChips('cat', CATS, [sug === 'comision' ? 'comision' : 'otro'], false) + '</div>' +
+    '<div class="campo"><label>¿Se facturó?</label>' + fChips('fac', [['si', 'Sí, con factura'], ['no', 'No (no deducible)']], [], false) + '</div>' +
+    '<div class="campo" id="fm-ivabox" hidden><label for="fm-iva">IVA de la factura</label><input id="fm-iva" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0 si no lleva"></div>' +
+    '<div class="campo"><label for="fm-obra">Obra (opcional)</label><select id="fm-obra">' + fOpcObras('') + '</select></div></div>' +
+    '<div data-bsec="sueldo" hidden><div class="campo"><label for="fm-trab">Pago a</label>' + tsel('fm-trab', preT) + '</div><div class="campo"><label for="fm-nota">Nota (opcional)</label><input id="fm-nota" placeholder="Transferencia"></div></div>' +
+    '<div data-bsec="prestamo" hidden><div class="campo"><label for="fm-trab2">Préstamo a</label>' + tsel('fm-trab2', '') + '</div><p class="nota" style="margin:0">Se descuenta completo en su siguiente pago.</p></div>' +
+    '<div data-bsec="cobro" hidden><div class="campo"><label for="fm-hid">Obra</label><select id="fm-hid"><option value="">Elige…</option>' + obras.map(function (h) { return '<option value="' + esc(h.id) + '">' + esc(h.folio + ' · ' + (h.cliente || '') + ' · resta ' + money(aResta(h.datos))) + '</option>'; }).join('') + '</select></div>' +
+    '<div class="campo"><label for="fm-forma2">Forma de pago</label><select id="fm-forma2"><option value="transferencia"' + (sug === 'tarjeta' ? '' : ' selected') + '>Transferencia</option><option value="tarjeta"' + (sug === 'tarjeta' ? ' selected' : '') + '>Tarjeta</option><option value="otro">Otro</option></select></div>' +
+    '<div class="campo"><label>¿Con factura?</label>' + fChips('cobf', [['si', 'Sí (lleva IVA)'], ['no', 'No']], ['si'], false) + '<p class="nota" style="margin:6px 0 0">Solo aplica si la cotización lleva factura. Si el depósito llegó con comisión de la terminal, corrige el monto del cobro después.</p></div></div>' +
+    '<div data-bsec="lig" hidden><div class="campo"><label for="fm-cand">Es este registro</label><select id="fm-cand"><option value="">Elige…</option>' + cands.map(function (c) { return '<option value="' + esc(c.k) + '"' + (c === cands[0] && init === 'lig' ? ' selected' : '') + '>' + esc(c.tit + ' · ' + fFechaCorta(c.fecha) + ' · ' + money(c.monto) + (c.dif > 0.01 ? ' (difiere ' + money(c.dif) + ')' : '')) + '</option>'; }).join('') + '</select>' + (cands.length ? '' : '<p class="nota" style="margin:6px 0 0">No encontré registros parecidos sin vincular.</p>') + '</div></div>' +
+    '<p class="nota" data-bsec="sat" hidden>Pago de impuestos al SAT. No crea ningún registro: solo se marca para que no quede pendiente.</p>' +
+    '<p class="nota" data-bsec="efe" hidden>' + (ab ? 'Efectivo que llevaste al banco: baja tu efectivo esperado.' : 'Efectivo que sacaste del banco: sube tu efectivo esperado.') + '</p>' +
+    '<p class="nota" data-bsec="ign" hidden>No es del negocio o no hay nada que registrar. Queda fuera del cuadre.</p>' +
+    '<p class="nota" data-bsec="pend" hidden>Se deshace lo que se creó con este movimiento (si lo creó la app) y vuelve a quedar pendiente.</p>' +
+    '<label class="interruptor" id="b-recordar" for="fm-rec" style="margin-top:12px" hidden><input type="checkbox" id="fm-rec" checked><span>Recordar para movimientos parecidos</span></label>';
+  fAbreModal('Clasificar movimiento', cuerpo, 'Guardar', function () { return bGuardaClasif(m); }, 'Cancelar');
+  bMuestra(init);
+}
+function bMuestra(v) {
+  $$('#fm-cuerpo [data-bsec]').forEach(function (el) { el.hidden = el.getAttribute('data-bsec') !== v; });
+  var r = $('#b-recordar'); if (r) r.hidden = ['gasto', 'sueldo', 'prestamo', 'sat', 'efe', 'ign'].indexOf(v) < 0;
+}
+function bGuardaClasif(m) {
+  var sel = fChipsVal('bacc')[0], rec = $('#fm-rec') && $('#fm-rec').checked;
+  if (!sel) { aviso('Elige qué es este movimiento.'); return false; }
+  if (sel === 'pend') { bDeshace(m); fGuarda(); return 'Quedó pendiente de nuevo.'; }
+  if (sel === 'lig') {
+    var k = fv('cand'); if (!k) { aviso('Elige el registro.'); return false; }
+    if (bLigados()[k]) { aviso('Ese registro ya está vinculado a otro movimiento.'); return false; }
+    bLiga(m, k); fGuarda(); return 'Vinculado: no se duplica.';
+  }
+  if (sel === 'efe' || sel === 'sat' || sel === 'ign') { m.est = sel; if (rec) bGuardaRegla(m, sel, ''); fGuarda(); return 'Listo.'; }
+  if (sel === 'gasto') {
+    var fac = fChipsVal('fac')[0]; if (!fac) { aviso('Elige si se facturó o no.'); return false; }
+    var d = { prov: fv('prov').trim(), conc: fv('conc').trim(), cat: fChipsVal('cat')[0] || 'otro', fac: fac, iva: fac === 'si' ? num(fv('iva')) : 0, obra: fv('obra') };
+    bCreaGasto(m, d);
+    if (rec) bGuardaRegla(m, 'gasto', JSON.stringify({ prov: d.prov, conc: d.conc, cat: d.cat, fac: d.fac, r: fac === 'si' && m.monto > 0 ? r2(d.iva / m.monto) : 0, obra: d.obra }));
+    fGuarda(); return 'Gasto registrado y vinculado.';
+  }
+  if (sel === 'sueldo' || sel === 'prestamo') {
+    var w = fv(sel === 'sueldo' ? 'trab' : 'trab2'); if (!w) { aviso('Elige a la persona.'); return false; }
+    bCreaPersona(m, sel, w, sel === 'sueldo' ? fv('nota').trim() : '');
+    if (rec) bGuardaRegla(m, sel, w);
+    fGuarda(); return sel === 'sueldo' ? 'Pago registrado y vinculado.' : 'Préstamo registrado y vinculado.';
+  }
+  if (sel === 'cobro') {
+    var hid = fv('hid'); if (!hid) { aviso('Elige la obra.'); return false; }
+    if (!bCreaCobro(m, hid, fChipsVal('cobf')[0] !== 'no', fv('forma2') || 'transferencia')) { aviso('No encontré esa cotización.'); return false; }
+    fGuarda(); return 'Cobro registrado en la obra y vinculado.';
+  }
+  return false;
+}
+
+/* --- efectivo: lo que cobraste en efectivo menos lo que pagaste en efectivo (lo que no aparece en el banco) --- */
+function bPrimerDia() { var l = fTbl('Estados').map(function (e) { return e.desde; }).filter(Boolean).sort(); return l[0] || ''; }
+function bEfectivo() {
+  var d0 = bPrimerDia(), lig = bLigados(), ok = function (r) { return d0 && String(r.fecha) >= d0; };
+  var cob = fSuma(fTbl('Cobros').filter(function (c) { return c.forma === 'efectivo' && ok(c); }), 'monto');
+  var sal = r2(fSuma(fTbl('Gastos').filter(function (g) { return ok(g) && !lig['gasto:' + g.id]; }), 'total') + fSuma(fTbl('Pagos').filter(function (p) { return ok(p) && !lig['pago:' + p.id]; }), 'monto') + fSuma(fTbl('Prestamos').filter(function (p) { return ok(p) && !lig['prestamo:' + p.id]; }), 'monto'));
+  var ret = fSuma(fTbl('Banco').filter(function (m) { return m.est === 'efe' && m.tipo === 'cargo'; }), 'monto'), dep = fSuma(fTbl('Banco').filter(function (m) { return m.est === 'efe' && m.tipo === 'abono'; }), 'monto');
+  var calc0 = r2(cob - sal + ret - dep), aj = num(ajustes.efectivoAjuste);
+  return { d0: d0, cob: cob, sal: sal, ret: ret, dep: dep, calc: calc0, aj: aj, esp: r2(calc0 + aj) };
+}
+function bContado() {
+  var e = bEfectivo(); if (!e.d0) { aviso('Primero sube un estado de cuenta.'); return; }
+  fAbreModal('Contar mi efectivo', '<p class="nota" style="margin:0 0 10px">Cuenta el efectivo que tienes. La app lo compara con lo que calculó (' + money(e.calc) + ' sin ajuste) y guarda la diferencia como ajuste: dinero en efectivo que ya tenías antes o gastos en efectivo que no registraste.</p>' +
+    '<div class="campo"><label for="fm-cont">Efectivo que tengo ahora</label><input id="fm-cont" type="number" inputmode="decimal" step="0.01" value="' + e.esp + '"></div>', 'Guardar', function () {
+      var v = fv('cont'); if (v === '' || !isFinite(parseFloat(v))) { aviso('Escribe cuánto efectivo tienes.'); return false; }
+      ajustes.efectivoAjuste = r2(parseFloat(v) - e.calc); escribir(K_AJ, ajustes); return 'Listo: tu efectivo quedó ajustado.';
+    });
+}
+function bQuitaEdo(id) {
+  var e = fTbl('Estados').find(function (x) { return x.id === id; }); if (!e) return;
+  fAbreModal('Quitar estado de cuenta', '<p class="nota" style="margin:0">Se quita este estado de cuenta y sus movimientos que siguen pendientes o sin registro. Lo que ya vinculaste o registraste se queda.</p>', 'Quitar', function () {
+    finStore.Banco = finStore.Banco.filter(function (m) { return !(m.edo === id && m.est !== 'lig'); });
+    finStore.Estados = finStore.Estados.filter(function (x) { return x.id !== id; }); fGuarda(); return 'Estado de cuenta quitado.';
+  });
+}
+
+/* --- pantalla --- */
+function fVistaBanco() {
+  var ests = fTbl('Estados').slice().sort(function (a, b) { return String(b.hasta).localeCompare(String(a.hasta)); }), u = ests[0], mov = fTbl('Banco');
+  var pend = mov.filter(function (m) { return m.est === 'pend'; }).sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)); });
+  var h = '<div class="f-dark"><div class="et">SALDO EN EL BANCO</div><div class="n">' + (u && u.saldoFin !== null && u.saldoFin !== undefined ? fGrande(u.saldoFin) : '$—') + '</div><p>' + (u ? 'Según tu estado de cuenta al ' + esc(fechaLarga(u.hasta)) + '.' : 'Sube tu primer estado de cuenta de BBVA (PDF) para empezar.') + '</p></div>' +
+    '<input type="file" id="b-pdf" accept="application/pdf,.pdf" hidden><button type="button" class="f-btn" data-ba="subir" style="margin-top:0">Subir estado de cuenta (PDF)</button>' +
+    '<div class="f-nota">El PDF se lee en tu teléfono; no se guarda ni se envía. Subir el mismo estado dos veces no duplica movimientos.</div>';
+  if (!u) return h;
+  var fila = function (m, texto) { return '<div>' + esc((m.desc || '(sin descripción)').slice(0, 60)) + '<div class="m">' + esc(fFechaCorta(m.fecha) + ' · ' + (m.tipo === 'abono' ? 'abono' : 'cargo')) + '</div></div><span class="v' + (m.tipo === 'abono' ? ' f-ok' : '') + '">' + (m.tipo === 'abono' ? '+' : '-') + money(m.monto) + '</span><button type="button" class="f-mini" style="padding:6px 9px;font-size:12px" data-ba="clas" data-id="' + esc(m.id) + '">' + texto + '</button>'; };
+  h += fMarcos('<div class="f-cab"><div class="f-th">Por revisar <small>' + pend.length + '</small></div></div>' +
+    (pend.length ? '<div class="f-lst">' + pend.slice(0, 40).map(function (m) { return fila(m, 'Clasificar'); }).join('') + '</div>' + (pend.length > 40 ? '<div class="f-nota">Se muestran los primeros 40.</div>' : '') +
+      '<div class="f-nota">Cada movimiento que clasificas queda vinculado al gasto, pago o cobro que le corresponde; así no se duplica y no vuelve a salir.</div>'
+      : '<div class="f-nota" style="margin-top:0;color:#1c7a4c">Todo lo del banco ya está clasificado.</div>'));
+  var e = bEfectivo();
+  h += fMarcos('<div class="f-th">Efectivo</div><div class="f-g">' +
+    '<span class="f-et">Cobros en efectivo</span><span class="v">' + money(e.cob) + '</span>' +
+    '<span class="f-et">Gastos, sueldos y préstamos en efectivo</span><span class="v">' + fMenos(e.sal) + '</span>' +
+    (e.ret ? '<span class="f-et">Retiros del banco</span><span class="v">' + money(e.ret) + '</span>' : '') + (e.dep ? '<span class="f-et">Depósitos de efectivo al banco</span><span class="v">' + fMenos(e.dep) + '</span>' : '') +
+    (e.aj ? '<span class="f-et">Ajuste</span><span class="v">' + money(e.aj) + '</span>' : '') + '<hr><span class="f-et">Efectivo que deberías tener</span><span class="v s">' + money(e.esp) + '</span></div>' +
+    '<div class="f-nota">Cuenta desde el ' + esc(fechaLarga(e.d0)) + '. Lo que pagaste y no aparece en el banco se toma como pagado en efectivo.</div><button type="button" class="f-btn" data-ba="contado">Contar mi efectivo</button>');
+  h += fMarcos('<div class="f-th">Lo que deberías tener en total</div><div class="f-g"><span class="f-et">En el banco</span><span class="v">' + money(u.saldoFin || 0) + '</span><span class="f-et">En efectivo</span><span class="v">' + money(e.esp) + '</span><hr><span class="f-et">Total</span><span class="v s">' + money(r2((u.saldoFin || 0) + e.esp)) + '</span></div>');
+  var lig = bLigados(), hasta = u.hasta, noBanco = fTbl('Cobros').filter(function (c) { return c.forma && c.forma !== 'efectivo' && !lig['cobro:' + c.id] && String(c.fecha) >= bPrimerDia() && String(c.fecha) <= hasta; });
+  var sinForma = fTbl('Cobros').filter(function (c) { return !c.forma && String(c.fecha) >= bPrimerDia(); });
+  if (noBanco.length || sinForma.length) h += fMarcos('<div class="f-th">Revisa estos cobros</div>' +
+    (noBanco.length ? '<div class="f-nota" style="margin-top:6px">Dices que te pagaron por transferencia o tarjeta, pero no encontré un depósito igual en el estado de cuenta. Puede estar mal el monto o la fecha, o haber sido en efectivo.</div><div class="f-lst">' + noBanco.slice(0, 15).map(function (c) { return '<div>' + esc(c.obra + ' · ' + (c.cliente || '')) + '<div class="m">' + esc(fFechaCorta(c.fecha) + ' · ' + c.forma) + '</div></div><span class="v">' + money(c.monto) + '</span><span></span>'; }).join('') + '</div>' : '') +
+    (sinForma.length ? '<div class="f-nota">' + sinForma.length + (sinForma.length === 1 ? ' cobro no tiene' : ' cobros no tienen') + ' forma de pago (terminaste la obra sin registrar el pago final): por eso no cuentan como efectivo ni como banco.</div>' : ''));
+  var cl = mov.filter(function (m) { return m.est !== 'pend'; }).sort(function (a, b) { return String(b.fecha).localeCompare(String(a.fecha)); });
+  if (cl.length) h += fMarcos('<details><summary class="f-th" style="cursor:pointer">Ya clasificados <small>' + cl.length + '</small></summary><div class="f-lst">' + cl.slice(0, 40).map(function (m) { return fila(m, { lig: 'Vinculado', efe: 'Efectivo', sat: 'Impuestos', ign: 'Ignorado' }[m.est] || 'Cambiar'); }).join('') + '</div></details>');
+  h += fMarcos('<div class="f-th">Estados de cuenta</div><div class="f-lst">' + ests.map(function (x) { return '<div>' + esc(x.nombre || 'Estado de cuenta') + '<div class="m">' + esc(fFechaCorta(x.desde) + ' al ' + fFechaCorta(x.hasta) + ' · ' + x.n + ' movimientos') + '</div></div><span class="v">' + (x.saldoFin !== null && x.saldoFin !== undefined ? money(x.saldoFin) : '') + '</span><button type="button" class="f-x" data-ba="quitaedo" data-id="' + esc(x.id) + '" aria-label="Quitar estado de cuenta">×</button>'; }).join('') + '</div>');
+  return h;
+}
+function bInit() {
+  $('#vista-fin').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-ba]'); if (!b) return; var a = b.getAttribute('data-ba');
+    if (a === 'subir') $('#b-pdf').click(); else if (a === 'clas') bClasifica(b.getAttribute('data-id')); else if (a === 'contado') bContado(); else if (a === 'quitaedo') bQuitaEdo(b.getAttribute('data-id'));
+  });
+  $('#vista-fin').addEventListener('change', function (e) { if (e.target.id === 'b-pdf' && e.target.files[0]) { bSubir(e.target.files[0]); e.target.value = ''; } });
+  $('#fm-cuerpo').addEventListener('click', function (e) {
+    if (e.target.closest('[data-ba-copia]')) { navigator.clipboard.writeText(bTextoLeido.slice(0, 8000)).then(function () { aviso('Texto copiado.'); }, function () { aviso('No se pudo copiar.'); }); }
+  });
 }
 
 /* ---- factura global de cobros con tarjeta o depósito a público en general ---- */
@@ -2503,6 +2888,7 @@ function pHint() {
   el.textContent = t;
 }
 function fAlElegirChip(grupo, valor) {
+  if (grupo === 'bacc') { bMuestra(valor); return; }
   if (grupo === 'forma') { aAlElegirForma(valor); return; }
   if (grupo !== 'dsc') return;
   var box = $('#fm-pvbox'); if (!box) return;
@@ -3149,7 +3535,7 @@ var K_SYNC = 'pjq.sync.v1', K_SYNC_ARCH = 'pjq.sync.arch';
 var sCfg = leer(K_SYNC, null);
 var sLlaves = null, sCorriendo = false, sOtraVez = false, sAplicando = false, sTimer = null, sEstadoTxt = '';
 var B32 = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
-var TABLAS_FIN = ['Gastos', 'Trabajadores', 'Dias', 'Pagos', 'Prestamos'];
+var TABLAS_FIN = ['Gastos', 'Trabajadores', 'Dias', 'Pagos', 'Prestamos', 'Banco', 'Estados', 'Reglas'];
 
 function sGuardaCfg() { try { if (sCfg) localStorage.setItem(K_SYNC, JSON.stringify(sCfg)); else localStorage.removeItem(K_SYNC); } catch (e) {} }
 
@@ -3588,7 +3974,7 @@ function arranca() {
     else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); }
   });
 }
-function inicio() { var m = /^#firmar=([A-Za-z0-9_-]{22})$/.exec(location.hash); if (m) rModoFirma(m[1]); else { arranca(); rInit(); sInit(); } }
+function inicio() { var m = /^#firmar=([A-Za-z0-9_-]{22})$/.exec(location.hash); if (m) rModoFirma(m[1]); else { arranca(); rInit(); sInit(); bInit(); } }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', inicio); else inicio();
 })();
 </script>
