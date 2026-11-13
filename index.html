@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="f81032d06e">
-<meta name="pj-fecha" content="2026-11-13 15:18">
+<meta name="pj-build" content="9d9b9e4519">
+<meta name="pj-fecha" content="2026-11-13 16:25">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -331,24 +331,81 @@ body.fin-claro{background:#f2f2f3}
 #modal-fin .f-ch2 button{border:1px solid rgba(29,31,32,.25);background:#fff;color:#1d1f20;padding:10px 12px;font:500 12.5px var(--mono);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
 #modal-fin .f-ch2 button[aria-pressed="true"]{background:#1D2D3D;border-color:#1D2D3D;color:#f2f2f3}
 
+
+/* ===== v3: barra inferior, inicio, tarjetas con pasos y hoja de acciones ===== */
+.barra{padding-bottom:2px}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#1D2D3D;border-top:1px solid #2C455D;padding:0 0 calc(6px + env(safe-area-inset-bottom));display:flex}
+nav.tabs .tab{display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;border:0;border-top:3px solid transparent;background:none;padding:8px 2px 4px;font:500 10px var(--mono);letter-spacing:.04em;text-transform:uppercase;color:#94BCE3;cursor:pointer;min-height:58px}
+nav.tabs .tab[hidden]{display:none}
+nav.tabs .tab svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+nav.tabs .tab[aria-selected="true"]{color:#F2F2F3;border-top-color:#94BCE3}
+.app{padding-bottom:160px}
+.toast{bottom:calc(84px + env(safe-area-inset-bottom))}
+.modo-firma nav.tabs,.modo-firma #fab-nueva{display:none}
+#fab-nueva{position:fixed;right:16px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:29;width:58px;height:58px;border:0;background:#1D2D3D;color:#F2F2F3;font:600 34px/1 var(--body);box-shadow:0 8px 22px rgba(0,0,0,.3);cursor:pointer;display:grid;place-items:center}
+#fab-nueva[hidden]{display:none}
+.atajos{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.atajo{display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:12px;min-height:94px;padding:12px;border:1px solid var(--edge);background:#fff;text-align:left;cursor:pointer;color:#1D1F20}
+.atajo svg{width:27px;height:27px;stroke:#1D2D3D;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.atajo span{font:600 20px/1 var(--display);text-transform:uppercase}
+.atajo.p{background:#1D2D3D;border-color:#1D2D3D;color:#F2F2F3}.atajo.p svg{stroke:#94BCE3}
+.sigue{display:flex;gap:11px;align-items:center;border:1px solid var(--edge);background:#fff;padding:11px 12px;margin-top:9px}
+.sigue .n{font:700 30px/1 var(--display);min-width:38px;text-align:center;color:#416180}
+.sigue .tx{flex:1;font-size:15px;line-height:1.2;color:#1D1F20}
+.sigue .tx small{display:block;color:#5d5d60;font-size:12.5px;margin-top:3px}
+.sigue button{border:0;background:#1D2D3D;color:#F2F2F3;padding:9px 12px;font:600 14px var(--display);text-transform:uppercase;letter-spacing:.05em;cursor:pointer;min-height:40px}
+.cot{border:1px solid var(--edge);background:#fff;padding:12px;display:grid;gap:4px}
+.cot .cab-btn{display:block;width:100%;text-align:left;background:none;border:0;padding:0;cursor:pointer;color:inherit}
+.cot .cab{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.cot .cab b{font:600 22px/1 var(--display);text-transform:uppercase}
+.cot .meta{font:500 12px var(--mono);letter-spacing:.04em;color:#416180;margin-top:6px}
+.cot .motivo{color:#5d5d60;font-size:14px;margin-top:2px}
+.cot .acc2{display:flex;gap:8px;margin-top:10px}
+.cot .acc2 .btn{min-height:48px;font-size:19px}
+.cot .acc2 .p{flex:1}
+.btn.mas{width:52px;min-width:52px;padding:0;font-size:24px;line-height:1;flex:none}
+.paso{display:flex;margin:10px 0 2px}
+.paso span{flex:1;text-align:center;font:600 9.5px var(--mono);letter-spacing:.04em;text-transform:uppercase;color:#5d5d60;position:relative;padding-top:21px}
+.paso span:before{content:'';position:absolute;top:5px;left:50%;width:12px;height:12px;border-radius:50%;border:2px solid #416180;background:#fff;transform:translateX(-50%);z-index:2}
+.paso span:after{content:'';position:absolute;top:10px;left:-50%;width:100%;height:2px;background:#416180;z-index:1}
+.paso span:first-child:after{display:none}
+.paso .hecho:before{background:#416180}
+.paso .ahora:before{background:#1D2D3D;border-color:#1D2D3D;box-shadow:0 0 0 4px rgba(148,188,227,.45)}
+.paso .ahora{color:#1D1F20}
+#h-filtros{flex-wrap:nowrap;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch}
+#h-filtros .chip{flex:none;white-space:nowrap}
+#hoja{position:fixed;inset:0;z-index:55}
+#hoja[hidden]{display:none}
+#hoja .velo{position:absolute;inset:0;background:rgba(15,24,34,.55)}
+#hoja .caja-h{position:absolute;left:0;right:0;bottom:0;max-height:86vh;overflow:auto;background:#fff;color:#1d1f20;border-top:3px solid #1D2D3D;padding:14px 16px calc(18px + env(safe-area-inset-bottom));max-width:760px;margin:0 auto}
+#hoja h3{font:700 24px/1 var(--display);margin:0 0 4px;text-transform:uppercase}
+#hoja .gt{font:600 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:#416180;margin:14px 0 2px}
+#hoja .it{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;background:none;border:0;border-bottom:1px solid rgba(29,31,32,.14);padding:12px 0;font-size:17px;text-align:left;cursor:pointer;color:#1d1f20;min-height:48px}
+#hoja .it.rojo{color:#b3261e;border-bottom:0}
+#hoja .it small{color:#5d5d60;font-size:13px;flex:none}
+.volver{display:inline-flex;align-items:center;gap:6px;background:none;border:0;color:#416180;font:600 18px var(--display);text-transform:uppercase;padding:6px 0;margin:0 0 4px;cursor:pointer}
+#nueva-fila{display:none!important}
+#estado-panel .acciones>*:not(.pm),#vista-nueva .panel>.acciones>*:not(.pm){display:none!important}
+.pm-fila{display:flex!important;gap:8px}
+.pm-fila .p{flex:1}
 </style>
 </head>
 <body>
 <div class="app">
   <header class="barra">
     <div class="marca"><img id="logo-app" alt="" src=""><span>Pintores<br>Juárez</span><small>COTIZADORA</small></div>
-    <div class="tabs c5" role="tablist" aria-label="Secciones">
-      <button class="tab" role="tab" id="tab-nueva" aria-selected="true" aria-controls="vista-nueva">Cotización</button>
-      <button class="tab" role="tab" id="tab-historial" aria-selected="false" aria-controls="vista-historial">Historial</button>
-      <button class="tab" role="tab" id="tab-clientes" aria-selected="false" aria-controls="vista-clientes">Clientes</button>
-      <button class="tab" role="tab" id="tab-fin" aria-selected="false" aria-controls="vista-fin">Finanzas</button>
-      <button class="tab" role="tab" id="tab-ajustes" aria-selected="false" aria-controls="vista-ajustes">Ajustes</button>
-    </div>
   </header>
 
   <main>
-  <!-- ===== COTIZACIÓN ===== -->
-  <section class="vista" id="vista-nueva" role="tabpanel" aria-labelledby="tab-nueva">
+  <!-- ===== INICIO ===== -->
+  <section class="vista" id="vista-inicio" role="tabpanel" aria-labelledby="tab-inicio">
+    <div class="panel"><h2 id="inicio-fecha">Hoy</h2><div class="atajos" id="inicio-atajos"></div></div>
+    <div class="panel"><h2>Qué sigue <i id="sigue-cuenta"></i></h2><div id="inicio-sigue"></div></div>
+  </section>
+
+  <!-- ===== COTIZACIÓN (editor) ===== -->
+  <section class="vista" id="vista-nueva" role="tabpanel" aria-labelledby="tab-nueva" hidden>
+    <button type="button" class="volver" id="btn-volver">‹ Cotizaciones</button>
     <div class="acciones" style="margin:0 0 14px" id="nueva-fila" hidden>
       <button class="btn p" id="btn-nueva-cot" type="button">＋ Nueva cotización</button>
     </div>
@@ -365,6 +422,7 @@ body.fin-claro{background:#f2f2f3}
         <button class="btn chico" id="btn-recibos" type="button" hidden>Recibos de pago</button>
         <button class="btn p chico" id="btn-reabrir" type="button" hidden>Reabrir como borrador</button>
         <button class="btn chico" id="btn-copia" type="button">Duplicar como nueva cotización</button>
+        <div class="pm pm-fila"><button class="btn p" id="pm-pri" type="button">Siguiente paso</button><button class="btn mas" id="pm-mas2" type="button" aria-label="Más acciones">⋯</button></div>
       </div>
     </div>
 
@@ -435,6 +493,7 @@ body.fin-claro{background:#f2f2f3}
         <div id="cal-links" class="acciones" style="margin-top:0"></div>
         <button class="btn" id="btn-no" type="button">Marcar como no aceptada</button>
         <button class="btn" id="btn-nueva-abajo" type="button">＋ Nueva cotización</button>
+        <div class="pm pm-fila"><button class="btn p" id="pm-env" type="button">Enviar</button><button class="btn mas" id="pm-mas" type="button" aria-label="Más acciones">⋯</button></div>
         
       </div>
       <p class="nota" style="margin-top:14px;font-weight:600" id="remota-nota" hidden></p>
@@ -447,20 +506,10 @@ body.fin-claro{background:#f2f2f3}
   <!-- ===== HISTORIAL ===== -->
   <section class="vista" id="vista-historial" role="tabpanel" aria-labelledby="tab-historial" hidden>
     <div class="panel">
-      <div class="acciones" style="margin:0 0 16px">
-        <button class="btn p" id="btn-nueva-hist" type="button">＋ Nueva cotización</button>
-      </div>
-      <h2>Historial <i id="hist-cuenta"></i></h2>
-      <div class="campo"><label for="h-buscar">Buscar</label><input id="h-buscar" type="search" placeholder="Cliente o folio"></div>
+      <h2>Cotizaciones <i id="hist-cuenta"></i></h2>
+            <div class="campo"><label for="h-buscar">Buscar</label><input id="h-buscar" type="search" placeholder="Cliente o folio"></div>
       <div class="chips" id="h-filtros"></div>
       <div class="lista" id="hist-lista"></div>
-      <div class="acciones">
-        <button class="btn chico" id="btn-csv" type="button">Exportar a Excel (CSV)</button>
-        <button class="btn chico" id="btn-resp" type="button">Respaldo completo (JSON)</button>
-        <button class="btn chico" id="btn-imp" type="button">Importar respaldo (JSON)</button>
-        <input type="file" id="f-resp" accept=".json,application/json" hidden>
-      </div>
-      <p class="nota" style="margin-top:12px">El historial vive en este navegador. Guarda un respaldo de vez en cuando; los PDF que envías son el registro oficial.</p>
     </div>
   </section>
 
@@ -511,6 +560,17 @@ body.fin-claro{background:#f2f2f3}
       <h2>Sincronización y respaldo</h2>
       <p class="nota" id="sync-txt"></p>
       <div class="acciones" id="sync-acc"></div>
+    </div>
+    <div class="panel">
+      <h2>Respaldo y exportación</h2>
+      <p class="nota">Con la sincronización activa ya tienes una copia cifrada en la nube. Estos botones guardan o recuperan un archivo en tu teléfono.</p>
+      <div class="acciones">
+        <button class="btn chico" id="btn-csv" type="button">Exportar a Excel (CSV)</button>
+        <button class="btn chico" id="btn-resp" type="button">Respaldo completo (JSON)</button>
+        <button class="btn chico" id="btn-imp" type="button">Importar respaldo (JSON)</button>
+        <input type="file" id="f-resp" accept=".json,application/json" hidden>
+      </div>
+      <p class="nota" style="margin-top:12px">Los PDF que envías son el registro oficial de cada cotización.</p>
     </div>
     <div class="panel">
       <h2>Versión de la app</h2>
@@ -611,6 +671,16 @@ body.fin-claro{background:#f2f2f3}
 
 <div id="ptr" role="status" aria-live="polite"><span class="ptr-i" aria-hidden="true"></span><span id="ptr-t"></span></div>
 
+<nav class="tabs c5" role="tablist" aria-label="Secciones">
+  <button class="tab" role="tab" id="tab-inicio" aria-selected="true" aria-controls="vista-inicio"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>Inicio</button>
+  <button class="tab" role="tab" id="tab-historial" aria-selected="false" aria-controls="vista-historial"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><path d="M10 12h5M10 16h5"/></svg>Cotizaciones</button>
+  <button class="tab" role="tab" id="tab-clientes" aria-selected="false" aria-controls="vista-clientes"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.5 2.8-6 6-6s6 2.5 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2c2.8 0 5 2 5 5.3"/></svg>Clientes</button>
+  <button class="tab" role="tab" id="tab-fin" aria-selected="false" aria-controls="vista-fin"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12"/><circle cx="12" cy="12" r="2.8"/><path d="M6.5 9.5v5M17.5 9.5v5"/></svg>Finanzas</button>
+  <button class="tab" role="tab" id="tab-ajustes" aria-selected="false" aria-controls="vista-ajustes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>Ajustes</button>
+  <button class="tab" role="tab" id="tab-nueva" aria-selected="false" aria-controls="vista-nueva" hidden>Cotización</button>
+</nav>
+<button type="button" id="fab-nueva" aria-label="Nueva cotización" hidden>＋</button>
+<div id="hoja" hidden role="dialog" aria-modal="true"><div class="velo"></div><div class="caja-h" id="hoja-cuerpo"></div></div>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 <div class="oculto-export" id="oculto-export" aria-hidden="true"></div>
 <div class="oculto-export" id="medidor" aria-hidden="true"></div>
@@ -920,6 +990,7 @@ function pintaResumen() {
   if (c.sub <= 0) faltan.push('al menos una partida con precio');
   var f = $('#faltan'); f.hidden = !faltan.length; f.textContent = faltan.length ? 'Falta ' + faltan.join(' y ') + '.' : '';
   actualizaWa(c); actualizaGcal(); etiquetaPdf();
+  pmActualiza();
   $('#ayuda-envio').textContent = 'Compartir PDF con el menú: se abre el menú del teléfono; elige WhatsApp y el contacto, y el PDF viaja junto con el mensaje. Si tu teléfono pide otro toque, el botón dice “PDF listo: toca para compartir”. “Abrir chat de WhatsApp” solo te lleva a la conversación con el cliente.';
 }
 function mensajeWa(c) {
@@ -1179,36 +1250,48 @@ function autollenaCliente() {
 function cotsDe(c) { return historial.filter(function (h) { return h.datos.clienteId === c.id; }).sort(function (a, b) { return String(b.fecha).localeCompare(String(a.fecha)); }); }
 function estadoDe(h) { return h.estado || 'borrador'; }
 
+var PASOS = ['Cotiz.', 'Firma', 'Pago', 'Obra', 'Liquidar'];
+function pasosHtml(n) { return '<div class="paso" aria-label="Etapa del trabajo">' + PASOS.map(function (x, i) { return '<span class="' + (i < n ? 'hecho' : i === n ? 'ahora' : '') + '">' + x + '</span>'; }).join('') + '</div>'; }
+/* en qué paso va una cotización y cuál es su siguiente acción */
+function etapaCot(h) {
+  var e = estadoDe(h), d = h.datos;
+  if (e === 'no_aceptada') return { paso: -1, f: 'no_aceptada', sello: 'NO ACEPTADA', pri: ['Reabrir', 'reabrir'] };
+  if (e === 'borrador') return d.remota ? { paso: 1, f: 'firma', sello: 'ESPERANDO FIRMA', pri: ['Reenviar enlace', 'reenviar'] } : { paso: 0, f: 'envio', sello: 'BORRADOR', pri: ['Enviar', 'enviar'] };
+  if (e === 'aceptada') {
+    if (!aPagos(d).length) return { paso: 2, f: 'obra', sello: 'EN OBRA', pri: ['Registrar anticipo', 'pago'] };
+    return { paso: 3, f: 'obra', sello: 'EN OBRA', pri: [aResta(d) > 0.004 ? 'Cobrar y terminar' : 'Terminar obra', 'terminar'] };
+  }
+  return { paso: 5, f: 'terminada', sello: 'TERMINADA', pri: d.resenaEnviada ? ['Recibos de pago', 'recibos'] : ['Pedir reseña', 'resena'] };
+}
+function cumpleFiltro(h, f) {
+  var e = estadoDe(h), d = h.datos;
+  if (f === 'todas') return true;
+  if (f === 'envio') return e === 'borrador' && !d.remota;
+  if (f === 'firma') return e === 'borrador' && !!d.remota;
+  if (f === 'obra') return e === 'aceptada';
+  if (f === 'cobrar') return e === 'aceptada' && aResta(d) > 0.004;
+  if (f === 'terminada') return e === 'terminada';
+  return e === 'no_aceptada';
+}
 function filaCot(h) {
-  var e = estadoDe(h), clase = e === 'aceptada' ? ' ok' : e === 'no_aceptada' ? ' no' : e === 'terminada' ? ' hecho' : '', id = esc(h.id), d = h.datos;
-  var meta = esc(fechaLarga(h.fecha)) + ' · ' + money(h.total) + (d.factura && d.pg ? ' · Factura global' : '') + (d.cliente && d.cliente.dom ? ' · ' + esc(d.cliente.dom) : '');
+  var e = estadoDe(h), d = h.datos, et = etapaCot(h), id = esc(h.id);
+  var clase = e === 'aceptada' ? ' ok' : e === 'no_aceptada' ? ' no' : e === 'terminada' ? ' hecho' : '';
+  var meta = esc(fFechaCorta(h.fecha) + ' · ' + money(h.total) + (d.factura ? (d.pg ? ' · factura global' : ' · con factura') : '') + (d.cliente && d.cliente.dom ? ' · ' + d.cliente.dom : ''));
   var extra = e === 'no_aceptada' ? '<div class="motivo">No aceptada' + (d.fechaEstado ? ' el ' + esc(fechaLarga(d.fechaEstado)) : '') + (d.motivo ? ' · ' + esc(d.motivo) : '') + '</div>'
-    : e === 'terminada' && d.fechaEstado ? '<div class="motivo">Trabajo terminado el ' + esc(fechaLarga(d.fechaEstado)) + '</div>'
+    : e === 'terminada' ? '<div class="motivo">' + (d.fechaEstado ? 'Terminado el ' + esc(fechaLarga(d.fechaEstado)) : 'Trabajo terminado') + (d.resenaEnviada ? ' · reseña pedida' : '') + '</div>'
     : e === 'aceptada' ? '<div class="motivo">' + esc(aLinea(d)) + '</div>'
-    : e === 'borrador' && d.remota ? '<div class="motivo">' + (d.remota.vencido ? 'El enlace para firmar venció: vuelve a enviarlo' : d.remota.noCoincide ? 'Firmó una versión anterior: vuelve a enviar el enlace' : 'Enlace para firmar enviado · esperando firma') + '</div>' : '';
-  var btns = '<button class="btn chico" data-abrir="' + id + '" type="button">Abrir</button><button class="btn chico" data-pdf="' + id + '" type="button">Compartir PDF</button>'
-    + (e === 'borrador' || e === 'aceptada' ? '<button class="btn chico" data-no="' + id + '" type="button">No aceptada</button>' : '')
-    + (e === 'aceptada' && aResta(d) > 0 ? '<button class="btn chico" data-ant="' + id + '" type="button">' + (aPagos(d).length ? 'Otro pago' : 'Anticipo') + '</button>' : '')
-    + (e === 'aceptada' && aPuedeQuitarFactura(d) ? '<button class="btn chico" data-qf="' + id + '" type="button">Quitar factura</button>' : '')
-    + ((e === 'aceptada' || e === 'terminada') && (aPagos(d).length || e === 'terminada') ? '<button class="btn chico" data-rcb="' + id + '" type="button">Recibos</button>' : '')
-    + (e === 'aceptada' && d.factura && !d.factFecha ? '<button class="btn chico" data-pg="' + id + '" type="button">' + (d.pg ? 'Quitar público en general' : 'Tarjeta: público en general') + '</button>' : '')
-    + (e === 'aceptada' ? '<button class="btn chico" data-ter="' + id + '" type="button">Terminado</button>' : '')
-    + (e === 'terminada' ? '<button class="btn chico" data-compf="' + id + '" type="button">' + (d.compFinal ? 'Comprobante final ✓' : 'Comprobante final') + '</button>' : '')
-    + ((e === 'aceptada' || e === 'terminada') && !(d.factura && d.pg) ? '<button class="btn chico" data-fact="' + id + '" type="button">Datos de factura</button>' : '')
-    + (e === 'terminada' ? '<button class="btn chico" data-resena="' + id + '" type="button">' + (d.resenaEnviada ? 'Reseña pedida ✓' : 'Pedir reseña') + '</button>' : '')
-    + (e === 'no_aceptada' ? '<button class="btn chico" data-reabrir="' + id + '" type="button">Reabrir</button>' : '')
-    + '<button class="btn chico" data-borrar="' + id + '" type="button">Eliminar</button>';
-  return '<div class="item"><div class="cab"><b>' + esc(h.folio) + ' · ' + esc(h.cliente || 'Sin nombre') + '</b><span class="sello' + clase + '">' + ETQ[e] + '</span></div><div class="meta">' + meta + '</div>' + extra + '<div class="acc">' + btns + '</div></div>';
+    : d.remota ? '<div class="motivo">' + (d.remota.vencido ? 'El enlace para firmar venció: vuelve a enviarlo' : d.remota.noCoincide ? 'Firmó una versión anterior: vuelve a enviar el enlace' : 'Enlace para firmar enviado · esperando firma') + '</div>' : '<div class="motivo">Aún sin enviar</div>';
+  return '<div class="item cot"><button type="button" class="cab-btn" data-abrir="' + id + '"><div class="cab"><b>' + esc(h.folio) + ' · ' + esc(h.cliente || 'Sin nombre') + '</b><span class="sello' + clase + '">' + et.sello + '</span></div><div class="meta">' + meta + '</div></button>' + extra +
+    (et.paso >= 0 ? pasosHtml(et.paso) : '') + '<div class="acc2"><button type="button" class="btn p" data-pri="' + et.pri[1] + '|' + id + '">' + et.pri[0] + '</button><button type="button" class="btn mas" data-mas="' + id + '" aria-label="Más acciones">⋯</button></div></div>';
 }
 function pintaHistorial() {
-  var cuenta = { borrador: 0, aceptada: 0, no_aceptada: 0, terminada: 0 };
-  historial.forEach(function (h) { cuenta[estadoDe(h)] = (cuenta[estadoDe(h)] || 0) + 1; });
   $('#hist-cuenta').textContent = historial.length + (historial.length === 1 ? ' cotización' : ' cotizaciones');
-  var fil = [['todas', 'Todas', historial.length], ['borrador', 'Borradores', cuenta.borrador], ['aceptada', 'Aceptadas', cuenta.aceptada], ['terminada', 'Terminadas', cuenta.terminada], ['no_aceptada', 'No aceptadas', cuenta.no_aceptada]];
-  $('#h-filtros').innerHTML = fil.map(function (f) { return '<button class="chip" type="button" data-filtro="' + f[0] + '" aria-pressed="' + (filtroH === f[0]) + '">' + f[1] + ' ' + f[2] + '</button>'; }).join('');
+  var fil = [['todas', 'Todas'], ['envio', 'Por enviar'], ['firma', 'Esperando firma'], ['obra', 'En obra'], ['cobrar', 'Por cobrar'], ['terminada', 'Terminadas'], ['no_aceptada', 'No aceptadas']];
+  $('#h-filtros').innerHTML = fil.map(function (f) { return '<button class="chip" type="button" data-filtro="' + f[0] + '" aria-pressed="' + (filtroH === f[0]) + '">' + f[1] + ' ' + historial.filter(function (h) { return h.datos && cumpleFiltro(h, f[0]); }).length + '</button>'; }).join('');
   var b = norm(buscaH);
-  var lista = historial.filter(function (h) { return (filtroH === 'todas' || estadoDe(h) === filtroH) && (!b || norm(h.cliente + ' ' + h.folio).indexOf(b) >= 0); });
-  $('#hist-lista').innerHTML = lista.length ? lista.map(filaCot).join('') : '<p class="nota">' + (historial.length ? 'No hay cotizaciones con ese filtro.' : 'Aún no hay cotizaciones guardadas.') + '</p>';
+  var lista = historial.filter(function (h) { return h.datos && cumpleFiltro(h, filtroH) && (!b || norm(h.cliente + ' ' + h.folio).indexOf(b) >= 0); });
+  $('#hist-lista').innerHTML = lista.length ? lista.map(filaCot).join('') : '<p class="nota">' + (historial.length ? 'No hay cotizaciones con ese filtro.' : 'Aún no hay cotizaciones guardadas. Toca ＋ para hacer la primera.') + '</p>';
+  pintaInicio();
 }
 function marcaEstado(id, estado, motivo, sinResena) {
   if (q && q.id === id && !q.guardada) guardar(true);
@@ -1232,6 +1315,8 @@ function cierraNo() { $('#modal-no').hidden = true; document.body.style.overflow
 function aceptaNo() { var m = [$('#mn-motivo').value, $('#mn-nota').value.trim()].filter(Boolean).join(' · '); var id = noId; cierraNo(); marcaEstado(id, 'no_aceptada', m); }
 function accionLista(e) {
   var a = e.target.closest('button'); if (!a) return;
+  if (a.hasAttribute('data-pri')) { var pp = a.getAttribute('data-pri').split('|'); accionPri(pp[0], pp[1]); return; }
+  if (a.hasAttribute('data-mas')) { menuCot(a.getAttribute('data-mas')); return; }
   if (a.hasAttribute('data-abrir')) abre(a.getAttribute('data-abrir'));
   else if (a.hasAttribute('data-dup')) duplica(a.getAttribute('data-dup'));
   else if (a.hasAttribute('data-borrar')) borra(a.getAttribute('data-borrar'));
@@ -3505,7 +3590,7 @@ async function rModoFirma(id) {
   document.body.classList.add('modo-firma');
   document.title = 'Cotización · Pintores Juárez';
   $('#logo-app').src = LOGO_BLANCO;
-  $('#vista-nueva').hidden = true; $('#vista-firmar').hidden = false;
+  $('#vista-inicio').hidden = true; $('#vista-nueva').hidden = true; $('#vista-firmar').hidden = false;
   $('#vf-doc').appendChild($('#vista-doc'));
   $('#mf-nota').textContent = 'Al firmar acepta la cotización y los términos y condiciones que acaba de revisar.';
   padCli = lienzo($('#lienzo-cli'));
@@ -3843,10 +3928,160 @@ function sInit() {
   sPinta(); sSincroniza();
 }
 
+/* ---------- v3: inicio con atajos, hoja de acciones y menús de cada cotización ---------- */
+var hojaItems = [];
+function svgIc(p) { return '<svg viewBox="0 0 24 24" aria-hidden="true">' + p + '</svg>'; }
+var ATAJOS = [
+  ['pago', 'Registrar pago', '<rect x="3" y="6" width="18" height="12"/><circle cx="12" cy="12" r="2.8"/><path d="M6.5 9.5v5M17.5 9.5v5"/>', 1],
+  ['gasto', 'Registrar gasto', '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>'],
+  ['sueldo', 'Pago a trabajador', '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.5 2.8-6 6-6s6 2.5 6 6"/><path d="M16 11h5M18.5 8.5v5"/>'],
+  ['dias', 'Marcar días', '<rect x="4" y="5" width="16" height="15"/><path d="M4 10h16M8 3v4M16 3v4"/><path d="M9 15l2 2 4-4"/>'],
+  ['banco', 'Subir estado de cuenta', '<path d="M3 9l9-5 9 5"/><path d="M5 10v8M10 10v8M14 10v8M19 10v8"/><path d="M3 20h18"/>'],
+  ['nueva', 'Nueva cotización', '<path d="M7 3h7l4 4v14H7z"/><path d="M12 11v6M9 14h6"/>']
+];
+function abreHoja(titulo, grupos) {
+  hojaItems = []; var h = '<h3>' + esc(titulo) + '</h3>';
+  grupos.forEach(function (g) {
+    if (g[0]) h += '<div class="gt">' + esc(g[0]) + '</div>';
+    g[1].forEach(function (it) { hojaItems.push(it[1]); h += '<button type="button" class="it' + (it[3] ? ' rojo' : '') + '" data-hi="' + (hojaItems.length - 1) + '"><span>' + esc(it[0]) + '</span><small>' + esc(it[2] || '›') + '</small></button>'; });
+  });
+  $('#hoja-cuerpo').innerHTML = h; $('#hoja').hidden = false; document.body.style.overflow = 'hidden';
+}
+function cierraHoja() { $('#hoja').hidden = true; document.body.style.overflow = ''; }
+function irFin(v) { finVista = v; cambiaTab('fin'); }
+function irCot(f) { filtroH = f; buscaH = ''; var b = $('#h-buscar'); if (b) b.value = ''; cambiaTab('historial'); }
+
+/* atajos */
+function atajoPago() {
+  var l = historial.filter(function (h) { return h.datos && estadoDe(h) === 'aceptada' && aResta(h.datos) > 0.004; });
+  if (!l.length) { aviso('No hay obras aceptadas con saldo por cobrar.'); return; }
+  if (l.length === 1) { aFormAnticipo(l[0].id); return; }
+  abreHoja('¿De qué obra es el pago?', [['Obras con saldo por cobrar', l.map(function (h) { return [h.folio + ' · ' + (h.cliente || 'Sin nombre'), function () { aFormAnticipo(h.id); }, money(aResta(h.datos))]; })]]);
+}
+function atajoSueldo() {
+  var tr = fTbl('Trabajadores').filter(function (w) { return w.activo !== 'no'; });
+  if (!tr.length) { aviso('Primero registra a tus trabajadores en Finanzas › Sueldos.'); irFin('sueldos'); return; }
+  var ir = function (w) { finTrab = w.id; fFormPago(); };
+  if (tr.length === 1) { ir(tr[0]); return; }
+  abreHoja('¿A quién le pagas?', [['Trabajadores', tr.map(function (w) { return [w.nombre + (w.puesto ? ' · ' + w.puesto : ''), function () { ir(w); }]; })]]);
+}
+function atajo(k) {
+  if (k === 'pago') atajoPago();
+  else if (k === 'gasto') fFormGasto();
+  else if (k === 'sueldo') atajoSueldo();
+  else if (k === 'dias') irFin('sueldos');
+  else if (k === 'banco') { irFin('banco'); var inp = $('#b-pdf'); if (inp) inp.click(); }
+  else if (k === 'nueva') nuevaCot();
+}
+function pintaInicio() {
+  var cont = $('#inicio-atajos'); if (!cont) return;
+  var hoy = new Date(); $('#inicio-fecha').textContent = 'Hoy, ' + hoy.toLocaleDateString('es-MX', { day: 'numeric', month: 'long' });
+  cont.innerHTML = ATAJOS.map(function (a) { return '<button type="button" class="atajo' + (a[3] ? ' p' : '') + '" data-at="' + a[0] + '">' + svgIc(a[2]) + '<span>' + a[1] + '</span></button>'; }).join('');
+  var hs = historial.filter(function (h) { return h.datos; }), s = [];
+  var dos = function (l) { return l.slice(0, 2).map(function (h) { return h.folio + ' ' + (h.cliente || ''); }).join(' · ') + (l.length > 2 ? ' y ' + (l.length - 2) + ' más' : ''); };
+  var fir = hs.filter(function (h) { return cumpleFiltro(h, 'firma'); }), env = hs.filter(function (h) { return cumpleFiltro(h, 'envio') && h.datos.cliente.nombre.trim() && calc(h.datos).sub > 0; });
+  var sinAnt = hs.filter(function (h) { return estadoDe(h) === 'aceptada' && !aPagos(h.datos).length; });
+  var cob = hs.filter(function (h) { return cumpleFiltro(h, 'cobrar') && aPagos(h.datos).length; });
+  var res = hs.filter(function (h) { return estadoDe(h) === 'terminada' && !h.datos.resenaEnviada; });
+  var pend = fTbl('Banco').filter(function (m) { return m.est === 'pend'; }).length;
+  if (fir.length) s.push([fir.length, 'Esperan la firma del cliente', dos(fir), 'Ver', function () { irCot('firma'); }]);
+  if (env.length) s.push([env.length, 'Cotizaciones por enviar', dos(env), 'Ver', function () { irCot('envio'); }]);
+  if (sinAnt.length) s.push([sinAnt.length, 'Obras sin anticipo registrado', dos(sinAnt), 'Registrar', function () { atajoPago(); }]);
+  if (cob.length) s.push([cob.length, 'Saldo por cobrar: ' + money(r2(cob.reduce(function (a, h) { return a + aResta(h.datos); }, 0))), dos(cob), 'Ver', function () { irCot('cobrar'); }]);
+  if (pend) s.push([pend, 'Movimientos del banco por clasificar', 'del estado de cuenta', 'Revisar', function () { irFin('banco'); }]);
+  if (res.length) s.push([res.length, 'Reseñas sin pedir', dos(res), 'Pedir', function () { irCot('terminada'); }]);
+  var ant = fMesMas(hoyISO().slice(0, 7), -1), imp = fImp(ant).total;
+  if (imp > 0 && hoy.getDate() <= 17) s.push(['17', 'Impuestos de ' + fMesTxt(ant).split(' ')[0].toLowerCase() + ': ' + money(imp), 'Se pagan el 17 de este mes (estimado)', 'Ver', function () { finMes = ant; irFin('impuestos'); }]);
+  window.__sigue = s.map(function (x) { return x[4]; });
+  $('#sigue-cuenta').textContent = s.length ? s.length + (s.length === 1 ? ' pendiente' : ' pendientes') : '';
+  $('#inicio-sigue').innerHTML = s.length ? s.map(function (x, i) { return '<div class="sigue"><div class="n">' + esc(x[0]) + '</div><div class="tx">' + esc(x[1]) + '<small>' + esc(x[2]) + '</small></div><button type="button" data-sg="' + i + '">' + esc(x[3]) + '</button></div>'; }).join('') : '<p class="nota" style="margin:12px 0 0">Todo al día. No hay nada pendiente.</p>';
+}
+
+/* menú «⋯» y botón principal de cada cotización */
+function accionPri(a, id) {
+  if (a === 'enviar') menuEnviar(id);
+  else if (a === 'reenviar') { abre(id); rEnviar(); }
+  else if (a === 'pago') aFormAnticipo(id);
+  else if (a === 'terminar') aTermina(id);
+  else if (a === 'resena') abreResena(id);
+  else if (a === 'recibos') abreRecibosCli(id);
+  else if (a === 'reabrir') marcaEstado(id, estadoReabrir(id));
+}
+function urlGcal(e, x) {
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(e.t) + '&dates=' + e.ini + '/' + e.fin + (e.dia ? '' : '&ctz=America%2FCiudad_Juarez') + '&details=' + encodeURIComponent(e.d) + (x.cliente.dom ? '&location=' + encodeURIComponent(x.cliente.dom) : '');
+}
+function itemsEnviar(h) {
+  var id = h.id, d = h.datos, e = estadoDe(h), it = [];
+  if (e === 'borrador') {
+    it.push(['Firmar en persona', function () { abre(id); abreFirma(); }]);
+    it.push([d.remota ? 'Volver a enviar el enlace de firma' : 'Enviar enlace para firmar a distancia', function () { abre(id); rEnviar(); }]);
+  }
+  it.push(['Compartir PDF', function () { abre(id); accionCompartir(); }]);
+  it.push(['Abrir WhatsApp del cliente', function () { window.open(waUrl(d.cliente.tel, ''), '_blank', 'noopener'); }]);
+  return it;
+}
+function menuEnviar(id) { var h = aHist(id); if (h) abreHoja('Enviar ' + h.folio, [['', itemsEnviar(h)]]); }
+function confirmaBorra(id) {
+  var h = aHist(id); if (!h) return;
+  fAbreModal('Eliminar cotización', '<p class="nota" style="margin:0">¿Eliminar ' + esc(h.folio + ' · ' + (h.cliente || 'Sin nombre')) + '? Se borran también sus comprobantes y no se puede deshacer.</p>', 'Eliminar', function () { pendienteBorrar = id; borra(id); return ''; });
+}
+function menuCot(id) {
+  var h = aHist(id); if (!h || !h.datos) return; var d = h.datos, e = estadoDe(h), g = [];
+  g.push(['Enviar', itemsEnviar(h)]);
+  var din = [], rs = aResta(d);
+  if (e === 'aceptada') {
+    if (rs > 0.004) din.push([aPagos(d).length ? 'Registrar otro pago' : 'Registrar anticipo', function () { aFormAnticipo(id); }, money(rs)]);
+    din.push([rs > 0.004 ? 'Cobrar y terminar la obra' : 'Marcar trabajo terminado', function () { aTermina(id); }]);
+  }
+  if ((e === 'aceptada' || e === 'terminada') && rcLista(h).length) din.push(['Recibos de pago', function () { abreRecibosCli(id); }, String(rcLista(h).length)]);
+  if (e === 'terminada') din.push(['Comprobante del pago final' + (d.compFinal ? ' ✓' : ''), function () { aCompAccion(id + '|final'); }]);
+  if (din.length) g.push(['Dinero', din]);
+  var fac = [];
+  if ((e === 'aceptada' || e === 'terminada') && !(d.factura && d.pg)) fac.push(['Datos de factura (Excel)', function () { abreFact(id); }]);
+  if (e === 'aceptada' && d.factura && !d.factFecha) fac.push([d.pg ? 'Quitar «tarjeta, público en general»' : 'Cambiar a tarjeta, público en general', function () { gCambiaPG(id); }]);
+  if (e === 'aceptada' && aPuedeQuitarFactura(d)) fac.push(['Quitar factura (se pagará en efectivo)', function () { gQuitaFactura(id); }]);
+  if (fac.length) g.push(['Facturación', fac]);
+  var ag = [];
+  if (e === 'borrador' || e === 'aceptada') eventosCal(d).forEach(function (ev) { ag.push([ev.dia ? 'Agendar entrega y liquidación' : 'Agendar inicio de pintura', function () { window.open(urlGcal(ev, d), '_blank', 'noopener'); }]); });
+  if (ag.length) g.push(['Agenda', ag]);
+  var mas = [['Abrir y editar', function () { abre(id); }], ['Duplicar como nueva cotización', function () { duplica(id); }]];
+  if (e === 'terminada') mas.push([d.resenaEnviada ? 'Pedir reseña otra vez' : 'Pedir reseña', function () { abreResena(id); }]);
+  if (e === 'borrador' || e === 'aceptada') mas.push(['Marcar como no aceptada', function () { abreNo(id); }]);
+  if (e === 'no_aceptada') mas.push(['Reabrir', function () { marcaEstado(id, estadoReabrir(id)); }]);
+  mas.push(['Eliminar cotización', function () { confirmaBorra(id); }, '', true]);
+  g.push(['Más', mas]);
+  abreHoja(h.folio + ' · ' + (h.cliente || 'Sin nombre'), g);
+}
+function idEditor() { if (!q) return null; if (!aHist(q.id)) { if (!validaParaEnviar()) return null; guardar(true); } return q.id; }
+function pmActualiza() {
+  var b = $('#pm-pri'); if (!b) return; var h = q && aHist(q.id);
+  if (!h || !h.datos) { b.hidden = true; return; }
+  var et = etapaCot(h); b.hidden = false; b.textContent = et.pri[0]; b.setAttribute('data-a', et.pri[1]);
+}
+function vInit() {
+  $('#inicio-atajos').addEventListener('click', function (e) { var b = e.target.closest('[data-at]'); if (b) atajo(b.getAttribute('data-at')); });
+  $('#inicio-sigue').addEventListener('click', function (e) { var b = e.target.closest('[data-sg]'); if (b) window.__sigue[+b.getAttribute('data-sg')](); });
+  $('#fab-nueva').addEventListener('click', nuevaCot);
+  $('#btn-volver').addEventListener('click', function () { cambiaTab('historial'); });
+  $('#hoja').addEventListener('click', function (e) {
+    if (e.target.classList.contains('velo')) { cierraHoja(); return; }
+    var b = e.target.closest('[data-hi]'); if (!b) return; var f = hojaItems[+b.getAttribute('data-hi')]; cierraHoja(); if (f) f();
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('#hoja').hidden) cierraHoja(); });
+  $('#pm-env').addEventListener('click', function () { var id = idEditor(); if (id) menuEnviar(id); });
+  $('#pm-mas').addEventListener('click', function () { var id = idEditor(); if (id) menuCot(id); });
+  $('#pm-mas2').addEventListener('click', function () { if (q) menuCot(q.id); });
+  $('#pm-pri').addEventListener('click', function () { if (q) accionPri(this.getAttribute('data-a'), q.id); });
+}
+
 /* ---------- navegación y ajustes ---------- */
 function cambiaTab(n, conservar) {
   if (n === 'nueva' && !conservar && q && q.guardada && (q.estado || 'borrador') !== 'borrador') resetea();
-  ['nueva', 'historial', 'clientes', 'fin', 'ajustes'].forEach(function (t) { $('#vista-' + t).hidden = t !== n; $('#tab-' + t).setAttribute('aria-selected', t === n ? 'true' : 'false'); });
+  var marca = n === 'nueva' ? 'historial' : n;
+  ['inicio', 'nueva', 'historial', 'clientes', 'fin', 'ajustes'].forEach(function (t) { $('#vista-' + t).hidden = t !== n; $('#tab-' + t).setAttribute('aria-selected', t === marca ? 'true' : 'false'); });
+  $('#fab-nueva').hidden = n !== 'historial';
+  if (n !== 'nueva' || !conservar) window.scrollTo(0, 0);
+  if (n === 'inicio') pintaInicio();
   if (n === 'historial') pintaHistorial();
   if (n === 'clientes') { clienteAbierto = null; pintaClientes(); }
   if (n === 'nueva') setTimeout(escala, 0);
@@ -3872,7 +4107,7 @@ function arranca() {
   padCli = lienzo($('#lienzo-cli')); padPj = lienzo($('#lienzo-pj'));
   backfillClientes(); recalculaTotales(); llenaForma(); llenaAjustes(); pintaHistorial(); pintaClientes(); pintar(); fInit(); fFotoInit(); recibosInit(); pInit(); aInit(); actInit();
 
-  ['nueva', 'historial', 'clientes', 'fin', 'ajustes'].forEach(function (t) { $('#tab-' + t).addEventListener('click', function () { cambiaTab(t); }); });
+  ['inicio', 'nueva', 'historial', 'clientes', 'fin', 'ajustes'].forEach(function (t) { $('#tab-' + t).addEventListener('click', function () { cambiaTab(t); }); });
   $('#forma').addEventListener('input', cambioForma); $('#forma').addEventListener('change', cambioForma);
   $('#partidas').addEventListener('click', function (e) { var b = e.target.closest('[data-q]'); if (!b) return; q.partidas.splice(+b.getAttribute('data-q'), 1); if (!q.partidas.length) q.partidas.push({ c: '', n: 1, p: 0 }); pintaPartidas(); pintaResumen(); escribir(K_BOR, q); pintar(); });
   $('#chips').addEventListener('click', function (e) { var b = e.target.closest('[data-chip]'); if (!b || q.estado === 'aceptada') return; var vacia = q.partidas.length === 1 && !q.partidas[0].c && !num(q.partidas[0].p); var p = { c: b.getAttribute('data-chip'), n: 1, p: 0 }; if (vacia || (q.partidas.length === 1 && q.partidas[0].c === 'Mano de obra' && !num(q.partidas[0].p) && p.c !== 'Mano de obra')) { q.partidas = [p]; } else { q.partidas.push(p); } pintaPartidas(); pintaResumen(); escribir(K_BOR, q); pintar(); });
@@ -3890,7 +4125,6 @@ function arranca() {
   
   
   $('#btn-nueva-cot').addEventListener('click', nuevaCot);
-  $('#btn-nueva-hist').addEventListener('click', nuevaCot);
   $('#btn-nueva-abajo').addEventListener('click', nuevaCot);
   $('#btn-copia').addEventListener('click', function () { if (!q.guardada) guardar(true); duplica(q.id); });
   $('#mf-ok').addEventListener('click', aceptaFirma); $('#mf-cancela').addEventListener('click', cierraFirma); $('#mf-limpia').addEventListener('click', function () { padCli.limpia(); });
@@ -3974,7 +4208,7 @@ function arranca() {
     else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); }
   });
 }
-function inicio() { var m = /^#firmar=([A-Za-z0-9_-]{22})$/.exec(location.hash); if (m) rModoFirma(m[1]); else { arranca(); rInit(); sInit(); bInit(); } }
+function inicio() { var m = /^#firmar=([A-Za-z0-9_-]{22})$/.exec(location.hash); if (m) rModoFirma(m[1]); else { arranca(); rInit(); sInit(); bInit(); vInit(); cambiaTab('inicio'); } }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', inicio); else inicio();
 })();
 </script>
