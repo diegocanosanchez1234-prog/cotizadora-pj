@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="a431f5c116">
-<meta name="pj-fecha" content="2026-11-13 17:04">
+<meta name="pj-build" content="61d4842203">
+<meta name="pj-fecha" content="2026-11-13 17:17">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -206,12 +206,7 @@ details.avanzado summary{font-size:12.5px}
 .quita,.firma-lienzo{background:#fff}
 .partida select{background:#fff}
 html{overscroll-behavior-y:contain}
-/* jalar para actualizar */
-#ptr{position:fixed;top:0;left:0;right:0;height:0;overflow:hidden;z-index:80;background:#1D2D3D;color:#F2F2F3;display:flex;align-items:center;justify-content:center;gap:10px;font:500 12.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;transition:height .18s ease;white-space:nowrap}
-#ptr .ptr-i{width:16px;height:16px;border:2px solid #94BCE3;border-top-color:transparent;border-radius:50%;flex:none}
-#ptr.gira .ptr-i{animation:ptrgira .8s linear infinite}
-@keyframes ptrgira{to{transform:rotate(360deg)}}
-@media (prefers-reduced-motion:reduce){#ptr.gira .ptr-i{animation:none}#ptr{transition:none}}
+#carga[hidden]{display:none}
 .campo[hidden]{display:none}
 #modal-fin .f-scan{border:1px dashed #5980A6;padding:12px;margin-bottom:16px;background:#fff}
 #modal-fin .btn[aria-pressed="true"]{background:#1D2D3D;border-color:#1D2D3D;color:#f2f2f3}
@@ -384,7 +379,6 @@ nav.tabs .tab[aria-selected="true"]{color:#F2F2F3;border-top-color:#94BCE3}
 #hoja .it.rojo{color:#b3261e;border-bottom:0}
 #hoja .it small{color:#5d5d60;font-size:13px;flex:none}
 .volver{display:inline-flex;align-items:center;gap:6px;background:none;border:0;color:#416180;font:600 18px var(--display);text-transform:uppercase;padding:6px 0;margin:0 0 4px;cursor:pointer}
-#nueva-fila{display:none!important}
 #estado-panel .acciones>*:not(.pm),#vista-nueva .panel>.acciones>*:not(.pm){display:none!important}
 .pm-fila{display:flex!important;gap:8px}
 .pm-fila .p{flex:1}
@@ -419,22 +413,11 @@ nav.tabs .tab[aria-selected="true"]{color:#F2F2F3;border-top-color:#94BCE3}
   <!-- ===== COTIZACIÓN (editor) ===== -->
   <section class="vista" id="vista-nueva" role="tabpanel" aria-labelledby="tab-nueva" hidden>
     <button type="button" class="volver" id="btn-volver">‹ Cotizaciones</button>
-    <div class="acciones" style="margin:0 0 14px" id="nueva-fila" hidden>
-      <button class="btn p" id="btn-nueva-cot" type="button">＋ Nueva cotización</button>
-    </div>
     <div class="panel" id="estado-panel" hidden>
       <span class="sello ok" id="sello-estado">ACEPTADA</span>
       <p class="nota" style="margin:10px 0 12px" id="estado-texto"></p>
       <p class="nota" style="margin:-4px 0 12px;font-weight:600" id="anticipo-linea" hidden></p>
       <div class="acciones" style="margin-top:0">
-        <button class="btn p chico" id="btn-anticipo" type="button" hidden>Registrar anticipo</button>
-        <button class="btn p chico" id="btn-terminado" type="button" hidden>Marcar trabajo terminado</button>
-        <button class="btn chico" id="btn-compfinal" type="button" hidden>Adjuntar comprobante del pago final</button>
-        <button class="btn chico" id="btn-pg" type="button" hidden>Cambiar a tarjeta, público en general</button>
-        <button class="btn chico" id="btn-qf" type="button" hidden>Quitar factura (se pagará en efectivo)</button>
-        <button class="btn chico" id="btn-recibos" type="button" hidden>Recibos de pago</button>
-        <button class="btn p chico" id="btn-reabrir" type="button" hidden>Reabrir como borrador</button>
-        <button class="btn chico" id="btn-copia" type="button">Duplicar como nueva cotización</button>
         <div class="pm pm-fila"><button class="btn p" id="pm-pri" type="button">Siguiente paso</button><button class="btn mas" id="pm-mas2" type="button" aria-label="Más acciones">⋯</button></div>
       </div>
     </div>
@@ -504,8 +487,6 @@ nav.tabs .tab[aria-selected="true"]{color:#F2F2F3;border-top-color:#94BCE3}
         <button class="btn c" id="btn-pdf" type="button">Compartir PDF con el menú</button>
         <a class="btn" id="btn-wa" target="_blank" rel="noopener" href="https://wa.me/">Abrir chat de WhatsApp</a>
         <div id="cal-links" class="acciones" style="margin-top:0"></div>
-        <button class="btn" id="btn-no" type="button">Marcar como no aceptada</button>
-        <button class="btn" id="btn-nueva-abajo" type="button">＋ Nueva cotización</button>
         <div class="pm pm-fila"><button class="btn p" id="pm-env" type="button">Enviar</button><button class="btn mas" id="pm-mas" type="button" aria-label="Más acciones">⋯</button></div>
         
       </div>
@@ -681,8 +662,6 @@ nav.tabs .tab[aria-selected="true"]{color:#F2F2F3;border-top-color:#94BCE3}
     </div>
   </div>
 </div>
-
-<div id="ptr" role="status" aria-live="polite"><span class="ptr-i" aria-hidden="true"></span><span id="ptr-t"></span></div>
 
 <nav class="tabs c5" role="tablist" aria-label="Secciones">
   <button class="tab" role="tab" id="tab-inicio" aria-selected="true" aria-controls="vista-inicio"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>Inicio</button>
@@ -979,21 +958,14 @@ function pintaResumen() {
   var est = q.estado || 'borrador', firmada = est === 'aceptada' || est === 'terminada', bloqueada = firmada || est === 'no_aceptada';
   $('#campos').disabled = bloqueada;
   $('#estado-panel').hidden = !bloqueada;
-  $('#nueva-fila').hidden = !(q.guardada || q.cliente.nombre.trim() || calc(q).sub > 0);
   if (bloqueada) {
     var s = $('#sello-estado'); s.textContent = ETQ[est]; s.className = 'sello ' + (est === 'no_aceptada' ? 'no' : est === 'terminada' ? 'hecho' : 'ok');
     $('#estado-texto').textContent = est === 'no_aceptada'
       ? 'No aceptada' + (q.fechaEstado ? ' el ' + fechaLarga(q.fechaEstado) : '') + (q.motivo ? '. Motivo: ' + q.motivo : '') + '. Sigue en el historial y en la ficha del cliente.'
       : 'Firmada por ' + q.firmaCliente.nombre + (q.firmaCliente.remota ? ' a distancia' : '') + ' el ' + conPunto(fechaHora(q.firmaCliente.fecha)) + (est === 'terminada' && q.fechaEstado ? ' Trabajo terminado el ' + fechaLarga(q.fechaEstado) + '.' : '') + ' Una cotización firmada ya no se puede editar: duplícala para hacer cambios.';
-    $('#btn-terminado').hidden = est !== 'aceptada'; $('#btn-reabrir').hidden = est !== 'no_aceptada';
     var ace = est === 'aceptada';
     $('#anticipo-linea').hidden = !ace; if (ace) $('#anticipo-linea').textContent = aLinea(q);
-    $('#btn-anticipo').hidden = !(ace && aResta(q) > 0); $('#btn-anticipo').textContent = aPagos(q).length ? 'Registrar otro pago' : 'Registrar anticipo';
-    $('#btn-compfinal').hidden = est !== 'terminada'; $('#btn-compfinal').textContent = q.compFinal ? 'Comprobante del pago final ✓' : 'Adjuntar comprobante del pago final';
-    $('#btn-qf').hidden = !(ace && aPuedeQuitarFactura(q)); $('#btn-recibos').hidden = !((ace || est === 'terminada') && (aPagos(q).length || est === 'terminada'));
-    $('#btn-pg').hidden = !(ace && q.factura && !q.factFecha); $('#btn-pg').textContent = q.pg ? 'Quitar «tarjeta, público en general»' : 'Cambiar a tarjeta, público en general';
   }
-  $('#btn-no').hidden = est !== 'borrador';
   $('#btn-firma').hidden = est === 'no_aceptada';
   $('#btn-firma').disabled = firmada; $('#btn-firma').textContent = firmada ? 'Cotización firmada' : 'Firmar con el cliente';
   var rb = $('#btn-remota'); if (rb) { rb.hidden = est !== 'borrador'; if (!rb.disabled) rb.textContent = q.remota ? 'Volver a enviar enlace para firmar' : 'Enviar para firmar a distancia'; }
@@ -1331,19 +1303,6 @@ function accionLista(e) {
   if (a.hasAttribute('data-pri')) { var pp = a.getAttribute('data-pri').split('|'); accionPri(pp[0], pp[1]); return; }
   if (a.hasAttribute('data-mas')) { menuCot(a.getAttribute('data-mas')); return; }
   if (a.hasAttribute('data-abrir')) abre(a.getAttribute('data-abrir'));
-  else if (a.hasAttribute('data-dup')) duplica(a.getAttribute('data-dup'));
-  else if (a.hasAttribute('data-borrar')) borra(a.getAttribute('data-borrar'));
-  else if (a.hasAttribute('data-no')) abreNo(a.getAttribute('data-no'));
-  else if (a.hasAttribute('data-ter')) aTermina(a.getAttribute('data-ter'));
-  else if (a.hasAttribute('data-reabrir')) marcaEstado(a.getAttribute('data-reabrir'), estadoReabrir(a.getAttribute('data-reabrir')));
-  else if (a.hasAttribute('data-pdf')) { abre(a.getAttribute('data-pdf')); accionCompartir(); }
-  else if (a.hasAttribute('data-fact')) abreFact(a.getAttribute('data-fact'));
-  else if (a.hasAttribute('data-resena')) abreResena(a.getAttribute('data-resena'));
-  else if (a.hasAttribute('data-ant')) aFormAnticipo(a.getAttribute('data-ant'));
-  else if (a.hasAttribute('data-compf')) aCompAccion(a.getAttribute('data-compf') + '|final');
-  else if (a.hasAttribute('data-pg')) gCambiaPG(a.getAttribute('data-pg'));
-  else if (a.hasAttribute('data-qf')) gQuitaFactura(a.getAttribute('data-qf'));
-  else if (a.hasAttribute('data-rcb')) abreRecibosCli(a.getAttribute('data-rcb'));
 }
 
 function resumenCliente(c) {
@@ -2644,8 +2603,8 @@ function fFotoInit() {
   });
 }
 
-/* ---------- actualización: jalar la pantalla hacia abajo para buscar la versión más nueva ---------- */
-var actUltima = 0, actOcupada = false;
+/* ---------- actualización: se revisa sola al abrir la app (pantalla de carga) y al volver a ella tras más de 5 minutos fuera ---------- */
+var actUltima = 0, actOcupada = false, actFuera = 0;
 function actVersion() { var m = document.querySelector('meta[name="pj-build"]'); return m ? m.getAttribute('content') : ''; }
 function actFecha() { var m = document.querySelector('meta[name="pj-fecha"]'); return m ? m.getAttribute('content') : ''; }
 
@@ -2664,65 +2623,44 @@ function actAplica() {
   try { escribir(K_BOR, q); autoguarda(); } catch (e) {}
   return fetch(location.pathname, { cache: 'reload' }).catch(function () {}).then(function () { location.reload(); });
 }
-function actPinta(alto, txt, girando, arrastrando) {
-  var el = $('#ptr'); if (!el) return;
-  el.style.transition = arrastrando ? 'none' : ''; el.style.height = alto + 'px'; el.className = girando ? 'gira' : ''; $('#ptr-t').textContent = txt;
+function cargaMuestra(txt) {
+  var el = $('#carga'); if (!el) return;
+  $('#carga-t').textContent = txt; el.classList.remove('sale'); el.hidden = false;
 }
+/* botón «Buscar actualización» de Ajustes */
 function actRevisa() {
   if (actOcupada) return Promise.resolve();
-  actOcupada = true;
-  actPinta(64, 'Buscando actualización…', true);
+  actOcupada = true; aviso('Buscando actualización…');
   var ini = Date.now();
   return actBusca().then(function (r) {
     return new Promise(function (ok) { setTimeout(function () { ok(r); }, Math.max(0, 700 - (Date.now() - ini))); });
   }).then(function (r) {
-    if (r === 'nueva') { actPinta(64, 'Versión nueva. Actualizando…', true); return actAplica(); }
-    actPinta(64, r === 'igual' ? 'Ya tienes la última versión' : r === 'sin-red' ? 'Sin conexión. Intenta otra vez' : 'Esta copia no se actualiza sola', false);
-    return new Promise(function (ok) { setTimeout(function () { actPinta(0, '', false); actOcupada = false; ok(); }, 1400); });
+    if (r === 'nueva') { cargaMuestra('Actualizando a la versión nueva…'); return actAplica(); }
+    aviso(r === 'igual' ? 'Ya tienes la última versión.' : r === 'sin-red' ? 'Sin conexión. Intenta otra vez.' : 'Esta copia no se actualiza sola.');
+    actOcupada = false;
   });
 }
-function actGesto() {
-  var y0 = 0, x0 = 0, activo = false, dy = 0, UMBRAL = 56;
-  document.addEventListener('touchstart', function (e) {
-    activo = false; dy = 0;
-    if (actOcupada || e.touches.length !== 1) return;
-    if ((window.pageYOffset || document.documentElement.scrollTop) > 0) return;
-    if (document.querySelector('.modal:not([hidden])')) return;
-    if (e.target.closest && e.target.closest('canvas, input, textarea, select, .vista-doc')) return;
-    y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; activo = true;
-  }, { passive: true });
-  document.addEventListener('touchmove', function (e) {
-    if (!activo) return;
-    var t = e.touches[0]; dy = t.clientY - y0;
-    if (dy <= 0) { activo = false; actPinta(0, '', false); return; }
-    if (Math.abs(t.clientX - x0) > dy) return;
-    if (e.cancelable) e.preventDefault();
-    var h = Math.min(dy * 0.5, 80);
-    actPinta(h, h >= UMBRAL ? 'Suelta para actualizar' : 'Jala para actualizar', false, true);
-  }, { passive: false });
-  document.addEventListener('touchend', function () {
-    if (!activo) return; activo = false;
-    if (dy * 0.5 >= UMBRAL) actRevisa(); else actPinta(0, '', false);
-  }, { passive: true });
-}
-/* al abrir la app o volver a ella, avisa si hay una versión nueva (sin recargar sola) */
-function actAuto() {
-  if (actOcupada || Date.now() - actUltima < 300000) return;
-  actBusca().then(function (r) { if (r === 'nueva') aviso('Hay una versión nueva. Jala la pantalla hacia abajo para actualizar.'); });
+/* al volver a la app después de más de 5 minutos: si hay versión nueva, se actualiza (no si hay una ventana abierta, para no perder lo que escribes) */
+function actVuelve() {
+  var fuera = actFuera ? Date.now() - actFuera : 0; actFuera = 0;
+  if (actOcupada || fuera < 300000) return;
+  if (document.querySelector('.modal:not([hidden])') || !$('#hoja').hidden || !$('#carga').hidden) return;
+  actOcupada = true;
+  actBusca().then(function (r) {
+    if (r === 'nueva') { cargaMuestra('Actualizando a la versión nueva…'); actAplica(); } else actOcupada = false;
+  });
 }
 function actInit() {
-  actGesto();
-  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') actAuto(); });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') actFuera = Date.now(); else actVuelve(); });
   var v = $('#ver-txt'); if (v) v.textContent = actFecha() ? 'Versión del ' + actFecha() : 'Copia local: no se actualiza sola';
   var b = $('#btn-actualiza'); if (b) b.addEventListener('click', function () { window.scrollTo(0, 0); actRevisa(); });
-  setTimeout(actAuto, 4000);
 }
 
 /* ---------- pantalla de carga: busca versión nueva al abrir la app y se actualiza sola ---------- */
 function cargaInicia() {
   var el = $('#carga'); if (!el) return;
   var ini = Date.now(), MIN = 800, TOPE = 3000, listo = false;
-  var sale = function () { if (listo) return; listo = true; el.classList.add('sale'); setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 400); };
+  var sale = function () { if (listo) return; listo = true; el.classList.add('sale'); setTimeout(function () { el.hidden = true; }, 400); };
   var yaIntento = false;
   try { yaIntento = Date.now() - (+sessionStorage.getItem('pj.cargaAct') || 0) < 90000; } catch (e) {}
   if (!actVersion() || yaIntento) { setTimeout(sale, MIN); return; }
@@ -3443,11 +3381,6 @@ function aFilasObra(h) {
 }
 
 function aInit() {
-  $('#btn-anticipo').addEventListener('click', function () { aFormAnticipo(q.id); });
-  $('#btn-compfinal').addEventListener('click', function () { aCompAccion(q.id + '|final'); });
-  $('#btn-pg').addEventListener('click', function () { gCambiaPG(q.id); });
-  $('#btn-qf').addEventListener('click', function () { gQuitaFactura(q.id); });
-  $('#btn-recibos').addEventListener('click', function () { abreRecibosCli(q.id); });
   var cu = $('#fm-cuerpo');
   cu.addEventListener('input', function (e) { if (e.target.id === 'fm-monto') { aMontoEditado = true; aPintaDesg(); } });
   cu.addEventListener('click', function (e) {
@@ -4159,16 +4092,10 @@ function arranca() {
   });
   
   
-  $('#btn-nueva-cot').addEventListener('click', nuevaCot);
-  $('#btn-nueva-abajo').addEventListener('click', nuevaCot);
-  $('#btn-copia').addEventListener('click', function () { if (!q.guardada) guardar(true); duplica(q.id); });
   $('#mf-ok').addEventListener('click', aceptaFirma); $('#mf-cancela').addEventListener('click', cierraFirma); $('#mf-limpia').addEventListener('click', function () { padCli.limpia(); });
   $('#hist-lista').addEventListener('click', accionLista);
   $('#h-filtros').addEventListener('click', function (e) { var b = e.target.closest('[data-filtro]'); if (!b) return; filtroH = b.getAttribute('data-filtro'); pintaHistorial(); });
   $('#h-buscar').addEventListener('input', function (e) { buscaH = e.target.value; pintaHistorial(); });
-  $('#btn-no').addEventListener('click', function () { if (!q.cliente.nombre.trim()) { aviso('Escribe el nombre del cliente.'); return; } guardar(true); abreNo(q.id); });
-  $('#btn-terminado').addEventListener('click', function () { aTermina(q.id); });
-  $('#btn-reabrir').addEventListener('click', function () { marcaEstado(q.id, estadoReabrir(q.id)); });
   $('#mn-ok').addEventListener('click', aceptaNo); $('#mn-cancela').addEventListener('click', cierraNo);
   document.addEventListener('keydown', function (e) {
     var m = $('#modal-no'); if (m.hidden) return;
