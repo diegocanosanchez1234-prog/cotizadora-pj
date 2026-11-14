@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="7098bea74d">
-<meta name="pj-fecha" content="2026-11-14 16:33">
+<meta name="pj-build" content="584ffbe8f0">
+<meta name="pj-fecha" content="2026-11-14 16:44">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1688,6 +1688,7 @@ function fVistaResumen() {
     (function () { var tot = fSuma(c.cob, 'iva'), ya = fSuma(c.cob.filter(function (r) { return r.facturada || r.pg; }), 'iva'); return tot > 0 ? '<div class="f-nota">De lo que entró, ' + money(tot) + ' es IVA: ' + (ya > 0 ? money(ya) + ' ya cuenta en Impuestos; ' : '') + (r2(tot - ya) > 0.004 ? money(r2(tot - ya)) + ' no pasa a Impuestos hasta que envíes la factura (Excel).' : '') + ' Lo cobrado en efectivo sin factura no lleva IVA.</div>' : ''; })() +
     '<div class="f-nota">“Entró a la cuenta” es lo que cobraste en el mes: los pagos que registraste (anticipos, pagos a cuenta y pago final) y, si terminaste una obra sin registrar su pago final, el resto ese día. Incluye el IVA y ya descuenta el ISR que te retuvieron. Los impuestos son estimados.</div>');
   h += bTarjetaBancoResumen();
+  h += bTarjetaDinero();
   h += fCardSaldo();
   var ms = fMeses(), vals = ms.map(function (m) { return Math.max(fCalc(m.k).neto, 0); });
   h += fMarcos('<div class="f-chead"><div class="f-th">Neto por mes</div>' + fToggle() + '</div>' + fBarras(vals, ms, finMes));
@@ -1766,6 +1767,7 @@ function fSaldo(k) {
   return { antes: r2(antes), mes: r2(mes), cierre: r2(antes + mes) };
 }
 function fCardSaldo() {
+  if (fTbl('Estados').length) return '';
   if (!fPrimerMes() && !num(ajustes.saldoAjuste)) return '';
   var s = fSaldo(finMes), xpag = fImp(finMes).total, sig = fMesTxt(fMesMas(finMes, 1)).split(' ')[0].toLowerCase();
   return fMarcos('<div class="f-th">Saldo en la cuenta <small>ESTIMADO</small></div><div class="f-g">' +
@@ -2322,6 +2324,7 @@ function bAccion(a, b) {
   else if (a === 'selall') marca(bVisibles());
   else if (a === 'nosel') { bSel = {}; bPintaSc(); }
   else if (a === 'duptoggle') { bDupVer = !bDupVer; bPintaSc(); }
+  else if (a === 'saldos') bFormSaldos();
   else if (a === 'cobroOtra') bCobroOtra(id);
   else if (a === 'ctaSel') { var kk = b.getAttribute('data-k'); if (b.checked) cSelCta[kk] = 1; else delete cSelCta[kk]; bPintaSc(); }
   else if (a === 'ctaAll') { bSinCuenta().forEach(function (g) { if (b.checked) cSelCta[g.k] = 1; else delete cSelCta[g.k]; }); bPintaSc(); }
@@ -2435,6 +2438,55 @@ function bQuitaEdo(id) {
 }
 
 /* --- pantalla --- */
+/* ---- Mi dinero hoy: BBVA + otras cuentas + efectivo ---- */
+function bOtras() {
+  var d0 = bPrimerDia(), lig = bLigados(), ok = function (r) { return d0 && String(r.fecha) >= d0; };
+  var tra = fTbl('Banco').filter(function (m) { return m.est === 'tra'; });
+  var entra = r2(fSuma(tra.filter(function (m) { return m.tipo === 'cargo'; }), 'monto') - fSuma(tra.filter(function (m) { return m.tipo === 'abono'; }), 'monto'));
+  var cob = fSuma(fTbl('Cobros').filter(function (c) { return ok(c) && c.forma && c.forma !== 'efectivo' && c.cta === 'otra' && !lig['cobro:' + c.id]; }), 'monto');
+  var sal = r2(fSuma(fTbl('Gastos').filter(function (g) { return ok(g) && !lig['gasto:' + g.id] && g.cuenta === 'otra'; }), 'total') + fSuma(fTbl('Pagos').filter(function (p) { return ok(p) && !lig['pago:' + p.id] && p.cuenta === 'otra'; }), 'monto') + fSuma(fTbl('Prestamos').filter(function (p) { return ok(p) && !lig['prestamo:' + p.id] && p.cuenta === 'otra'; }), 'monto'));
+  var calc = r2(entra + cob - sal), aj = num(ajustes.otrasAjuste);
+  return { entra: entra, cob: cob, sal: sal, calc: calc, aj: aj, esp: r2(calc + aj) };
+}
+function bDinero() {
+  var h = ajustes.dineroHoy || null, ests = bEstadosOrden(), ult = ests[ests.length - 1] || null, e = bEfectivo(), o = bOtras();
+  var manual = !!(h && h.bbva !== null && h.bbva !== undefined && (!ult || String(h.fecha) > String(ult.hasta)));
+  var bbva = manual ? num(h.bbva) : (ult && ult.saldoFin !== null && ult.saldoFin !== undefined ? num(ult.saldoFin) : 0);
+  return { bbva: bbva, bbvaEtq: manual ? 'al ' + fechaLarga(h.fecha) : (ult ? 'al ' + fechaLarga(ult.hasta) + ' (último estado)' : ''), otras: o.esp, efectivo: e.esp, total: r2(bbva + o.esp + e.esp), h: h, o: o, e: e };
+}
+function bTarjetaDinero() {
+  if (!bEstadosOrden().length) return '';
+  var d = bDinero(), h = d.h;
+  var fila = function (et, v, nota) { return '<span class="f-et">' + et + (nota ? '<br><small style="text-transform:none;letter-spacing:0;color:#5d5d60;font:12.5px var(--body)">' + nota + '</small>' : '') + '</span><span class="v">' + money(v) + '</span>'; };
+  var nOtras = h && h.otras && h.otras.length ? 'contado el ' + esc(fFechaCorta(h.fecha)) + ': ' + h.otras.map(function (x) { return esc(x.n) + ' ' + money(x.s); }).join(', ') : 'lo que pasaste del BBVA, menos lo que pagaste desde ahí';
+  var nEfe = h && h.efectivo !== null && h.efectivo !== undefined ? 'contado el ' + esc(fFechaCorta(h.fecha)) + ': ' + money(h.efectivo) : 'según tus registros';
+  return fMarcos('<div class="f-th">Mi dinero hoy</div><div class="f-g" style="margin-top:10px">' + fila('BBVA', d.bbva, esc(d.bbvaEtq)) + fila('Otras cuentas', d.otras, nOtras) + fila('Efectivo', d.efectivo, nEfe) + '<hr><span class="f-et">Total</span><span class="v s">' + money(d.total) + '</span></div>' +
+    '<div class="f-nota">Se mueve solo con lo que registras: cada gasto, sueldo o cobro dice de qué cuenta salió o a cuál entró, y lo que pasas del BBVA a tus otras cuentas se suma ahí. Si algo no coincide con lo que de verdad tienes, actualiza tus saldos y la app guarda la diferencia como ajuste.</div>' +
+    '<button type="button" class="f-btn" data-ba="saldos">Actualizar mis saldos</button>');
+}
+function bFormSaldos() {
+  var d = bDinero(), h = d.h, filas = '', i, ot = h && h.otras && h.otras.length ? h.otras : [{ n: 'Otras cuentas', s: d.otras }];
+  for (i = 0; i < 5; i++) {
+    var x = ot[i] || { n: '', s: '' };
+    filas += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px"><input id="fm-on' + i + '" value="' + esc(x.n) + '" placeholder="Nombre de la cuenta"><input id="fm-os' + i + '" type="number" inputmode="decimal" step="0.01" value="' + esc(String(x.s)) + '" placeholder="Saldo"></div>';
+  }
+  fAbreModal('Actualizar mis saldos', '<p class="nota" style="margin:0 0 12px">Escribe cuánto tienes hoy. La app compara con lo que calculó y guarda la diferencia como ajuste (lo que ya tenías antes de usar la app o lo que no registraste).</p>' +
+    '<div class="campo"><label for="fm-hfecha">Al día</label><input id="fm-hfecha" type="date" value="' + hoyISO() + '"></div>' +
+    '<div class="campo"><label for="fm-hbbva">En el BBVA (el saldo disponible de hoy)</label><input id="fm-hbbva" type="number" inputmode="decimal" step="0.01" value="' + esc(String(d.bbva)) + '"></div>' +
+    '<div class="campo"><label for="fm-hefe">En efectivo (lo que contaste)</label><input id="fm-hefe" type="number" inputmode="decimal" step="0.01" value="' + esc(String(d.efectivo)) + '"></div>' +
+    '<div class="f-et" style="margin:4px 0 8px">TUS OTRAS CUENTAS (NOMBRE Y SALDO)</div>' + filas +
+    '<p class="nota" style="margin:0">Deja en blanco las filas que no uses.</p>', 'Guardar', function () {
+      var bb = bNum(fv('hbbva')), ef = bNum(fv('hefe')), otras = [], k;
+      for (k = 0; k < 5; k++) { var s = bNum(fv('os' + k)); if (s !== null) otras.push({ n: fv('on' + k).trim() || 'Otra cuenta', s: s }); }
+      var e0 = bEfectivo(), o0 = bOtras();
+      if (ef !== null) ajustes.efectivoAjuste = r2(ef - e0.calc);
+      if (otras.length) ajustes.otrasAjuste = r2(fSuma(otras, 's') - o0.calc);
+      ajustes.dineroHoy = { fecha: fv('hfecha') || hoyISO(), bbva: bb, efectivo: ef, otras: otras };
+      escribir(K_AJ, ajustes);
+      return 'Listo: tienes ' + money(bDinero().total) + ' en total.';
+    });
+}
+
 /* ---- de qué cuenta salió / entró el dinero ---- */
 var cSelCta = {}, C_CTAS = { bbva: 'BBVA', otra: 'otra cuenta', efectivo: 'efectivo' };
 function bCta(r) { return r.cuenta || 'efectivo'; }
@@ -2758,7 +2810,7 @@ function fVistaBanco() {
   var chip = c.ini === null || c.fin === null ? 'Falta un saldo para conciliar' : Math.abs(c.dif) < 0.005 ? 'Cuadra ✓' : 'No cuadra: ' + money(Math.abs(c.dif));
   h += '<div class="f-dark"><div class="et">SALDO EN EL BANCO</div><div class="n">' + (c.fin !== null ? fGrande(c.fin) : '$—') + '</div><p>Al ' + esc(fechaLarga(u.hasta)) + ' · Entró ' + money(c.ab) + ' · Salió ' + money(c.ca) + '</p><p style="margin-top:6px;font-weight:600">' + chip + '</p></div>' + up;
   var fila = function (m, texto) { return '<div>' + esc(bTxt(m)) + '<div class="m">' + esc(fFechaCorta(m.fecha) + ' · ' + (m.tipo === 'abono' ? 'abono' : 'cargo')) + '</div></div><span class="v' + (m.tipo === 'abono' ? ' f-ok' : '') + '">' + (m.tipo === 'abono' ? '+' : '-') + money(m.monto) + '</span><button type="button" class="f-mini" style="padding:6px 9px;font-size:12px" data-ba="clas" data-id="' + esc(m.id) + '">' + texto + '</button>'; };
-  h += bTarjetaPuente(u) + bTarjetaSinCuenta() + bTarjetaSaldo(u, c) + bTarjetaSalidas(u) + bTarjetaQue(u, c, k, dups, pend) + bTarjetaCuadre(u, k) + '<div id="b-pend">' + bTarjetaPend(pend) + '</div>' + bTarjetaConc(u) + bTarjetaDup() + bTarjetaPropias();
+  h += bTarjetaDinero() + bTarjetaPuente(u) + bTarjetaSinCuenta() + bTarjetaSaldo(u, c) + bTarjetaSalidas(u) + bTarjetaQue(u, c, k, dups, pend) + bTarjetaCuadre(u, k) + '<div id="b-pend">' + bTarjetaPend(pend) + '</div>' + bTarjetaConc(u) + bTarjetaDup() + bTarjetaPropias();
   var e = bEfectivo();
   h += fMarcos('<div class="f-th">Efectivo</div><div class="f-g">' +
     '<span class="f-et">Cobros en efectivo</span><span class="v">' + money(e.cob) + '</span>' +
