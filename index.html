@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="9f6ed3ed1d">
-<meta name="pj-fecha" content="2026-11-14 15:00">
+<meta name="pj-build" content="e989c517d5">
+<meta name="pj-fecha" content="2026-11-14 15:20">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1488,7 +1488,7 @@ async function generaFact() {
 /* ---------- datos de finanzas: todo se guarda en este teléfono ---------- */
 var K_FIN = 'pjq.fin.v2';
 var finStore = leer(K_FIN, null) || {};
-['Gastos', 'Trabajadores', 'Dias', 'Pagos', 'Prestamos', 'Banco', 'Estados', 'Reglas'].forEach(function (n) { if (!Array.isArray(finStore[n])) finStore[n] = []; });
+['Gastos', 'Trabajadores', 'Dias', 'Pagos', 'Prestamos', 'Banco', 'Estados', 'Reglas', 'Proveedores'].forEach(function (n) { if (!Array.isArray(finStore[n])) finStore[n] = []; });
 var ALIAS_FIN = { gasto: 'Gastos', trabajador: 'Trabajadores', dia: 'Dias', pago: 'Pagos', prestamo: 'Prestamos' };
 var fGuardaPausa = false;
 function fGuarda() { if (!fGuardaPausa) escribir(K_FIN, finStore); }
@@ -1578,7 +1578,7 @@ function fEncola(it) {
 /* al importar un respaldo: se agrega lo que falte, sin pisar lo que ya hay */
 function fMezcla(f) {
   var n = 0; if (!f || typeof f !== 'object') return 0;
-  ['Gastos', 'Trabajadores', 'Dias', 'Pagos', 'Prestamos', 'Banco', 'Estados', 'Reglas'].forEach(function (nombre) {
+  ['Gastos', 'Trabajadores', 'Dias', 'Pagos', 'Prestamos', 'Banco', 'Estados', 'Reglas', 'Proveedores'].forEach(function (nombre) {
     (Array.isArray(f[nombre]) ? f[nombre] : []).forEach(function (r) {
       if (r && r.id && !finStore[nombre].some(function (x) { return x.id === r.id; })) { finStore[nombre].push(r); n++; }
     });
@@ -1659,10 +1659,10 @@ function fPinta() {
   var cont = $('#fin-cont'); if (!cont) return;
   var banco = finVista === 'banco', sw = '<div class="f-seg" role="group" aria-label="Modo"><button type="button" data-fa="modomes" aria-pressed="' + !banco + '">Finanzas del mes</button><button type="button" data-fa="vista" data-v="banco" aria-pressed="' + banco + '">Banco</button></div>';
   var cab = sw + (banco ? '' : '<div class="f-mes"><button type="button" class="f-fl" data-fa="mesmas" data-n="-1" aria-label="Mes anterior">‹</button><b>' + esc(fMesTxt(finMes)) + '</b><button type="button" class="f-fl" data-fa="mesmas" data-n="1" aria-label="Mes siguiente">›</button></div>' +
-    '<div class="f-seg" role="group" aria-label="Sección">' + [['resumen', 'Resumen'], ['impuestos', 'Impuestos'], ['obras', 'Obras'], ['sueldos', 'Sueldos']].map(function (v) {
+    '<div class="f-seg" role="group" aria-label="Sección">' + [['resumen', 'Resumen'], ['impuestos', 'Impuestos'], ['obras', 'Obras'], ['sueldos', 'Sueldos'], ['compras', 'Compras']].map(function (v) {
       return '<button type="button" data-fa="vista" data-v="' + v[0] + '" aria-pressed="' + (finVista === v[0]) + '">' + v[1] + '</button>'; }).join('') + '</div>');
   var estado = '<div class="f-estado"><span>Todo se guarda en este teléfono</span><button type="button" data-fa="respaldo">Respaldar</button></div>';
-  var cuerpo = estado + (finVista === 'impuestos' ? fVistaImpuestos() : finVista === 'obras' ? fVistaObras() : finVista === 'sueldos' ? fVistaSueldos() : finVista === 'banco' ? fVistaBanco() : fVistaResumen());
+  var cuerpo = estado + (finVista === 'impuestos' ? fVistaImpuestos() : finVista === 'obras' ? fVistaObras() : finVista === 'sueldos' ? fVistaSueldos() : finVista === 'compras' ? fVistaCompras() : finVista === 'banco' ? fVistaBanco() : fVistaResumen());
   cont.innerHTML = cab + cuerpo;
 }
 function fHace(ts) { var m = Math.round((Date.now() - (ts || 0)) / 60000); return !ts ? 'nunca' : m < 1 ? 'hace un momento' : m < 60 ? 'hace ' + m + ' min' : m < 1440 ? 'hace ' + Math.round(m / 60) + ' h' : 'hace ' + Math.round(m / 1440) + ' d'; }
@@ -1792,7 +1792,22 @@ var B_MES_NOM = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO',
 var bAmt = /^-?\$?\d{1,3}(?:,\d{3})*\.\d{2}-?$/, bCtx = null, bTextoLeido = '';
 function bNumTxt(s) { var neg = /^-|-$/.test(String(s)); var v = parseFloat(String(s).replace(/[$,\-]/g, '')); return neg ? -v : v; }
 function bNorm(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim(); }
-function bClave(desc) { return bNorm(desc).replace(/\b[A-Z0-9]{9,}\b/g, '').replace(/\b\d{4,}\b/g, '').replace(/\s+/g, ' ').trim().slice(0, 70); }
+function bClaveTxt(desc) { return bNorm(desc).replace(/\b[A-Z0-9]{9,}\b/g, '').replace(/\b\d{4,}\b/g, '').replace(/\s+/g, ' ').trim().slice(0, 70); }
+/* RFC dentro del texto del movimiento: 3-4 letras, fecha válida (AAMMDD) y homoclave; sin los genéricos de público en general / extranjero */
+function bRfc(desc) {
+  var n = String(desc || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase(), re = /(?:^|[^A-Z0-9&])([A-Z&]{3,4})(\d{2})(\d{2})(\d{2})([A-Z0-9]{3})(?![A-Z0-9])/g, m;
+  while ((m = re.exec(n))) {
+    var mm = +m[3], dd = +m[4], rfc = m[1] + m[2] + m[3] + m[4] + m[5];
+    if (mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31 && !/^X[AE]XX010101000$/.test(rfc)) return rfc;
+  }
+  return '';
+}
+function bClave(desc) { var r = bRfc(desc); return r ? 'RFC ' + r : bClaveTxt(desc); }
+function bProvNombre(rfc) { var x = rfc ? fTbl('Proveedores').find(function (r) { return r.rfc === rfc; }) : null; return x ? x.nombre : ''; }
+function bProvGuarda(rfc, nombre) { var l = fTbl('Proveedores'), x = l.find(function (r) { return r.rfc === rfc; }); if (x) x.nombre = nombre; else l.push({ id: rfc, rfc: rfc, nombre: nombre }); fGuarda(); }
+function bProvConRfc(prov, desc) { var r = bRfc(desc); prov = String(prov || ''); return r && prov.indexOf(r) < 0 ? (prov ? prov + ' · ' : '') + 'RFC ' + r : prov; }
+function bTxt(m) { var r = bRfc(m.desc), n = r ? bProvNombre(r) : ''; return n ? n + ' · RFC ' + r : String(m.desc || '(sin descripción)').slice(0, 60); }
+function bEtq(c) { var m = /^RFC (\S+)$/.exec(c), n = m ? bProvNombre(m[1]) : ''; return n ? n + ' · RFC ' + m[1] : c; }
 function bHash(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); }
 function bMes(s) { s = bNorm(s); if (/^\d+$/.test(s)) return +s; if (B_MES_ABR[s.slice(0, 3)]) return B_MES_ABR[s.slice(0, 3)]; return 0; }
 function bIso(y, m, d) { return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0'); }
@@ -1941,10 +1956,10 @@ function bImporta(r, nuevos, nombre) {
 function bLigados() { var s = {}; fTbl('Banco').forEach(function (m) { if (m.liga) s[m.liga] = m.id; }); return s; }
 function bDias(a, b) { return Math.abs(Date.parse(a + 'T12:00:00') - Date.parse(b + 'T12:00:00')) / 86400000; }
 function bCandidatos(m) {
-  var lig = bLigados(), out = [], trab = fTbl('Trabajadores');
-  function add(tipo, id, fecha, monto, tit) { if (lig[tipo + ':' + id]) return; out.push({ k: tipo + ':' + id, fecha: fecha, monto: num(monto), tit: tit, dif: r2(Math.abs(num(monto) - m.monto)), dias: bDias(fecha, m.fecha) }); }
+  var lig = bLigados(), out = [], trab = fTbl('Trabajadores'), rfm = bRfc(m.desc);
+  function add(tipo, id, fecha, monto, tit, rf) { if (lig[tipo + ':' + id]) return; out.push({ rf: !!rf, k: tipo + ':' + id, fecha: fecha, monto: num(monto), tit: tit, dif: r2(Math.abs(num(monto) - m.monto)), dias: bDias(fecha, m.fecha) }); }
   if (m.tipo === 'cargo') {
-    fTbl('Gastos').forEach(function (g) { add('gasto', g.id, g.fecha, g.total, 'Gasto · ' + (g.proveedor || g.concepto || 'sin nombre')); });
+    fTbl('Gastos').forEach(function (g) { add('gasto', g.id, g.fecha, g.total, 'Gasto · ' + (g.proveedor || g.concepto || 'sin nombre'), rfm && String(g.proveedor || '').toUpperCase().indexOf(rfm) >= 0); });
     fTbl('Pagos').forEach(function (p) { var w = trab.find(function (x) { return x.id === p.trabajador; }); add('pago', p.id, p.fecha, p.monto, 'Pago a ' + (w ? w.nombre : 'trabajador')); });
     fTbl('Prestamos').forEach(function (p) { var w = trab.find(function (x) { return x.id === p.trabajador; }); add('prestamo', p.id, p.fecha, p.monto, 'Préstamo a ' + (w ? w.nombre : 'trabajador')); });
   } else {
@@ -1981,8 +1996,8 @@ function bAuto() {
   fTbl('Banco').filter(function (m) { return m.est === 'pend'; }).sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)); }).forEach(function (m) {
     var ex = bCandidatos(m).filter(function (c) { return c.dif <= 0.01 && c.dias <= 10; });
     if (ex.length === 1) { bLiga(m, ex[0].k); r.lig++; return; }
-    if (ex.length > 1) return;
-    var clave = bClave(m.desc), rg = fTbl('Reglas').find(function (x) { return x.clave === clave && x.tipo === m.tipo; });
+    if (ex.length > 1) { var er = ex.filter(function (c2) { return c2.rf; }); if (er.length === 1) { bLiga(m, er[0].k); r.lig++; } return; }
+    var clave = bClave(m.desc), rg = fTbl('Reglas').find(function (x) { return (x.clave === clave || x.clave === bClaveTxt(m.desc)) && x.tipo === m.tipo; });
     if (rg && bAplicaRegla(m, rg)) { r.reg++; return; }
     var s = bSugiere(m);
     if (s === 'efe') { m.est = 'efe'; r.efe++; } else if (s === 'sat') { m.est = 'sat'; r.sat++; }
@@ -1993,7 +2008,7 @@ function bAuto() {
 /* --- crear lo que falta (cada registro nace ya vinculado al movimiento) --- */
 function bCreaGasto(m, d) {
   var id = aId(), fac = d.fac === 'si' ? 'si' : 'no', iva = fac === 'si' ? (d.iva !== undefined ? num(d.iva) : r2(m.monto * num(d.r))) : 0;
-  fEncola({ accion: 'gasto', id: id, fecha: m.fecha, proveedor: d.prov || '', concepto: d.conc || '', categoria: d.cat || 'otro', obra: d.obra || '', facturado: fac, total: m.monto, iva: iva, uuid: '' });
+  fEncola({ accion: 'gasto', id: id, fecha: m.fecha, proveedor: bProvConRfc(d.prov, m.desc), concepto: d.conc || '', categoria: d.cat || 'otro', obra: d.obra || '', facturado: fac, total: m.monto, iva: iva, uuid: '' });
   m.est = 'lig'; m.liga = 'gasto:' + id; m.creado = true;
 }
 function bCreaPersona(m, tipo, trabId, nota) {
@@ -2034,7 +2049,7 @@ function bDeshace(m) {
 /* --- clasificar un movimiento --- */
 function bListaCand(m) {
   var l = bCandidatos(m).filter(function (c) { return c.dias <= 25; });
-  l.sort(function (a, b) { return (a.dif - b.dif) || (a.dias - b.dias); });
+  l.sort(function (a, b) { return (b.rf - a.rf) || (a.dif - b.dif) || (a.dias - b.dias); });
   return l.slice(0, 12);
 }
 function bProveedor(desc) { return bNorm(desc).split(' ').filter(function (x) { return !/\d/.test(x) && x.length > 1 && !/^(SPEI|ENVIADO|RECIBIDO|COMPRA|PAGO|TARJETA|TRASPASO)$/.test(x); }).join(' ').slice(0, 40); }
@@ -2050,7 +2065,7 @@ function bClasifica(id) {
   var obras = historial.filter(function (h) { var e = estadoDe(h); return h.datos && (e === 'aceptada' || e === 'terminada'); }).sort(function (a, b) { return (aResta(b.datos) > 0) - (aResta(a.datos) > 0) || String(b.fecha).localeCompare(String(a.fecha)); });
   var cuerpo = '<p class="nota" style="margin:0 0 4px">' + esc(fechaLarga(m.fecha)) + ' · ' + (ab ? 'Abono' : 'Cargo') + ' de <b>' + esc(money(m.monto)) + '</b></p><p class="nota" style="margin:0 0 12px;word-break:break-word">' + esc(m.desc || '(sin descripción)') + '</p>' +
     '<div class="campo"><label>¿Qué es?</label>' + fChips('bacc', opc, [init], false) + '</div>' +
-    '<div data-bsec="gasto" hidden><div class="campo"><label for="fm-prov">Proveedor</label><input id="fm-prov" value="' + esc(bProveedor(m.desc)) + '"></div>' +
+    '<div data-bsec="gasto" hidden><div class="campo"><label for="fm-prov">Proveedor' + (bRfc(m.desc) ? ' (RFC ' + esc(bRfc(m.desc)) + ')' : '') + '</label><input id="fm-prov" value="' + esc(bProvNombre(bRfc(m.desc)) || bProveedor(m.desc)) + '"></div>' +
     '<div class="campo"><label for="fm-conc">Concepto</label><input id="fm-conc" placeholder="Qué se pagó"></div>' +
     '<div class="campo"><label>Tipo de gasto</label>' + fChips('cat', CATS, [sug === 'comision' ? 'comision' : 'otro'], false) + '</div>' +
     '<div class="campo"><label>¿Se facturó?</label>' + fChips('fac', [['si', 'Sí, con factura'], ['no', 'No (no deducible)']], [], false) + '</div>' +
@@ -2061,7 +2076,7 @@ function bClasifica(id) {
     '<div data-bsec="cobro" hidden><div class="campo"><label for="fm-hid">Obra</label><select id="fm-hid"><option value="">Elige…</option>' + obras.map(function (h) { return '<option value="' + esc(h.id) + '">' + esc(h.folio + ' · ' + (h.cliente || '') + ' · resta ' + money(aResta(h.datos))) + '</option>'; }).join('') + '</select></div>' +
     '<div class="campo"><label for="fm-forma2">Forma de pago</label><select id="fm-forma2"><option value="transferencia"' + (sug === 'tarjeta' ? '' : ' selected') + '>Transferencia</option><option value="tarjeta"' + (sug === 'tarjeta' ? ' selected' : '') + '>Tarjeta</option><option value="otro">Otro</option></select></div>' +
     '<div class="campo"><label>¿Con factura?</label>' + fChips('cobf', [['si', 'Sí (lleva IVA)'], ['no', 'No']], ['si'], false) + '<p class="nota" style="margin:6px 0 0">Solo aplica si la cotización lleva factura. Si el depósito llegó con comisión de la terminal, corrige el monto del cobro después.</p></div></div>' +
-    '<div data-bsec="lig" hidden><div class="campo"><label for="fm-cand">Es este registro</label><select id="fm-cand"><option value="">Elige…</option>' + cands.map(function (c) { return '<option value="' + esc(c.k) + '"' + (c === cands[0] && init === 'lig' ? ' selected' : '') + '>' + esc(c.tit + ' · ' + fFechaCorta(c.fecha) + ' · ' + money(c.monto) + (c.dif > 0.01 ? ' (difiere ' + money(c.dif) + ')' : '')) + '</option>'; }).join('') + '</select>' + (cands.length ? '' : '<p class="nota" style="margin:6px 0 0">No encontré registros parecidos sin vincular.</p>') + '</div></div>' +
+    '<div data-bsec="lig" hidden><div class="campo"><label for="fm-cand">Es este registro</label><select id="fm-cand"><option value="">Elige…</option>' + cands.map(function (c) { return '<option value="' + esc(c.k) + '"' + (c === cands[0] && init === 'lig' ? ' selected' : '') + '>' + esc(c.tit + ' · ' + fFechaCorta(c.fecha) + ' · ' + money(c.monto) + (c.rf ? ' · mismo RFC' : '') + (c.dif > 0.01 ? ' (difiere ' + money(c.dif) + ')' : '')) + '</option>'; }).join('') + '</select>' + (cands.length ? '' : '<p class="nota" style="margin:6px 0 0">No encontré registros parecidos sin vincular.</p>') + '</div></div>' +
     '<p class="nota" data-bsec="sat" hidden>Pago de impuestos al SAT. No crea ningún registro: solo se marca para que no quede pendiente.</p>' +
     '<p class="nota" data-bsec="efe" hidden>' + (ab ? 'Efectivo que llevaste al banco: baja tu efectivo esperado.' : 'Efectivo que sacaste del banco: sube tu efectivo esperado.') + '</p>' +
     '<p class="nota" data-bsec="tra" hidden>Dinero que pasaste entre tus propias cuentas. No es gasto ni ingreso: no cuenta en Finanzas ni en Impuestos; solo deja de estar pendiente y cuenta en la conciliación del banco.</p>' +
@@ -2089,7 +2104,7 @@ function bGuardaClasif(m) {
   if (sel === 'gasto') {
     var fac = fChipsVal('fac')[0]; if (!fac) { aviso('Elige si se facturó o no.'); return false; }
     var d = { prov: fv('prov').trim(), conc: fv('conc').trim(), cat: fChipsVal('cat')[0] || 'otro', fac: fac, iva: fac === 'si' ? num(fv('iva')) : 0, obra: fv('obra') };
-    bCreaGasto(m, d);
+    bCreaGasto(m, d); if (bRfc(m.desc) && d.prov) bProvGuarda(bRfc(m.desc), d.prov);
     if (rec) bGuardaRegla(m, 'gasto', JSON.stringify({ prov: d.prov, conc: d.conc, cat: d.cat, fac: d.fac, r: fac === 'si' && m.monto > 0 ? r2(d.iva / m.monto) : 0, obra: d.obra }));
     fGuarda(); return 'Gasto registrado y vinculado.';
   }
@@ -2129,14 +2144,14 @@ function bGrupos(lista) {
 function bGrupoPorId(gid) { return bGrupos(bVisibles()).find(function (g) { return g.id === gid; }); }
 function bFilaLote(m, hijo) {
   return '<div class="b-r' + (hijo ? ' h' : '') + '"><input type="checkbox" data-ba="sel" data-id="' + esc(m.id) + '"' + (bSel[m.id] ? ' checked' : '') + ' aria-label="Seleccionar movimiento">' +
-    '<div class="t">' + esc((m.desc || '(sin descripción)').slice(0, 60)) + '<div class="m">' + esc(fFechaCorta(m.fecha) + ' · ' + (m.tipo === 'abono' ? 'abono' : 'cargo')) + '</div></div>' +
+    '<div class="t">' + esc(bTxt(m)) + '<div class="m">' + esc(fFechaCorta(m.fecha) + ' · ' + (m.tipo === 'abono' ? 'abono' : 'cargo')) + '</div></div>' +
     '<span class="v' + (m.tipo === 'abono' ? ' f-ok' : '') + '">' + (m.tipo === 'abono' ? '+' : '-') + money(m.monto) + '</span>' +
     '<button type="button" class="f-mini" style="padding:6px 9px;font-size:12px" data-ba="clas" data-id="' + esc(m.id) + '">Clasificar</button></div>';
 }
 function bFilaGrupo(g) {
   var it = g.items, ab = it[0].tipo === 'abono', todos = it.every(function (m) { return bSel[m.id]; }), abierto = !!bAbre[g.id], f = it.map(function (m) { return m.fecha; }).sort();
   return '<div class="b-r"><input type="checkbox" data-ba="selgrupo" data-g="' + g.id + '"' + (todos ? ' checked' : '') + ' aria-label="Seleccionar los ' + it.length + ' parecidos">' +
-    '<div class="t"><b>' + it.length + ' parecidos</b> · ' + esc(g.clave.slice(0, 40)) + '<div class="m">' + esc(fFechaCorta(f[0]) + (f[0] !== f[f.length - 1] ? ' al ' + fFechaCorta(f[f.length - 1]) : '') + ' · ' + (ab ? 'abonos' : 'cargos')) + ' · <button type="button" class="b-ver" data-ba="grupo" data-g="' + g.id + '">' + (abierto ? 'Ocultar' : 'Ver los ' + it.length) + '</button></div></div>' +
+    '<div class="t"><b>' + it.length + ' parecidos</b> · ' + esc(bEtq(g.clave).slice(0, 48)) + '<div class="m">' + esc(fFechaCorta(f[0]) + (f[0] !== f[f.length - 1] ? ' al ' + fFechaCorta(f[f.length - 1]) : '') + ' · ' + (ab ? 'abonos' : 'cargos')) + ' · <button type="button" class="b-ver" data-ba="grupo" data-g="' + g.id + '">' + (abierto ? 'Ocultar' : 'Ver los ' + it.length) + '</button></div></div>' +
     '<span class="v' + (ab ? ' f-ok' : '') + '">' + (ab ? '+' : '-') + money(fSuma(it, 'monto')) + '</span>' +
     '<button type="button" class="f-mini" style="padding:6px 9px;font-size:12px" data-ba="lotegrupo" data-g="' + g.id + '">Clasificar todos</button></div>';
 }
@@ -2298,6 +2313,8 @@ function bAccion(a, b) {
   else if (a === 'selall') marca(bVisibles());
   else if (a === 'nosel') { bSel = {}; bPintaSc(); }
   else if (a === 'duptoggle') { bDupVer = !bDupVer; bPintaSc(); }
+  else if (a === 'cper') { cPer = b.getAttribute('data-v'); fPinta(); }
+  else if (a === 'prov') cDetalle(b.getAttribute('data-k'));
   else if (a === 'edomas') {
     var ls = bEstadosOrden(), ix = ls.indexOf(bEdoActual()) + (+b.getAttribute('data-n'));
     if (ix >= 0 && ix < ls.length) { bEdoSel = ls[ix].id; bSel = {}; bFiltro = 'todos'; bMax = 60; bDupVer = false; fPinta(); }
@@ -2329,13 +2346,14 @@ function bLote(ids) {
   var preT = igual && s0.indexOf('sueldo:') === 0 ? s0.slice(7) : '';
   var opc = mixto ? [['tra', 'Entre mis cuentas'], ['ign', 'Ignorar']] : ab ? [['ing', 'Ingreso sin obra'], ['efe', 'Depósito de efectivo'], ['tra', 'De mi otra cuenta'], ['ign', 'Ignorar']]
     : [['comision', 'Comisión bancaria'], ['gasto', 'Gasto sin factura'], ['sueldo', 'Sueldo'], ['sat', 'Impuestos'], ['efe', 'Retiro de efectivo'], ['tra', 'A mi otra cuenta'], ['ign', 'Ignorar']];
+  var rfs = lista.map(function (m) { return bRfc(m.desc); }), provComun = rfs[0] && rfs.every(function (r) { return r === rfs[0]; }) ? bProvNombre(rfs[0]) : '';
   var cuerpo = '<p class="nota" style="margin:0 0 6px"><b>' + lista.length + ' movimientos</b> · ' + (mixto ? 'cargos y abonos' : ab ? 'abonos' : 'cargos') + ' por <b>' + esc(money(tot)) + '</b></p>' +
     (mixto ? '<p class="nota" style="margin:0 0 8px">Mezclaste cargos y abonos: juntos solo se pueden ignorar o marcar como transferencia entre tus cuentas. Para otra cosa, filtra por Cargos o por Abonos.</p>' : '') +
     '<details style="margin:0 0 12px"><summary class="nota" style="cursor:pointer;margin:0">Ver cuáles son</summary><div style="max-height:160px;overflow:auto;font:12px var(--mono);margin-top:8px">' +
     lista.slice(0, 200).map(function (m) { return esc(m.fecha.slice(5) + ' ' + (m.tipo === 'abono' ? '+' : '-') + m.monto.toFixed(2) + ' ' + (m.desc || '').slice(0, 40)); }).join('<br>') + '</div></details>' +
     '<div class="campo"><label>¿Qué son?</label>' + fChips('bacc', opc, [init], false) + '</div>' +
     '<p class="nota" data-bsec="comision" hidden>Se registra un gasto «Comisión bancaria» por cada movimiento, sin factura (no deducible): baja tu neto, no baja impuestos.</p>' +
-    '<div data-bsec="gasto" hidden><div class="campo"><label for="fm-prov">Proveedor (opcional)</label><input id="fm-prov" placeholder="Si lo dejas vacío uso el nombre del movimiento"></div>' +
+    '<div data-bsec="gasto" hidden><div class="campo"><label for="fm-prov">Proveedor (opcional)</label><input id="fm-prov" value="' + esc(provComun) + '" placeholder="Si lo dejas vacío uso el nombre del movimiento"></div>' +
     '<div class="campo"><label for="fm-conc">Concepto (opcional)</label><input id="fm-conc" placeholder="Qué se pagó"></div>' +
     '<div class="campo"><label>Tipo de gasto</label>' + fChips('cat', CATS, ['otro'], false) + '</div>' +
     '<div class="campo"><label for="fm-obra">Obra (opcional)</label><select id="fm-obra">' + fOpcObras('') + '</select></div>' +
@@ -2361,7 +2379,7 @@ function bGuardaLote(lista) {
       if (m.est !== 'pend') return;
       var accion = sel, dato = '';
       if (sel === 'comision') { dato = { prov: 'Banco', conc: 'Comisión bancaria', cat: 'comision', fac: 'no', r: 0, obra: '' }; bCreaGasto(m, dato); accion = 'gasto'; dato = JSON.stringify(dato); gastos++; }
-      else if (sel === 'gasto') { var d = { prov: dg.prov || bProveedor(m.desc), conc: dg.conc, cat: dg.cat, fac: 'no', r: 0, obra: dg.obra }; bCreaGasto(m, d); dato = JSON.stringify(d); gastos++; }
+      else if (sel === 'gasto') { var rf = bRfc(m.desc), d = { prov: dg.prov || (rf && bProvNombre(rf)) || bProveedor(m.desc), conc: dg.conc, cat: dg.cat, fac: 'no', r: 0, obra: dg.obra }; bCreaGasto(m, d); if (rf && dg.prov) bProvGuarda(rf, dg.prov); dato = JSON.stringify(d); gastos++; }
       else if (sel === 'sueldo') { bCreaPersona(m, 'sueldo', w, ''); dato = w; }
       else m.est = sel;
       if (rec) bGuardaRegla(m, accion, dato);
@@ -2399,6 +2417,70 @@ function bQuitaEdo(id) {
 }
 
 /* --- pantalla --- */
+/* ---- Compras por proveedor (por RFC), por mes y por año: salen de los gastos registrados, por eso cuadran con el Resumen ---- */
+var cPer = 'mes', C_MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+function cProvDe(g) {
+  var s = String(g.proveedor || '').trim(), m = /RFC\s*:?\s*([A-Z&Ñ]{3,4}\d{6}[A-Z0-9]{3})/i.exec(s), rfc = m ? m[1].toUpperCase() : '';
+  var nom = s.replace(/\s*·?\s*RFC\s*:?\s*[A-Z&Ñ0-9]+/i, '').replace(/^[\s·]+|[\s·]+$/g, '');
+  nom = (rfc && bProvNombre(rfc)) || nom || String(g.concepto || '').trim() || 'Sin proveedor';
+  return { k: rfc ? 'R:' + rfc : 'N:' + bNorm(nom), rfc: rfc, nombre: nom };
+}
+function cAgrupa(gs) {
+  var mapa = {}, orden = [];
+  gs.forEach(function (g) {
+    var p = cProvDe(g), x = mapa[p.k];
+    if (!x) { x = mapa[p.k] = { k: p.k, rfc: p.rfc, nombre: p.nombre, n: 0, total: 0, fac: 0, sin: 0, ultimo: '', items: [] }; orden.push(x); }
+    var v = num(g.total); x.n++; x.total = r2(x.total + v); if (g.facturado === 'no') x.sin = r2(x.sin + v); else x.fac = r2(x.fac + v);
+    if (String(g.fecha) > x.ultimo) x.ultimo = String(g.fecha); x.items.push(g);
+  });
+  return orden.sort(function (a, b) { return b.total - a.total; });
+}
+function cBarras(vals, etq) {
+  var mx = Math.max.apply(null, vals.concat([1]));
+  return '<div style="display:grid;grid-template-columns:44px 1fr 84px;gap:6px 8px;align-items:center;font-size:13px">' + vals.map(function (v, i) {
+    return '<span style="color:#5d5d60">' + esc(etq[i]) + '</span><div style="background:#f2f2f3;height:8px"><div style="width:' + (v > 0 ? Math.max(2, Math.round(v / mx * 100)) : 0) + '%;height:8px;background:#2a78d6"></div></div><span style="text-align:right;font-variant-numeric:tabular-nums">' + (v > 0 ? money(v) : '—') + '</span>';
+  }).join('') + '</div>';
+}
+function fVistaCompras() {
+  var y = finMes.slice(0, 4), anio = cPer === 'anio', ini = anio ? y + '-01-01' : finMes + '-01', fin = anio ? y + '-12-31' : finMes + '-31';
+  var todos = fTbl('Gastos'), gs = todos.filter(function (g) { return String(g.fecha) >= ini && String(g.fecha) <= fin; }), prov = cAgrupa(gs), tot = fSuma(gs, 'total');
+  var sin = fSuma(gs.filter(function (g) { return g.facturado === 'no'; }), 'total'), conF = r2(tot - sin), etq = anio ? y : fMesTxt(finMes);
+  var h = '<div class="f-seg" role="group" aria-label="Periodo" style="margin-bottom:14px"><button type="button" data-ba="cper" data-v="mes" aria-pressed="' + !anio + '">Este mes</button><button type="button" data-ba="cper" data-v="anio" aria-pressed="' + anio + '">Este año · ' + esc(y) + '</button></div>' +
+    '<div class="f-dark"><div class="et">COMPRADO EN ' + esc(etq.toUpperCase()) + '</div><div class="n">' + fGrande(tot) + '</div><p>' + gs.length + (gs.length === 1 ? ' compra' : ' compras') + ' a ' + prov.length + (prov.length === 1 ? ' proveedor' : ' proveedores') + (tot > 0 ? ' · ' + Math.round(conF / tot * 100) + ' % con factura' : '') + '</p></div>';
+  if (!gs.length) h += '<div class="f-vacio">Aún no hay gastos en ' + esc(etq.toLowerCase()) + '. Aparecen cuando registras un gasto o clasificas un cargo del banco como gasto.</div>';
+  else {
+    var mx = prov[0].total || 1;
+    h += fMarcos('<div class="f-th">Por proveedor <small>' + prov.length + '</small></div><div style="margin-top:6px">' + prov.slice(0, 40).map(function (p) {
+      return '<div class="b-r" role="button" tabindex="0" style="grid-template-columns:1fr auto;cursor:pointer" data-ba="prov" data-k="' + esc(p.k) + '"><div class="t"><b>' + esc(p.nombre) + '</b><div class="m">' + esc((p.rfc ? 'RFC ' + p.rfc + ' · ' : '') + p.n + (p.n === 1 ? ' compra' : ' compras') + ' · último ' + fFechaCorta(p.ultimo)) + '</div>' +
+        '<div style="background:#f2f2f3;height:6px;margin-top:6px"><div style="width:' + Math.max(2, Math.round(p.total / mx * 100)) + '%;height:6px;background:#2a78d6"></div></div></div>' +
+        '<div style="text-align:right"><div style="font-variant-numeric:tabular-nums">' + money(p.total) + '</div><div class="m">' + (p.sin ? 'sin factura ' + money(p.sin) : 'con factura') + '</div></div></div>';
+    }).join('') + '</div><div class="f-nota">Toca un proveedor para verlo mes por mes y año por año. Se agrupan por RFC; los gastos sin RFC se agrupan por nombre.</div>');
+    if (sin > 0) h += fMarcos('<div class="f-th">Sin factura</div><div class="f-nota" style="margin-top:6px">Compraste ' + money(sin) + ' sin factura en ' + esc(etq.toLowerCase()) + '. Con factura podrías acreditar hasta aproximadamente ' + money(r2(sin * 0.08 / 1.08)) + ' de IVA (al 8 %). Pide factura a los proveedores donde más compras.</div>');
+  }
+  var mes = C_MESES.map(function (_, i) { var k = y + '-' + String(i + 1).padStart(2, '0'); return fSuma(todos.filter(function (g) { return String(g.fecha).slice(0, 7) === k; }), 'total'); });
+  h += fMarcos('<div class="f-th">Mes por mes · ' + esc(y) + '</div><div style="margin-top:10px">' + cBarras(mes, C_MESES) + '</div>');
+  var an = {}; todos.forEach(function (g) { var a = String(g.fecha).slice(0, 4); if (/^\d{4}$/.test(a)) an[a] = r2((an[a] || 0) + num(g.total)); });
+  var anios = Object.keys(an).sort().reverse();
+  if (anios.length) h += fMarcos('<div class="f-th">Año por año</div><div class="f-g" style="margin-top:10px">' + anios.map(function (a) { return '<span class="f-et">' + esc(a) + '</span><span class="v s">' + money(an[a]) + '</span>'; }).join('') + '</div>');
+  return h;
+}
+function cDetalle(k) {
+  var gs = fTbl('Gastos').filter(function (g) { return cProvDe(g).k === k; }); if (!gs.length) return;
+  var p = cAgrupa(gs)[0], y = finMes.slice(0, 4), porAnio = {}, porMes = C_MESES.map(function () { return 0; });
+  gs.forEach(function (g) { var a = String(g.fecha).slice(0, 4), m = +String(g.fecha).slice(5, 7) - 1; porAnio[a] = r2((porAnio[a] || 0) + num(g.total)); if (a === y && m >= 0 && m < 12) porMes[m] = r2(porMes[m] + num(g.total)); });
+  var f0 = -1, l0 = -1; porMes.forEach(function (v, i) { if (v > 0) { if (f0 < 0) f0 = i; l0 = i; } });
+  var recientes = gs.slice().sort(function (a, b) { return String(b.fecha).localeCompare(String(a.fecha)); }).slice(0, 8);
+  var cuerpo = '<p class="nota" style="margin:0 0 10px"><b>' + esc(money(p.total)) + '</b> en ' + p.n + (p.n === 1 ? ' compra' : ' compras') + (p.rfc ? ' · RFC ' + esc(p.rfc) : ' · sin RFC (se agrupa por nombre)') + (p.sin ? ' · sin factura ' + esc(money(p.sin)) : '') + '</p>' +
+    (p.rfc ? '<div class="campo"><label for="fm-pnom">Nombre del proveedor</label><input id="fm-pnom" value="' + esc(p.nombre) + '"></div>' : '') +
+    '<div class="f-et" style="margin:12px 0 6px">AÑO POR AÑO</div><div class="f-g">' + Object.keys(porAnio).sort().reverse().map(function (a) { return '<span class="f-et">' + esc(a) + '</span><span class="v s">' + money(porAnio[a]) + '</span>'; }).join('') + '</div>' +
+    '<div class="f-et" style="margin:14px 0 6px">MES POR MES · ' + esc(y) + '</div>' + (f0 < 0 ? '<div class="nota" style="margin:0">Sin compras en ' + esc(y) + '.</div>' : cBarras(porMes.slice(f0, l0 + 1), C_MESES.slice(f0, l0 + 1))) +
+    '<div class="f-et" style="margin:14px 0 6px">ÚLTIMAS COMPRAS</div><div style="font-size:13px">' + recientes.map(function (g) { return '<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-top:1px solid rgba(29,31,32,.12)"><span>' + esc(fFechaCorta(g.fecha) + ' · ' + (g.concepto || g.categoria || '') + (g.facturado === 'no' ? ' · sin factura' : '')) + '</span><span>' + esc(money(g.total)) + '</span></div>'; }).join('') + '</div>';
+  fAbreModal(p.nombre, cuerpo, p.rfc ? 'Guardar nombre' : 'Cerrar', function () {
+    if (p.rfc) { var n = fv('pnom').trim(); if (n && n !== p.nombre) { bProvGuarda(p.rfc, n); return 'Nombre guardado.'; } }
+    return '';
+  }, 'Cerrar');
+}
+
 /* ---- Banco como estado de cuenta: selector propio, gráficas, avisos y cuadre con el Resumen ---- */
 var bEdoSel = '';
 function bEstadosOrden() { return fTbl('Estados').slice().sort(function (a, b) { return String(a.hasta).localeCompare(String(b.hasta)); }); }
@@ -2517,7 +2599,7 @@ function fVistaBanco() {
     '<div class="f-nota" style="text-align:center;margin:-6px 0 16px">Estado del ' + esc(fechaLarga(u.desde)) + ' al ' + esc(fechaLarga(u.hasta)) + '</div>';
   var chip = c.ini === null || c.fin === null ? 'Falta un saldo para conciliar' : Math.abs(c.dif) < 0.005 ? 'Cuadra ✓' : 'No cuadra: ' + money(Math.abs(c.dif));
   h += '<div class="f-dark"><div class="et">SALDO EN EL BANCO</div><div class="n">' + (c.fin !== null ? fGrande(c.fin) : '$—') + '</div><p>Al ' + esc(fechaLarga(u.hasta)) + ' · Entró ' + money(c.ab) + ' · Salió ' + money(c.ca) + '</p><p style="margin-top:6px;font-weight:600">' + chip + '</p></div>' + up;
-  var fila = function (m, texto) { return '<div>' + esc((m.desc || '(sin descripción)').slice(0, 60)) + '<div class="m">' + esc(fFechaCorta(m.fecha) + ' · ' + (m.tipo === 'abono' ? 'abono' : 'cargo')) + '</div></div><span class="v' + (m.tipo === 'abono' ? ' f-ok' : '') + '">' + (m.tipo === 'abono' ? '+' : '-') + money(m.monto) + '</span><button type="button" class="f-mini" style="padding:6px 9px;font-size:12px" data-ba="clas" data-id="' + esc(m.id) + '">' + texto + '</button>'; };
+  var fila = function (m, texto) { return '<div>' + esc(bTxt(m)) + '<div class="m">' + esc(fFechaCorta(m.fecha) + ' · ' + (m.tipo === 'abono' ? 'abono' : 'cargo')) + '</div></div><span class="v' + (m.tipo === 'abono' ? ' f-ok' : '') + '">' + (m.tipo === 'abono' ? '+' : '-') + money(m.monto) + '</span><button type="button" class="f-mini" style="padding:6px 9px;font-size:12px" data-ba="clas" data-id="' + esc(m.id) + '">' + texto + '</button>'; };
   h += bTarjetaSaldo(u, c) + bTarjetaSalidas(u) + bTarjetaQue(u, c, k, dups, pend) + bTarjetaCuadre(u, k) + '<div id="b-pend">' + bTarjetaPend(pend) + '</div>' + bTarjetaConc(u) + bTarjetaDup() + bTarjetaPropias();
   var e = bEfectivo();
   h += fMarcos('<div class="f-th">Efectivo</div><div class="f-g">' +
@@ -3994,7 +4076,7 @@ var K_SYNC = 'pjq.sync.v1', K_SYNC_ARCH = 'pjq.sync.arch';
 var sCfg = leer(K_SYNC, null);
 var sLlaves = null, sCorriendo = false, sOtraVez = false, sAplicando = false, sTimer = null, sEstadoTxt = '';
 var B32 = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
-var TABLAS_FIN = ['Gastos', 'Trabajadores', 'Dias', 'Pagos', 'Prestamos', 'Banco', 'Estados', 'Reglas'];
+var TABLAS_FIN = ['Gastos', 'Trabajadores', 'Dias', 'Pagos', 'Prestamos', 'Banco', 'Estados', 'Reglas', 'Proveedores'];
 
 function sGuardaCfg() { try { if (sCfg) localStorage.setItem(K_SYNC, JSON.stringify(sCfg)); else localStorage.removeItem(K_SYNC); } catch (e) {} }
 
