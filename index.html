@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="8beda28653">
-<meta name="pj-fecha" content="2026-11-14 14:28">
+<meta name="pj-build" content="9f6ed3ed1d">
+<meta name="pj-fecha" content="2026-11-14 15:00">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1587,7 +1587,7 @@ function fMezcla(f) {
 }
 
 /* ---------- pestaña Finanzas ---------- */
-var finMes = hoyISO().slice(0, 7), finVista = 'resumen', finGraf = 'mensual', finTrab = '', finConfirma = '', fModalOk = null, fAlCerrar = null;
+var finVistaAnt = 'resumen', finMes = hoyISO().slice(0, 7), finVista = 'resumen', finGraf = 'mensual', finTrab = '', finConfirma = '', fModalOk = null, fAlCerrar = null;
 var MESES3 = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
 var DIAS_SEM = [['1', 'Lun'], ['2', 'Mar'], ['3', 'Mié'], ['4', 'Jue'], ['5', 'Vie'], ['6', 'Sáb'], ['0', 'Dom']];
 var CATS = [['material', 'Material'], ['herramienta', 'Herramienta'], ['transporte', 'Transporte'], ['comision', 'Comisión de terminal'], ['otro', 'Otro']];
@@ -1657,9 +1657,10 @@ function fCurva(pts, top) {
 /* ----- armado de la pantalla ----- */
 function fPinta() {
   var cont = $('#fin-cont'); if (!cont) return;
-  var cab = '<div class="f-mes"><button type="button" class="f-fl" data-fa="mesmas" data-n="-1" aria-label="Mes anterior">‹</button><b>' + esc(fMesTxt(finMes)) + '</b><button type="button" class="f-fl" data-fa="mesmas" data-n="1" aria-label="Mes siguiente">›</button></div>' +
-    '<div class="f-seg" role="group" aria-label="Sección">' + [['resumen', 'Resumen'], ['impuestos', 'Impuestos'], ['obras', 'Obras'], ['sueldos', 'Sueldos'], ['banco', 'Banco']].map(function (v) {
-      return '<button type="button" data-fa="vista" data-v="' + v[0] + '" aria-pressed="' + (finVista === v[0]) + '">' + v[1] + '</button>'; }).join('') + '</div>';
+  var banco = finVista === 'banco', sw = '<div class="f-seg" role="group" aria-label="Modo"><button type="button" data-fa="modomes" aria-pressed="' + !banco + '">Finanzas del mes</button><button type="button" data-fa="vista" data-v="banco" aria-pressed="' + banco + '">Banco</button></div>';
+  var cab = sw + (banco ? '' : '<div class="f-mes"><button type="button" class="f-fl" data-fa="mesmas" data-n="-1" aria-label="Mes anterior">‹</button><b>' + esc(fMesTxt(finMes)) + '</b><button type="button" class="f-fl" data-fa="mesmas" data-n="1" aria-label="Mes siguiente">›</button></div>' +
+    '<div class="f-seg" role="group" aria-label="Sección">' + [['resumen', 'Resumen'], ['impuestos', 'Impuestos'], ['obras', 'Obras'], ['sueldos', 'Sueldos']].map(function (v) {
+      return '<button type="button" data-fa="vista" data-v="' + v[0] + '" aria-pressed="' + (finVista === v[0]) + '">' + v[1] + '</button>'; }).join('') + '</div>');
   var estado = '<div class="f-estado"><span>Todo se guarda en este teléfono</span><button type="button" data-fa="respaldo">Respaldar</button></div>';
   var cuerpo = estado + (finVista === 'impuestos' ? fVistaImpuestos() : finVista === 'obras' ? fVistaObras() : finVista === 'sueldos' ? fVistaSueldos() : finVista === 'banco' ? fVistaBanco() : fVistaResumen());
   cont.innerHTML = cab + cuerpo;
@@ -1931,7 +1932,7 @@ function bImporta(r, nuevos, nombre) {
   var eid = 'e' + bHash(nombre + (r.desde || '') + nuevos.length + Date.now());
   fTbl('Estados').push({ id: eid, desde: r.desde || nuevos[0].fecha, hasta: r.hasta || nuevos[nuevos.length - 1].fecha, saldoIni: r.saldoIni, saldoFin: r.saldoFin, nombre: nombre, subido: hoyISO(), n: r.movs.length });
   nuevos.forEach(function (m) { fTbl('Banco').push({ id: m.id, fecha: m.fecha, tipo: m.tipo, monto: m.monto, desc: m.desc, est: 'pend', liga: '', edo: eid }); });
-  var a = bAuto(); fGuarda(); finVista = 'banco'; bSel = {}; bFiltro = 'todos'; bMax = 60;
+  var a = bAuto(); fGuarda(); finVista = 'banco'; bSel = {}; bFiltro = 'todos'; bMax = 60; bEdoSel = eid;
   var pend = fTbl('Banco').filter(function (m) { return m.est === 'pend'; }).length;
   return 'Importé ' + nuevos.length + ' movimientos: ' + a.lig + ' ya estaban registrados, ' + (a.reg + a.efe + a.sat) + ' se clasificaron solos y ' + pend + ' quedan por revisar.';
 }
@@ -2109,7 +2110,7 @@ function bGuardaClasif(m) {
 /* --- clasificar en lote, conciliación y saldos editables --- */
 var bSel = {}, bFiltro = 'todos', bMax = 60, bAbre = {};
 function bNum(s) { s = String(s == null ? '' : s).replace(/[$,\s]/g, ''); var v = parseFloat(s); return s === '' || !isFinite(v) ? null : v; }
-function bPendientes() { return fTbl('Banco').filter(function (m) { return m.est === 'pend'; }).sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)); }); }
+function bPendientes() { var u = bEdoActual(); return fTbl('Banco').filter(function (m) { return m.est === 'pend' && (!u || bPendEn(m, u)); }).sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)); }); }
 function bPasaFiltro(m) { return bFiltro === 'todos' || bFiltro === m.tipo || (bFiltro === 'comision' && m.tipo === 'cargo' && bSugiere(m) === 'comision'); }
 function bVisibles() { return bPendientes().filter(bPasaFiltro); }
 function bSeleccion() { return bVisibles().filter(function (m) { return bSel[m.id]; }); }
@@ -2192,7 +2193,7 @@ function bSimil(a, b) {
 }
 function bDuplicados() {
   var cub = {}, grupos = [];
-  fTbl('Banco').filter(function (m) { return m.est !== 'dup' && !m.nodup; }).forEach(function (m) { var k = m.tipo + '|' + num(m.monto).toFixed(2); (cub[k] = cub[k] || []).push(m); });
+  fTbl('Banco').filter(function (m) { var uu = bEdoActual(); return m.est !== 'dup' && !m.nodup && (!uu || bEnPer(m, uu)); }).forEach(function (m) { var k = m.tipo + '|' + num(m.monto).toFixed(2); (cub[k] = cub[k] || []).push(m); });
   Object.keys(cub).forEach(function (k) {
     var l = cub[k].sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)); }); if (l.length < 2) return;
     var pa = l.map(function (_, i) { return i; });
@@ -2242,7 +2243,7 @@ function bPistaDif(c, u) {
   return ' ' + t + (l.length ? ' Hay ' + l.length + ' ' + tipo + (l.length === 1 ? '' : 's') + ' de ese monto (' + l.slice(0, 3).map(function (m) { return esc(fFechaCorta(m.fecha)); }).join(', ') + '): revisa si alguno está repetido.' : '');
 }
 function bTarjetaPropias() {
-  var l = fTbl('Banco').filter(function (m) { return m.est === 'tra'; }); if (!l.length) return '';
+  var l = fTbl('Banco').filter(function (m) { var uu = bEdoActual(); return m.est === 'tra' && (!uu || bEnPer(m, uu)); }); if (!l.length) return '';
   var sal = fSuma(l.filter(function (m) { return m.tipo === 'cargo'; }), 'monto'), ent = fSuma(l.filter(function (m) { return m.tipo === 'abono'; }), 'monto');
   return fMarcos('<div class="f-th">Entre mis cuentas <small>' + l.length + '</small></div><div class="f-g"><span class="f-et">Salió a mis otras cuentas</span><span class="v">' + money(sal) + '</span><span class="f-et">Entró de mis otras cuentas</span><span class="v">' + money(ent) + '</span></div>' +
     '<div class="f-nota">No son gasto ni ingreso: no cuentan en Finanzas ni en Impuestos. Si subes también el estado de tu otra cuenta, lo que sale de una debe entrar en la otra.</div>');
@@ -2297,6 +2298,16 @@ function bAccion(a, b) {
   else if (a === 'selall') marca(bVisibles());
   else if (a === 'nosel') { bSel = {}; bPintaSc(); }
   else if (a === 'duptoggle') { bDupVer = !bDupVer; bPintaSc(); }
+  else if (a === 'edomas') {
+    var ls = bEstadosOrden(), ix = ls.indexOf(bEdoActual()) + (+b.getAttribute('data-n'));
+    if (ix >= 0 && ix < ls.length) { bEdoSel = ls[ix].id; bSel = {}; bFiltro = 'todos'; bMax = 60; bDupVer = false; fPinta(); }
+  }
+  else if (a === 'edosel') { bEdoSel = id; bSel = {}; bFiltro = 'todos'; bMax = 60; bDupVer = false; fPinta(); window.scrollTo(0, 0); }
+  else if (a === 'edopend') {
+    var cu = bEstadosOrden().find(function (x) { return fTbl('Banco').some(function (m) { return m.est === 'pend' && bPendEn(m, x); }); });
+    if (cu) { bEdoSel = cu.id; bSel = {}; bFiltro = 'todos'; bMax = 60; fPinta(); window.scrollTo(0, 0); }
+  }
+  else if (a === 'irpend') { var ep = $('#b-pend'); if (ep) ep.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   else if (a === 'dupcierra') { bDupVer = false; bPintaSc(); }
   else if (a === 'dup') bMarcaDup(id);
   else if (a === 'nodup') {
@@ -2388,15 +2399,126 @@ function bQuitaEdo(id) {
 }
 
 /* --- pantalla --- */
+/* ---- Banco como estado de cuenta: selector propio, gráficas, avisos y cuadre con el Resumen ---- */
+var bEdoSel = '';
+function bEstadosOrden() { return fTbl('Estados').slice().sort(function (a, b) { return String(a.hasta).localeCompare(String(b.hasta)); }); }
+function bEdoActual() { var l = bEstadosOrden(); return l.find(function (x) { return x.id === bEdoSel; }) || l[l.length - 1] || null; }
+function bEnPer(m, u) { return !!u && String(m.fecha) >= (u.desde || '') && String(m.fecha) <= (u.hasta || '9999-99-99'); }
+function bPendEn(m, u) { return m.edo === u.id || bEnPer(m, u); }
+
+/* lo que salió, por tipo (sin lo que pasaste entre tus cuentas) */
+function bSalidas(u) {
+  var gas = {}, cat = {}, tot = 0, orden = [];
+  fTbl('Gastos').forEach(function (g) { gas[g.id] = g; });
+  function suma(k, v) { if (!(k in cat)) { cat[k] = 0; orden.push(k); } cat[k] = r2(cat[k] + v); tot = r2(tot + v); }
+  var propias = 0;
+  fTbl('Banco').filter(function (m) { return m.tipo === 'cargo' && m.est !== 'dup' && bEnPer(m, u); }).forEach(function (m) {
+    if (m.est === 'tra') { propias = r2(propias + num(m.monto)); return; }
+    var k = 'Sin clasificar';
+    if (m.est === 'lig') {
+      var p = String(m.liga || '').split(':'), g = p[0] === 'gasto' ? gas[p.slice(1).join(':')] : null;
+      k = p[0] === 'gasto' ? (g ? ({ material: 'Material', herramienta: 'Herramienta', transporte: 'Transporte', comision: 'Comisiones' }[g.categoria] || 'Otros gastos') : 'Otros gastos') : p[0] === 'pago' ? 'Sueldos' : p[0] === 'prestamo' ? 'Préstamos' : 'Otros gastos';
+    } else if (m.est === 'sat') k = 'Impuestos'; else if (m.est === 'efe') k = 'Retiros de efectivo'; else if (m.est === 'ign') k = 'No es del negocio';
+    suma(k, num(m.monto));
+  });
+  var filas = orden.map(function (k) { return [k, cat[k]]; }).sort(function (a, b) { return b[1] - a[1]; });
+  return { filas: filas, tot: tot, propias: propias };
+}
+function bTarjetaSalidas(u) {
+  var s = bSalidas(u), cab = '<div class="f-th">A dónde se fue lo que salió</div>';
+  if (!s.filas.length) return fMarcos(cab + '<div class="f-nota" style="margin-top:6px">No hay cargos en este estado de cuenta.</div>');
+  var mx = Math.max.apply(null, s.filas.map(function (f) { return f[1]; })) || 1;
+  return fMarcos(cab + '<div style="display:grid;grid-template-columns:118px 1fr 76px;gap:8px 8px;align-items:center;font-size:13.5px;margin-top:10px">' + s.filas.map(function (f) {
+    var col = f[0] === 'Sin clasificar' ? '#eb6834' : f[0] === 'No es del negocio' ? '#b4b2a9' : '#2a78d6';
+    return '<span style="color:#5d5d60">' + esc(f[0]) + '</span><div style="background:#f2f2f3;height:10px"><div style="width:' + Math.max(2, Math.round(f[1] / mx * 100)) + '%;height:10px;background:' + col + '"></div></div><span style="text-align:right;font-variant-numeric:tabular-nums">' + money(f[1]) + '</span>';
+  }).join('') + '</div><div class="f-nota">Total que salió: ' + money(s.tot) + '.' + (s.propias ? ' Aparte, ' + money(s.propias) + ' pasaron a tus otras cuentas (no cuentan).' : '') + '</div>');
+}
+
+/* saldo al final de cada día del periodo */
+function bTarjetaSaldo(u, c) {
+  var cab = '<div class="f-th">Saldo día por día</div>', ini = c.ini !== null ? c.ini : (c.fin !== null ? r2(c.fin - (c.ab - c.ca)) : null);
+  if (ini === null || !u.desde || !u.hasta) return fMarcos(cab + '<div class="f-nota" style="margin-top:6px">Escribe el saldo inicial o el final del estado para ver cómo subió y bajó tu cuenta.</div><button type="button" class="f-mini" data-ba="editaedo" data-id="' + esc(u.id) + '" style="width:100%;margin-top:8px">Editar saldos del estado</button>');
+  var net = {}; fTbl('Banco').filter(function (m) { return m.est !== 'dup' && bEnPer(m, u); }).forEach(function (m) { net[m.fecha] = r2((net[m.fecha] || 0) + (m.tipo === 'abono' ? 1 : -1) * num(m.monto)); });
+  var d = new Date(u.desde + 'T12:00:00'), z = new Date(u.hasta + 'T12:00:00'), pts = [], s = ini, n = 0;
+  while (d <= z && n++ < 400) { var k = bIso(d.getFullYear(), d.getMonth() + 1, d.getDate()); s = r2(s + (net[k] || 0)); pts.push({ k: k, s: s }); d.setDate(d.getDate() + 1); }
+  if (pts.length < 2) return '';
+  var mn = pts[0], mx = pts[0]; pts.forEach(function (p) { if (p.s < mn.s) mn = p; if (p.s > mx.s) mx = p; });
+  var lo = Math.min(ini, mn.s), hi = Math.max(ini, mx.s); if (hi - lo < 1) { hi += 1; lo -= 1; }
+  var X = function (i) { return r2(6 + i / (pts.length - 1) * 308); }, Y = function (v) { return r2(12 + (hi - v) / (hi - lo) * 86); };
+  var linea = pts.map(function (p, i) { return (i ? 'L' : 'M') + X(i) + ' ' + Y(p.s); }).join(' '), im = pts.indexOf(mn);
+  return fMarcos(cab + '<svg viewBox="0 0 320 124" width="100%" role="img" aria-label="Saldo de la cuenta día por día durante el periodo del estado" style="margin-top:8px"><title>Saldo día por día</title>' +
+    '<line x1="0" y1="12" x2="320" y2="12" stroke="#e1e0d9"/><line x1="0" y1="55" x2="320" y2="55" stroke="#e1e0d9"/><line x1="0" y1="98" x2="320" y2="98" stroke="#c3c2b7"/>' +
+    '<path d="' + linea + ' L314 98 L6 98 Z" fill="#2a78d6" fill-opacity="0.10"/><path d="' + linea + '" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' +
+    '<circle cx="' + X(im) + '" cy="' + Y(mn.s) + '" r="4.5" fill="#eb6834" stroke="#fff" stroke-width="2"/>' +
+    '<text x="0" y="116" font-size="11" fill="#5d5d60">' + esc(fFechaCorta(pts[0].k)) + '</text><text x="320" y="116" font-size="11" fill="#5d5d60" text-anchor="end">' + esc(fFechaCorta(pts[pts.length - 1].k)) + '</text></svg>' +
+    '<div class="f-nota" style="margin-top:6px">Más bajo: <b>' + money(mn.s) + '</b> el ' + esc(fFechaCorta(mn.k)) + ' · Más alto: <b>' + money(mx.s) + '</b> el ' + esc(fFechaCorta(mx.k)) + '.</div>');
+}
+
+/* el estado de cuenta confirma el Resumen y tus registros */
+function bCuadre(u) {
+  var inF = function (r) { return String(r.fecha) >= (u.desde || '') && String(r.fecha) <= (u.hasta || '9999-99-99'); };
+  var lig = bLigados(), mv = fTbl('Banco').filter(function (m) { return m.est !== 'dup' && bEnPer(m, u); });
+  var cob = fTbl('Cobros').filter(inF), ef = fSuma(cob.filter(function (r) { return r.forma === 'efectivo'; }), 'monto'), sf = fSuma(cob.filter(function (r) { return !r.forma; }), 'monto'), ent = fSuma(cob, 'monto');
+  var porBanco = r2(ent - ef - sf);
+  var abBanco = fSuma(mv.filter(function (m) { return m.tipo === 'abono' && (m.est === 'ing' || (m.est === 'lig' && /^cobro:/.test(m.liga))); }), 'monto');
+  var gas = fTbl('Gastos').filter(inF), pag = fTbl('Pagos').filter(inF), pre = fTbl('Prestamos').filter(inF);
+  var regTot = r2(fSuma(gas, 'total') + fSuma(pag, 'monto') + fSuma(pre, 'monto'));
+  var regEf = r2(fSuma(gas.filter(function (g) { return !lig['gasto:' + g.id]; }), 'total') + fSuma(pag.filter(function (p) { return !lig['pago:' + p.id]; }), 'monto') + fSuma(pre.filter(function (p) { return !lig['prestamo:' + p.id]; }), 'monto'));
+  var caBanco = fSuma(mv.filter(function (m) { return m.tipo === 'cargo' && m.est === 'lig' && /^(gasto|pago|prestamo):/.test(m.liga); }), 'monto');
+  var pa = mv.filter(function (m) { return m.tipo === 'abono' && m.est === 'pend'; }), pc = mv.filter(function (m) { return m.tipo === 'cargo' && m.est === 'pend'; });
+  return { ent: ent, ef: ef, sf: sf, porBanco: porBanco, abBanco: abBanco, difIng: r2(porBanco - abBanco), regTot: regTot, regEf: regEf, regBanco: r2(regTot - regEf), caBanco: caBanco, difGas: r2(regTot - regEf - caBanco),
+    nAb: pa.length, pAb: fSuma(pa, 'monto'), nCa: pc.length, pCa: fSuma(pc, 'monto') };
+}
+function bTarjetaCuadre(u, k) {
+  var mismo = String(u.desde || '').slice(0, 7) === String(u.hasta || '').slice(0, 7), tit = mismo ? 'Cuadre con el Resumen de ' + fMesTxt(u.hasta.slice(0, 7)).split(' ')[0].toLowerCase() : 'Cuadre con tu Resumen';
+  var okI = Math.abs(k.difIng) < 0.5, okG = Math.abs(k.difGas) < 0.5;
+  var fila = function (et, v, s) { return '<span class="f-et">' + et + '</span><span class="v' + (s ? ' s' : '') + '">' + v + '</span>'; };
+  var dif = function (v, ok) { return '<span class="f-et">Diferencia</span><span class="v' + (ok ? ' f-ok' : ' f-pen') + '">' + money(v) + '</span>'; };
+  var ing = '<div class="f-et" style="margin-top:12px">INGRESOS</div><div class="f-g">' + fila('Entró a la cuenta (Resumen)', money(k.ent)) + (k.ef ? fila('− Cobros en efectivo (no pasan por el banco)', money(k.ef)) : '') + (k.sf ? fila('− Sin forma de pago registrada', money(k.sf)) : '') +
+    '<hr>' + fila('Debería haber entrado al banco', money(k.porBanco), 1) + fila('Abonos del banco que lo respaldan', money(k.abBanco)) + dif(k.difIng, okI) + '</div>' +
+    '<div class="f-nota" style="margin-top:6px">' + (okI ? '<span class="f-ok" style="font-weight:600">Los ingresos del Resumen cuadran con el banco.</span>' : k.difIng > 0 ? 'Registraste cobros por banco que no aparecen como depósito en el estado: revisa «Revisa estos cobros» más abajo, o clasifica el depósito si ya llegó.' : 'El banco tiene más depósitos ligados a cobros que cobros registrados: revisa los importes.') + '</div>';
+  var gas = '<div class="f-et" style="margin-top:14px">GASTOS, SUELDOS Y PRÉSTAMOS</div><div class="f-g">' + fila('Registrado en el periodo', money(k.regTot)) + (k.regEf ? fila('− Pagado en efectivo (sin movimiento del banco)', money(k.regEf)) : '') +
+    '<hr>' + fila('Debería haber salido del banco', money(k.regBanco), 1) + fila('Cargos del banco que lo respaldan', money(k.caBanco)) + dif(k.difGas, okG) + '</div>' +
+    '<div class="f-nota" style="margin-top:6px">' + (okG ? '<span class="f-ok" style="font-weight:600">Lo que registraste como gasto o pago cuadra con los cargos del banco.</span>' : 'El importe registrado y el cargo del banco no coinciden: revisa los gastos, sueldos o préstamos que vinculaste a un movimiento.') + '</div>';
+  var sin = (k.nAb || k.nCa) ? '<div class="f-nota"><b>Sin explicar:</b> ' + (k.nAb ? k.nAb + (k.nAb === 1 ? ' abono' : ' abonos') + ' por ' + money(k.pAb) : '') + (k.nAb && k.nCa ? ' y ' : '') + (k.nCa ? k.nCa + (k.nCa === 1 ? ' cargo' : ' cargos') + ' por ' + money(k.pCa) : '') + ' sin clasificar. <button type="button" class="b-ver" data-ba="irpend">Clasificar</button></div>' : '';
+  return fMarcos('<div class="f-th">' + esc(tit) + '</div><div class="f-nota" style="margin-top:6px">El estado de cuenta confirma lo que ves en el Resumen y lo que registraste. Lo cobrado o pagado en efectivo no aparece en el estado, por eso se resta.</div>' + ing + gas + sin);
+}
+
+/* avisos hechos con reglas simples sobre tus movimientos */
+function bTarjetaQue(u, c, k, dups, pend) {
+  var recs = [], mv = fTbl('Banco').filter(function (m) { return m.est !== 'dup' && bEnPer(m, u); });
+  function rec(sev, txt, btn, ba, ex) { recs.push('<div class="b-r" style="grid-template-columns:auto 1fr auto"><span style="width:10px;height:10px;border-radius:50%;background:' + (sev === 'r' ? '#b3261e' : '#eda100') + '"></span><div class="t">' + txt + '</div>' + (btn ? '<button type="button" class="f-mini" style="padding:6px 9px;font-size:12px" data-ba="' + ba + '"' + (ex || '') + '>' + btn + '</button>' : '<span></span>') + '</div>'); }
+  var eid = ' data-id="' + esc(u.id) + '"';
+  if (c.ini === null || c.fin === null) rec('r', 'Falta el saldo ' + (c.ini === null ? 'inicial' : 'final') + ' del estado: escríbelo para saber si cuadra.', 'Escribir', 'editaedo', eid);
+  else if (Math.abs(c.dif) >= 0.005) rec('r', 'La conciliación no cuadra por ' + esc(money(Math.abs(c.dif))) + '.' + bPistaDif(c, u), dups.length ? 'Ver duplicados' : '', 'duptoggle');
+  if (dups.length) rec('r', 'Hay ' + dups.length + (dups.length === 1 ? ' posible duplicado' : ' posibles duplicados') + ' entre los movimientos.', bDupVer ? '' : 'Ver', 'duptoggle');
+  if (Math.abs(k.difIng) >= 0.5) rec('r', 'Los ingresos del Resumen no cuadran con el banco por ' + esc(money(Math.abs(k.difIng))) + '.', '', '');
+  if (Math.abs(k.difGas) >= 0.5) rec('r', 'Los gastos y pagos registrados no cuadran con los cargos del banco por ' + esc(money(Math.abs(k.difGas))) + '.', '', '');
+  if (pend.length) rec('a', pend.length + (pend.length === 1 ? ' movimiento sin clasificar' : ' movimientos sin clasificar') + ' por ' + esc(money(fSuma(pend, 'monto'))) + '.', 'Clasificar', 'irpend');
+  var otros = fTbl('Banco').filter(function (m) { return m.est === 'pend' && !bPendEn(m, u); });
+  if (otros.length) rec('a', 'Hay ' + otros.length + (otros.length === 1 ? ' movimiento pendiente' : ' movimientos pendientes') + ' en otros estados de cuenta.', 'Ir', 'edopend');
+  var com = mv.filter(function (m) { return m.tipo === 'cargo' && m.est !== 'tra' && bSugiere(m) === 'comision'; });
+  if (com.length) rec('a', 'Pagaste ' + esc(money(fSuma(com, 'monto'))) + ' en comisiones (' + com.length + (com.length === 1 ? ' cargo' : ' cargos') + '). Revisa si tu cuenta tiene una opción sin comisión.', '', '');
+  var ing = fSuma(mv.filter(function (m) { return m.tipo === 'abono' && m.est === 'ing'; }), 'monto');
+  if (ing > 0) rec('a', esc(money(ing)) + ' entraron como ingreso sin obra y sin factura. Pregunta a tu contador cómo declararlos.', '', '');
+  var h = '<div class="f-th">Qué revisar</div>';
+  if (!recs.length) return fMarcos(h + '<div class="f-nota" style="margin-top:6px;color:#1c7a4c;font-weight:600">Todo en orden: el estado cuadra y no hay nada pendiente.</div>');
+  return fMarcos(h + '<div style="margin-top:6px">' + recs.join('') + '</div>');
+}
+
 function fVistaBanco() {
-  var ests = fTbl('Estados').slice().sort(function (a, b) { return String(b.hasta).localeCompare(String(a.hasta)); }), u = ests[0], mov = fTbl('Banco');
-  var pend = mov.filter(function (m) { return m.est === 'pend'; }).sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)); });
-  var h = '<div class="f-dark"><div class="et">SALDO EN EL BANCO</div><div class="n">' + (u && u.saldoFin !== null && u.saldoFin !== undefined ? fGrande(u.saldoFin) : '$—') + '</div><p>' + (u ? 'Según tu estado de cuenta al ' + esc(fechaLarga(u.hasta)) + '.' : 'Sube tu primer estado de cuenta de BBVA (PDF) para empezar.') + '</p></div>' +
-    '<input type="file" id="b-pdf" accept="application/pdf,.pdf" hidden><button type="button" class="f-btn" data-ba="subir" style="margin-top:0">Subir estado de cuenta (PDF)</button>' +
+  var ests = bEstadosOrden(), u = bEdoActual(), ult = ests[ests.length - 1];
+  var up = '<input type="file" id="b-pdf" accept="application/pdf,.pdf" hidden><button type="button" class="f-btn" data-ba="subir" style="margin-top:0">Subir estado de cuenta (PDF)</button>' +
     '<div class="f-nota">El PDF se lee en tu teléfono; no se guarda ni se envía. Subir el mismo estado dos veces no duplica movimientos.</div>';
-  if (!u) return h;
+  if (!u) return '<div class="f-dark"><div class="et">SALDO EN EL BANCO</div><div class="n">$—</div><p>Sube tu primer estado de cuenta de BBVA (PDF) para empezar.</p></div>' + up;
+  var c = bConcilia(u), i = ests.indexOf(u), mov = fTbl('Banco'), pend = bPendientes(), k = bCuadre(u), dups = bDuplicados();
+  var nav = function (n, ok, et) { return '<button type="button" class="f-fl" data-ba="edomas" data-n="' + n + '"' + (ok ? '' : ' disabled style="opacity:.35"') + ' aria-label="' + et + '">' + (n < 0 ? '‹' : '›') + '</button>'; };
+  var h = '<div class="f-mes">' + nav(-1, i > 0, 'Estado anterior') + '<b>' + esc(fMesTxt(String(u.hasta || u.desde).slice(0, 7))) + '</b>' + nav(1, i < ests.length - 1, 'Estado siguiente') + '</div>' +
+    '<div class="f-nota" style="text-align:center;margin:-6px 0 16px">Estado del ' + esc(fechaLarga(u.desde)) + ' al ' + esc(fechaLarga(u.hasta)) + '</div>';
+  var chip = c.ini === null || c.fin === null ? 'Falta un saldo para conciliar' : Math.abs(c.dif) < 0.005 ? 'Cuadra ✓' : 'No cuadra: ' + money(Math.abs(c.dif));
+  h += '<div class="f-dark"><div class="et">SALDO EN EL BANCO</div><div class="n">' + (c.fin !== null ? fGrande(c.fin) : '$—') + '</div><p>Al ' + esc(fechaLarga(u.hasta)) + ' · Entró ' + money(c.ab) + ' · Salió ' + money(c.ca) + '</p><p style="margin-top:6px;font-weight:600">' + chip + '</p></div>' + up;
   var fila = function (m, texto) { return '<div>' + esc((m.desc || '(sin descripción)').slice(0, 60)) + '<div class="m">' + esc(fFechaCorta(m.fecha) + ' · ' + (m.tipo === 'abono' ? 'abono' : 'cargo')) + '</div></div><span class="v' + (m.tipo === 'abono' ? ' f-ok' : '') + '">' + (m.tipo === 'abono' ? '+' : '-') + money(m.monto) + '</span><button type="button" class="f-mini" style="padding:6px 9px;font-size:12px" data-ba="clas" data-id="' + esc(m.id) + '">' + texto + '</button>'; };
-  h += bTarjetaPend(pend) + bTarjetaConc(u) + bTarjetaDup() + bTarjetaPropias();
+  h += bTarjetaSaldo(u, c) + bTarjetaSalidas(u) + bTarjetaQue(u, c, k, dups, pend) + bTarjetaCuadre(u, k) + '<div id="b-pend">' + bTarjetaPend(pend) + '</div>' + bTarjetaConc(u) + bTarjetaDup() + bTarjetaPropias();
   var e = bEfectivo();
   h += fMarcos('<div class="f-th">Efectivo</div><div class="f-g">' +
     '<span class="f-et">Cobros en efectivo</span><span class="v">' + money(e.cob) + '</span>' +
@@ -2404,17 +2526,17 @@ function fVistaBanco() {
     (e.ret ? '<span class="f-et">Retiros del banco</span><span class="v">' + money(e.ret) + '</span>' : '') + (e.dep ? '<span class="f-et">Depósitos de efectivo al banco</span><span class="v">' + fMenos(e.dep) + '</span>' : '') +
     (e.aj ? '<span class="f-et">Ajuste</span><span class="v">' + money(e.aj) + '</span>' : '') + '<hr><span class="f-et">Efectivo que deberías tener</span><span class="v s">' + money(e.esp) + '</span></div>' +
     '<div class="f-nota">Cuenta desde el ' + esc(fechaLarga(e.d0)) + '. Lo que pagaste y no aparece en el banco se toma como pagado en efectivo.</div><button type="button" class="f-btn" data-ba="contado">Contar mi efectivo</button>');
-  h += fMarcos('<div class="f-th">Lo que deberías tener en total</div><div class="f-g"><span class="f-et">En el banco</span><span class="v">' + money(u.saldoFin || 0) + '</span><span class="f-et">En efectivo</span><span class="v">' + money(e.esp) + '</span><hr><span class="f-et">Total</span><span class="v s">' + money(r2((u.saldoFin || 0) + e.esp)) + '</span></div>');
-  var lig = bLigados(), hasta = u.hasta, noBanco = fTbl('Cobros').filter(function (c) { return !c.ing && c.forma && c.forma !== 'efectivo' && !lig['cobro:' + c.id] && String(c.fecha) >= bPrimerDia() && String(c.fecha) <= hasta; });
-  var sinForma = fTbl('Cobros').filter(function (c) { return !c.forma && String(c.fecha) >= bPrimerDia(); });
+  h += fMarcos('<div class="f-th">Lo que deberías tener en total</div><div class="f-g"><span class="f-et">En el banco</span><span class="v">' + money(ult.saldoFin || 0) + '</span><span class="f-et">En efectivo</span><span class="v">' + money(e.esp) + '</span><hr><span class="f-et">Total</span><span class="v s">' + money(r2((ult.saldoFin || 0) + e.esp)) + '</span></div><div class="f-nota">Con el saldo final del último estado de cuenta (' + esc(fechaLarga(ult.hasta)) + ').</div>');
+  var lig = bLigados(), noBanco = fTbl('Cobros').filter(function (c2) { return !c2.ing && c2.forma && c2.forma !== 'efectivo' && !lig['cobro:' + c2.id] && String(c2.fecha) >= (u.desde || '') && String(c2.fecha) <= (u.hasta || '9999-99-99'); });
+  var sinForma = fTbl('Cobros').filter(function (c2) { return !c2.forma && String(c2.fecha) >= (u.desde || '') && String(c2.fecha) <= (u.hasta || '9999-99-99'); });
   if (noBanco.length || sinForma.length) h += fMarcos('<div class="f-th">Revisa estos cobros</div>' +
-    (noBanco.length ? '<div class="f-nota" style="margin-top:6px">Dices que te pagaron por transferencia o tarjeta, pero no encontré un depósito igual en el estado de cuenta. Puede estar mal el monto o la fecha, o haber sido en efectivo.</div><div class="f-lst">' + noBanco.slice(0, 15).map(function (c) { return '<div>' + esc(c.obra + ' · ' + (c.cliente || '')) + '<div class="m">' + esc(fFechaCorta(c.fecha) + ' · ' + c.forma) + '</div></div><span class="v">' + money(c.monto) + '</span><span></span>'; }).join('') + '</div>' : '') +
+    (noBanco.length ? '<div class="f-nota" style="margin-top:6px">Dices que te pagaron por transferencia o tarjeta, pero no encontré un depósito igual en el estado de cuenta. Puede estar mal el monto o la fecha, o haber sido en efectivo.</div><div class="f-lst">' + noBanco.slice(0, 15).map(function (c2) { return '<div>' + esc(c2.obra + ' · ' + (c2.cliente || '')) + '<div class="m">' + esc(fFechaCorta(c2.fecha) + ' · ' + c2.forma) + '</div></div><span class="v">' + money(c2.monto) + '</span><span></span>'; }).join('') + '</div>' : '') +
     (sinForma.length ? '<div class="f-nota">' + sinForma.length + (sinForma.length === 1 ? ' cobro no tiene' : ' cobros no tienen') + ' forma de pago (terminaste la obra sin registrar el pago final): por eso no cuentan como efectivo ni como banco.</div>' : ''));
-  var cl = mov.filter(function (m) { return m.est !== 'pend'; }).sort(function (a, b) { return String(b.fecha).localeCompare(String(a.fecha)); });
+  var cl = mov.filter(function (m) { return m.est !== 'pend' && bEnPer(m, u); }).sort(function (a, b) { return String(b.fecha).localeCompare(String(a.fecha)); });
   if (cl.length) h += fMarcos('<details><summary class="f-th" style="cursor:pointer">Ya clasificados <small>' + cl.length + '</small></summary><div class="f-lst">' + cl.slice(0, 40).map(function (m) { return fila(m, { lig: 'Vinculado', efe: 'Efectivo', sat: 'Impuestos', ign: 'Ignorado', ing: 'Ingreso', tra: 'Entre mis cuentas', dup: 'Duplicado' }[m.est] || 'Cambiar'); }).join('') + '</div></details>');
-  h += fMarcos('<div class="f-th">Estados de cuenta</div><div class="f-lst">' + ests.map(function (x) {
-    var c = bConcilia(x);
-    return '<div>' + esc(x.nombre || 'Estado de cuenta') + '<div class="m">' + esc(fFechaCorta(x.desde) + ' al ' + fFechaCorta(x.hasta) + ' · ' + x.n + ' movimientos · ' + bConcEtq(c)) + '</div></div><span class="v">' + (x.saldoFin !== null && x.saldoFin !== undefined ? money(x.saldoFin) : '') + '</span>' +
+  h += fMarcos('<div class="f-th">Estados de cuenta</div><div class="f-lst">' + ests.slice().reverse().map(function (x) {
+    var cx = bConcilia(x);
+    return '<div><button type="button" class="b-ver" data-ba="edosel" data-id="' + esc(x.id) + '">' + esc(x.nombre || 'Estado de cuenta') + '</button>' + (x.id === u.id ? ' · viendo' : '') + '<div class="m">' + esc(fFechaCorta(x.desde) + ' al ' + fFechaCorta(x.hasta) + ' · ' + x.n + ' movimientos · ' + bConcEtq(cx)) + '</div></div><span class="v">' + (x.saldoFin !== null && x.saldoFin !== undefined ? money(x.saldoFin) : '') + '</span>' +
       '<span style="display:flex;gap:6px"><button type="button" class="f-x" data-ba="editaedo" data-id="' + esc(x.id) + '" aria-label="Editar saldos">✎</button><button type="button" class="f-x" data-ba="quitaedo" data-id="' + esc(x.id) + '" aria-label="Quitar estado de cuenta">×</button></span>';
   }).join('') + '</div>');
   return h;
@@ -2627,7 +2749,8 @@ function fInit() {
   $('#vista-fin').addEventListener('click', function (e) {
     var b = e.target.closest('[data-fa]'); if (!b) return;
     var a = b.getAttribute('data-fa');
-    if (a === 'vista') { finVista = b.getAttribute('data-v'); fPinta(); }
+    if (a === 'vista') { var nv = b.getAttribute('data-v'); if (nv === 'banco' && finVista !== 'banco') finVistaAnt = finVista; finVista = nv; fPinta(); }
+    else if (a === 'modomes') { finVista = finVistaAnt && finVistaAnt !== 'banco' ? finVistaAnt : 'resumen'; fPinta(); }
     else if (a === 'mesmas') { finMes = fMesMas(finMes, +b.getAttribute('data-n')); fPinta(); }
     else if (a === 'mes') { finMes = b.getAttribute('data-mes'); fPinta(); }
     else if (a === 'graf') { finGraf = b.getAttribute('data-g'); fPinta(); }
