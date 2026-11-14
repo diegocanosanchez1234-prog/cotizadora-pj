@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="3940178b08">
-<meta name="pj-fecha" content="2026-11-14 13:54">
+<meta name="pj-build" content="1cf7ed47ac">
+<meta name="pj-fecha" content="2026-11-14 14:20">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1962,6 +1962,7 @@ function bTrabajadorDe(n) {
 }
 function bSugiere(m) {
   var n = bNorm(m.desc);
+  if (/TRASPASO|CUENTAS? PROPIAS?|ENTRE MIS CUENTAS|ENTRE CUENTAS/.test(n)) return 'tra';
   if (m.tipo === 'cargo') {
     if (/\bCOM\b|COMISION|CUOTA|MANEJO DE CUENTA|ANUALIDAD/.test(n)) return 'comision';
     if (/ADMINISTRACION TRIBUTARIA|\bSAT\b|DECLARACION|IMPUESTOS FEDERALES|PAGO REFERENCIADO/.test(n)) return 'sat';
@@ -2008,7 +2009,7 @@ function bCreaCobro(m, hid, fac, forma) {
 }
 function bAplicaRegla(m, rg) {
   var a = rg.accion;
-  if (a === 'efe' || a === 'sat' || a === 'ign' || a === 'ing') { m.est = a; return true; }
+  if (a === 'efe' || a === 'sat' || a === 'ign' || a === 'ing' || a === 'tra') { m.est = a; return true; }
   if (a === 'sueldo' || a === 'prestamo') { var w = fTbl('Trabajadores').find(function (x) { return x.id === rg.dato && x.activo !== 'no'; }); if (!w) return false; bCreaPersona(m, a, w.id, ''); return true; }
   if (a === 'gasto') { var d; try { d = JSON.parse(rg.dato); } catch (e) { return false; } bCreaGasto(m, d); return true; }
   return false;
@@ -2039,9 +2040,9 @@ function bProveedor(desc) { return bNorm(desc).split(' ').filter(function (x) { 
 function bClasifica(id) {
   var m = fTbl('Banco').find(function (x) { return x.id === id; }); if (!m) return; bCtx = m;
   var sug = bSugiere(m), cands = bListaCand(m), ab = m.tipo === 'abono', trabs = fTbl('Trabajadores').filter(function (w) { return w.activo !== 'no'; });
-  var init = m.est !== 'pend' ? '' : sug.indexOf('sueldo:') === 0 ? 'sueldo' : sug === 'comision' ? 'gasto' : (sug === 'efe' || sug === 'sat') ? sug : sug === 'tarjeta' ? 'cobro' : cands.length && cands[0].dif <= Math.max(1, m.monto * 0.06) ? 'lig' : '';
-  var opc = ab ? [['cobro', 'Cobro de una obra'], ['ing', 'Ingreso sin obra'], ['efe', 'Depósito de efectivo'], ['lig', 'Ya registrado'], ['ign', 'Ignorar']]
-    : [['gasto', 'Gasto'], ['sueldo', 'Sueldo'], ['prestamo', 'Préstamo'], ['sat', 'Impuestos'], ['efe', 'Retiro de efectivo'], ['lig', 'Ya registrado'], ['ign', 'Ignorar']];
+  var init = m.est !== 'pend' ? '' : sug.indexOf('sueldo:') === 0 ? 'sueldo' : sug === 'comision' ? 'gasto' : (sug === 'efe' || sug === 'sat' || sug === 'tra') ? sug : sug === 'tarjeta' ? 'cobro' : cands.length && cands[0].dif <= Math.max(1, m.monto * 0.06) ? 'lig' : '';
+  var opc = ab ? [['cobro', 'Cobro de una obra'], ['ing', 'Ingreso sin obra'], ['efe', 'Depósito de efectivo'], ['tra', 'De mi otra cuenta'], ['lig', 'Ya registrado'], ['ign', 'Ignorar']]
+    : [['gasto', 'Gasto'], ['sueldo', 'Sueldo'], ['prestamo', 'Préstamo'], ['sat', 'Impuestos'], ['efe', 'Retiro de efectivo'], ['tra', 'A mi otra cuenta'], ['lig', 'Ya registrado'], ['ign', 'Ignorar']];
   if (m.est !== 'pend') opc.unshift(['pend', 'Volver a pendiente']);
   var tsel = function (idSel, pre) { return '<select id="' + idSel + '"><option value="">Elige…</option>' + trabs.map(function (w) { return '<option value="' + esc(w.id) + '"' + (pre === w.id ? ' selected' : '') + '>' + esc(w.nombre) + '</option>'; }).join('') + '</select>'; };
   var preT = sug.indexOf('sueldo:') === 0 ? sug.slice(7) : '';
@@ -2062,6 +2063,7 @@ function bClasifica(id) {
     '<div data-bsec="lig" hidden><div class="campo"><label for="fm-cand">Es este registro</label><select id="fm-cand"><option value="">Elige…</option>' + cands.map(function (c) { return '<option value="' + esc(c.k) + '"' + (c === cands[0] && init === 'lig' ? ' selected' : '') + '>' + esc(c.tit + ' · ' + fFechaCorta(c.fecha) + ' · ' + money(c.monto) + (c.dif > 0.01 ? ' (difiere ' + money(c.dif) + ')' : '')) + '</option>'; }).join('') + '</select>' + (cands.length ? '' : '<p class="nota" style="margin:6px 0 0">No encontré registros parecidos sin vincular.</p>') + '</div></div>' +
     '<p class="nota" data-bsec="sat" hidden>Pago de impuestos al SAT. No crea ningún registro: solo se marca para que no quede pendiente.</p>' +
     '<p class="nota" data-bsec="efe" hidden>' + (ab ? 'Efectivo que llevaste al banco: baja tu efectivo esperado.' : 'Efectivo que sacaste del banco: sube tu efectivo esperado.') + '</p>' +
+    '<p class="nota" data-bsec="tra" hidden>Dinero que pasaste entre tus propias cuentas. No es gasto ni ingreso: no cuenta en Finanzas ni en Impuestos; solo deja de estar pendiente y cuenta en la conciliación del banco.</p>' +
     '<p class="nota" data-bsec="ing" hidden>Depósito que no corresponde a ninguna cotización de la app (por ejemplo, de antes de usarla). Cuenta como dinero que entró a la cuenta en Finanzas (Resumen) el día del depósito; no pasa a Impuestos ni a ninguna obra.</p>' +
     '<p class="nota" data-bsec="ign" hidden>No es del negocio o no hay nada que registrar. Queda fuera del cuadre.</p>' +
     '<p class="nota" data-bsec="pend" hidden>Se deshace lo que se creó con este movimiento (si lo creó la app) y vuelve a quedar pendiente.</p>' +
@@ -2071,7 +2073,7 @@ function bClasifica(id) {
 }
 function bMuestra(v) {
   $$('#fm-cuerpo [data-bsec]').forEach(function (el) { el.hidden = el.getAttribute('data-bsec') !== v; });
-  var r = $('#b-recordar'); if (r) r.hidden = ['gasto', 'comision', 'sueldo', 'prestamo', 'sat', 'efe', 'ign', 'ing'].indexOf(v) < 0;
+  var r = $('#b-recordar'); if (r) r.hidden = ['gasto', 'comision', 'sueldo', 'prestamo', 'sat', 'efe', 'ign', 'ing', 'tra'].indexOf(v) < 0;
 }
 function bGuardaClasif(m) {
   var sel = fChipsVal('bacc')[0], rec = $('#fm-rec') && $('#fm-rec').checked;
@@ -2082,7 +2084,7 @@ function bGuardaClasif(m) {
     if (bLigados()[k]) { aviso('Ese registro ya está vinculado a otro movimiento.'); return false; }
     bLiga(m, k); fGuarda(); return 'Vinculado: no se duplica.';
   }
-  if (sel === 'efe' || sel === 'sat' || sel === 'ign' || sel === 'ing') { m.est = sel; if (rec) bGuardaRegla(m, sel, ''); fGuarda(); return 'Listo.'; }
+  if (sel === 'efe' || sel === 'sat' || sel === 'ign' || sel === 'ing' || sel === 'tra') { m.est = sel; if (rec) bGuardaRegla(m, sel, ''); fGuarda(); return 'Listo.'; }
   if (sel === 'gasto') {
     var fac = fChipsVal('fac')[0]; if (!fac) { aviso('Elige si se facturó o no.'); return false; }
     var d = { prov: fv('prov').trim(), conc: fv('conc').trim(), cat: fChipsVal('cat')[0] || 'otro', fac: fac, iva: fac === 'si' ? num(fv('iva')) : 0, obra: fv('obra') };
@@ -2180,6 +2182,12 @@ function bConcPreview() {
   else { var c = bConcilia({ desde: fv('esd'), hasta: fv('esh') }); ab = c.ab; ca = c.ca; }
   el.innerHTML = bConcTxt(ini, ab, ca, fin);
 }
+function bTarjetaPropias() {
+  var l = fTbl('Banco').filter(function (m) { return m.est === 'tra'; }); if (!l.length) return '';
+  var sal = fSuma(l.filter(function (m) { return m.tipo === 'cargo'; }), 'monto'), ent = fSuma(l.filter(function (m) { return m.tipo === 'abono'; }), 'monto');
+  return fMarcos('<div class="f-th">Entre mis cuentas <small>' + l.length + '</small></div><div class="f-g"><span class="f-et">Salió a mis otras cuentas</span><span class="v">' + money(sal) + '</span><span class="f-et">Entró de mis otras cuentas</span><span class="v">' + money(ent) + '</span></div>' +
+    '<div class="f-nota">No son gasto ni ingreso: no cuentan en Finanzas ni en Impuestos. Si subes también el estado de tu otra cuenta, lo que sale de una debe entrar en la otra.</div>');
+}
 function bTarjetaConc(u) {
   var c = bConcilia(u), ok = c.dif !== null && Math.abs(c.dif) < 0.005;
   var g = '<div class="f-g"><span class="f-et">Saldo inicial</span><span class="v">' + (c.ini === null ? '—' : money(c.ini)) + '</span>' +
@@ -2237,12 +2245,12 @@ function bLote(ids) {
   var mixto = !!(tp.cargo && tp.abono), ab = !tp.cargo, tot = fSuma(lista, 'monto');
   var s0 = bSugiere(lista[0]), igual = lista.every(function (m) { return bSugiere(m) === s0; });
   var trabs = fTbl('Trabajadores').filter(function (w) { return w.activo !== 'no'; });
-  var init = mixto || !igual ? '' : ab ? (s0 === 'efe' ? 'efe' : '') : s0 === 'comision' ? 'comision' : (s0 === 'efe' || s0 === 'sat') ? s0 : s0.indexOf('sueldo:') === 0 ? 'sueldo' : '';
+  var init = !igual ? '' : mixto ? (s0 === 'tra' ? 'tra' : '') : ab ? (s0 === 'efe' || s0 === 'tra' ? s0 : '') : s0 === 'comision' ? 'comision' : (s0 === 'efe' || s0 === 'sat' || s0 === 'tra') ? s0 : s0.indexOf('sueldo:') === 0 ? 'sueldo' : '';
   var preT = igual && s0.indexOf('sueldo:') === 0 ? s0.slice(7) : '';
-  var opc = mixto ? [['ign', 'Ignorar']] : ab ? [['ing', 'Ingreso sin obra'], ['efe', 'Depósito de efectivo'], ['ign', 'Ignorar']]
-    : [['comision', 'Comisión bancaria'], ['gasto', 'Gasto sin factura'], ['sueldo', 'Sueldo'], ['sat', 'Impuestos'], ['efe', 'Retiro de efectivo'], ['ign', 'Ignorar']];
+  var opc = mixto ? [['tra', 'Entre mis cuentas'], ['ign', 'Ignorar']] : ab ? [['ing', 'Ingreso sin obra'], ['efe', 'Depósito de efectivo'], ['tra', 'De mi otra cuenta'], ['ign', 'Ignorar']]
+    : [['comision', 'Comisión bancaria'], ['gasto', 'Gasto sin factura'], ['sueldo', 'Sueldo'], ['sat', 'Impuestos'], ['efe', 'Retiro de efectivo'], ['tra', 'A mi otra cuenta'], ['ign', 'Ignorar']];
   var cuerpo = '<p class="nota" style="margin:0 0 6px"><b>' + lista.length + ' movimientos</b> · ' + (mixto ? 'cargos y abonos' : ab ? 'abonos' : 'cargos') + ' por <b>' + esc(money(tot)) + '</b></p>' +
-    (mixto ? '<p class="nota" style="margin:0 0 8px">Mezclaste cargos y abonos: juntos solo se pueden ignorar. Para otra cosa, filtra por Cargos o por Abonos.</p>' : '') +
+    (mixto ? '<p class="nota" style="margin:0 0 8px">Mezclaste cargos y abonos: juntos solo se pueden ignorar o marcar como transferencia entre tus cuentas. Para otra cosa, filtra por Cargos o por Abonos.</p>' : '') +
     '<details style="margin:0 0 12px"><summary class="nota" style="cursor:pointer;margin:0">Ver cuáles son</summary><div style="max-height:160px;overflow:auto;font:12px var(--mono);margin-top:8px">' +
     lista.slice(0, 200).map(function (m) { return esc(m.fecha.slice(5) + ' ' + (m.tipo === 'abono' ? '+' : '-') + m.monto.toFixed(2) + ' ' + (m.desc || '').slice(0, 40)); }).join('<br>') + '</div></details>' +
     '<div class="campo"><label>¿Qué son?</label>' + fChips('bacc', opc, [init], false) + '</div>' +
@@ -2253,6 +2261,7 @@ function bLote(ids) {
     '<div class="campo"><label for="fm-obra">Obra (opcional)</label><select id="fm-obra">' + fOpcObras('') + '</select></div>' +
     '<p class="nota" style="margin:0">Sin factura: no deducible. Baja tu neto, no baja impuestos.</p></div>' +
     '<div data-bsec="sueldo" hidden><div class="campo"><label for="fm-trab">Pago a</label><select id="fm-trab"><option value="">Elige…</option>' + trabs.map(function (w) { return '<option value="' + esc(w.id) + '"' + (preT === w.id ? ' selected' : '') + '>' + esc(w.nombre) + '</option>'; }).join('') + '</select></div></div>' +
+    '<p class="nota" data-bsec="tra" hidden>Dinero que pasaste entre tus propias cuentas. No es gasto ni ingreso: no cuenta en Finanzas ni en Impuestos; solo deja de estar pendiente y cuenta en la conciliación del banco.</p>' +
     '<p class="nota" data-bsec="ing" hidden>Depósitos que no corresponden a ninguna cotización de la app (por ejemplo, de antes de usarla). Cuentan como dinero que entró a la cuenta en Finanzas (Resumen) el día del depósito; no pasan a Impuestos ni a ninguna obra.</p>' +
     '<p class="nota" data-bsec="sat" hidden>Pagos de impuestos al SAT. No crean registros: solo dejan de estar pendientes.</p>' +
     '<p class="nota" data-bsec="efe" hidden>' + (ab ? 'Efectivo que llevaste al banco: baja tu efectivo esperado.' : 'Efectivo que sacaste del banco: sube tu efectivo esperado.') + '</p>' +
@@ -2318,7 +2327,7 @@ function fVistaBanco() {
     '<div class="f-nota">El PDF se lee en tu teléfono; no se guarda ni se envía. Subir el mismo estado dos veces no duplica movimientos.</div>';
   if (!u) return h;
   var fila = function (m, texto) { return '<div>' + esc((m.desc || '(sin descripción)').slice(0, 60)) + '<div class="m">' + esc(fFechaCorta(m.fecha) + ' · ' + (m.tipo === 'abono' ? 'abono' : 'cargo')) + '</div></div><span class="v' + (m.tipo === 'abono' ? ' f-ok' : '') + '">' + (m.tipo === 'abono' ? '+' : '-') + money(m.monto) + '</span><button type="button" class="f-mini" style="padding:6px 9px;font-size:12px" data-ba="clas" data-id="' + esc(m.id) + '">' + texto + '</button>'; };
-  h += bTarjetaPend(pend) + bTarjetaConc(u);
+  h += bTarjetaPend(pend) + bTarjetaConc(u) + bTarjetaPropias();
   var e = bEfectivo();
   h += fMarcos('<div class="f-th">Efectivo</div><div class="f-g">' +
     '<span class="f-et">Cobros en efectivo</span><span class="v">' + money(e.cob) + '</span>' +
@@ -2333,7 +2342,7 @@ function fVistaBanco() {
     (noBanco.length ? '<div class="f-nota" style="margin-top:6px">Dices que te pagaron por transferencia o tarjeta, pero no encontré un depósito igual en el estado de cuenta. Puede estar mal el monto o la fecha, o haber sido en efectivo.</div><div class="f-lst">' + noBanco.slice(0, 15).map(function (c) { return '<div>' + esc(c.obra + ' · ' + (c.cliente || '')) + '<div class="m">' + esc(fFechaCorta(c.fecha) + ' · ' + c.forma) + '</div></div><span class="v">' + money(c.monto) + '</span><span></span>'; }).join('') + '</div>' : '') +
     (sinForma.length ? '<div class="f-nota">' + sinForma.length + (sinForma.length === 1 ? ' cobro no tiene' : ' cobros no tienen') + ' forma de pago (terminaste la obra sin registrar el pago final): por eso no cuentan como efectivo ni como banco.</div>' : ''));
   var cl = mov.filter(function (m) { return m.est !== 'pend'; }).sort(function (a, b) { return String(b.fecha).localeCompare(String(a.fecha)); });
-  if (cl.length) h += fMarcos('<details><summary class="f-th" style="cursor:pointer">Ya clasificados <small>' + cl.length + '</small></summary><div class="f-lst">' + cl.slice(0, 40).map(function (m) { return fila(m, { lig: 'Vinculado', efe: 'Efectivo', sat: 'Impuestos', ign: 'Ignorado', ing: 'Ingreso' }[m.est] || 'Cambiar'); }).join('') + '</div></details>');
+  if (cl.length) h += fMarcos('<details><summary class="f-th" style="cursor:pointer">Ya clasificados <small>' + cl.length + '</small></summary><div class="f-lst">' + cl.slice(0, 40).map(function (m) { return fila(m, { lig: 'Vinculado', efe: 'Efectivo', sat: 'Impuestos', ign: 'Ignorado', ing: 'Ingreso', tra: 'Entre mis cuentas' }[m.est] || 'Cambiar'); }).join('') + '</div></details>');
   h += fMarcos('<div class="f-th">Estados de cuenta</div><div class="f-lst">' + ests.map(function (x) {
     var c = bConcilia(x);
     return '<div>' + esc(x.nombre || 'Estado de cuenta') + '<div class="m">' + esc(fFechaCorta(x.desde) + ' al ' + fFechaCorta(x.hasta) + ' · ' + x.n + ' movimientos · ' + bConcEtq(c)) + '</div></div><span class="v">' + (x.saldoFin !== null && x.saldoFin !== undefined ? money(x.saldoFin) : '') + '</span>' +
