@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="e989c517d5">
-<meta name="pj-fecha" content="2026-11-14 15:20">
+<meta name="pj-build" content="ef8c150a5d">
+<meta name="pj-fecha" content="2026-11-14 15:32">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1684,6 +1684,7 @@ function fVistaResumen() {
     '<span class="f-et">Neto</span><span class="v s ' + (c.neto >= 0 ? 'f-ok' : 'f-pen') + '">' + money(c.neto) + '</span></div>' +
     (function () { var tot = fSuma(c.cob, 'iva'), ya = fSuma(c.cob.filter(function (r) { return r.facturada || r.pg; }), 'iva'); return tot > 0 ? '<div class="f-nota">De lo que entró, ' + money(tot) + ' es IVA: ' + (ya > 0 ? money(ya) + ' ya cuenta en Impuestos; ' : '') + (r2(tot - ya) > 0.004 ? money(r2(tot - ya)) + ' no pasa a Impuestos hasta que envíes la factura (Excel).' : '') + ' Lo cobrado en efectivo sin factura no lleva IVA.</div>' : ''; })() +
     '<div class="f-nota">“Entró a la cuenta” es lo que cobraste en el mes: los pagos que registraste (anticipos, pagos a cuenta y pago final) y, si terminaste una obra sin registrar su pago final, el resto ese día. Incluye el IVA y ya descuenta el ISR que te retuvieron. Los impuestos son estimados.</div>');
+  h += bTarjetaBancoResumen();
   h += fCardSaldo();
   var ms = fMeses(), vals = ms.map(function (m) { return Math.max(fCalc(m.k).neto, 0); });
   h += fMarcos('<div class="f-chead"><div class="f-th">Neto por mes</div>' + fToggle() + '</div>' + fBarras(vals, ms, finMes));
@@ -2324,6 +2325,10 @@ function bAccion(a, b) {
     var cu = bEstadosOrden().find(function (x) { return fTbl('Banco').some(function (m) { return m.est === 'pend' && bPendEn(m, x); }); });
     if (cu) { bEdoSel = cu.id; bSel = {}; bFiltro = 'todos'; bMax = 60; fPinta(); window.scrollTo(0, 0); }
   }
+  else if (a === 'irpuente') {
+    if (finVista !== 'banco') finVistaAnt = finVista; if (id) bEdoSel = id; finVista = 'banco'; fPinta();
+    var epu = $('#b-puente'); if (epu) epu.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
   else if (a === 'irpend') { var ep = $('#b-pend'); if (ep) ep.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   else if (a === 'dupcierra') { bDupVer = false; bPintaSc(); }
   else if (a === 'dup') bMarcaDup(id);
@@ -2481,6 +2486,75 @@ function cDetalle(k) {
   }, 'Cerrar');
 }
 
+/* ---- puente exacto: del «Neto que te queda» del Resumen al saldo del banco ---- */
+function bSg(v) { v = r2(v); return (v > 0.004 ? '+' : v < -0.004 ? '−' : '') + money(Math.abs(v)); }
+function bPuente(u) {
+  var ym = String(u.hasta || u.desde).slice(0, 7), cc = fCalc(ym), c = bConcilia(u), ini = ym + '-01', fin = ym + '-31';
+  var enM = function (r) { return String(r.fecha) >= ini && String(r.fecha) <= fin; };
+  var lig = bLigados(), mv = fTbl('Banco').filter(function (m) { return m.est !== 'dup' && bEnPer(m, u); });
+  var cob = fTbl('Cobros').filter(enM), E = fSuma(cob.filter(function (r) { return r.forma === 'efectivo'; }), 'monto'), SF = fSuma(cob.filter(function (r) { return !r.forma; }), 'monto'), ent = fSuma(cob, 'monto');
+  var gas = fTbl('Gastos').filter(enM), pag = fTbl('Pagos').filter(enM), pre = fTbl('Prestamos').filter(enM);
+  var regTot = r2(fSuma(gas, 'total') + fSuma(pag, 'monto') + fSuma(pre, 'monto'));
+  var Pe = r2(fSuma(gas.filter(function (g) { return !lig['gasto:' + g.id]; }), 'total') + fSuma(pag.filter(function (p) { return !lig['pago:' + p.id]; }), 'monto') + fSuma(pre.filter(function (p) { return !lig['prestamo:' + p.id]; }), 'monto'));
+  var porBanco = r2(ent - E - SF), regBanco = r2(regTot - Pe), N = cc.neto, T = cc.total;
+  var sb = function (tipo, est) { return fSuma(mv.filter(function (m) { return m.tipo === tipo && m.est === est; }), 'monto'); };
+  var abBanco = fSuma(mv.filter(function (m) { return m.tipo === 'abono' && (m.est === 'ing' || (m.est === 'lig' && /^cobro:/.test(m.liga))); }), 'monto');
+  var caBanco = fSuma(mv.filter(function (m) { return m.tipo === 'cargo' && m.est === 'lig' && /^(gasto|pago|prestamo):/.test(m.liga); }), 'monto');
+  var mRec = r2(N + T - E - SF + Pe), mBank = r2(c.ab - c.ca);
+  var lin = [
+    ['Cobros registrados por banco que no aparecen en el estado', r2(abBanco - porBanco)],
+    ['Depósitos de efectivo al banco', sb('abono', 'efe')],
+    ['Depósitos sin clasificar', sb('abono', 'pend')],
+    ['Depósitos de tus otras cuentas', sb('abono', 'tra')],
+    ['Depósitos que no son del negocio', sb('abono', 'ign')],
+    ['Gastos o pagos registrados con otro importe que el cargo', r2(regBanco - caBanco)],
+    ['Retiros de efectivo', -sb('cargo', 'efe')],
+    ['Pagos al SAT', -sb('cargo', 'sat')],
+    ['Transferencias a tus otras cuentas', -sb('cargo', 'tra')],
+    ['Cargos que no son del negocio', -sb('cargo', 'ign')],
+    ['Cargos sin clasificar', -sb('cargo', 'pend')]
+  ];
+  var suma = r2(lin.reduce(function (s, x) { return s + x[1]; }, 0)), otros = r2(mBank - mRec - suma);
+  var saldoIni = c.ini, calc = saldoIni === null ? null : r2(saldoIni + mBank), ref = c.fin !== null ? c.fin : calc;
+  var pesos = [['Saldo con el que empezó el estado', saldoIni === null ? 0 : saldoIni], ['Impuestos del mes que aún no pagas', T], ['Cobros en efectivo (no entran al banco)', -E], ['Cobros sin forma de pago registrada', -SF], ['Gastos y sueldos pagados en efectivo', Pe], ['Otras diferencias', otros]].concat(lin)
+    .filter(function (x) { return Math.abs(x[1]) >= 0.5; }).sort(function (a, b) { return Math.abs(b[1]) - Math.abs(a[1]); });
+  return { ym: ym, N: N, T: T, E: E, SF: SF, Pe: Pe, mRec: mRec, lin: lin, otros: otros, mBank: mBank, ini: saldoIni, calc: calc, fin: c.fin, ref: ref, delta: ref === null ? null : r2(ref - N), pesos: pesos };
+}
+function bTarjetaPuente(u) {
+  var p = bPuente(u), mes = fMesTxt(p.ym).split(' ')[0].toLowerCase();
+  var fila = function (et, v, s, sg) { return '<span class="f-et">' + et + '</span><span class="v' + (s ? ' s' : '') + '">' + (sg ? bSg(v) : money(v)) + '</span>'; };
+  var ok = p.delta !== null && Math.abs(p.delta) < 0.5;
+  var h = '<div class="f-th">Del neto de Finanzas al banco</div><div class="f-g" style="margin-top:10px">' + fila('Neto que te queda (Resumen de ' + esc(mes) + ')', p.N) +
+    (p.ref !== null ? fila(p.fin !== null ? 'Saldo en el banco' : 'Saldo calculado del banco', p.ref) + '<hr><span class="f-et">Diferencia</span><span class="v s ' + (ok ? 'f-ok' : 'f-pen') + '">' + bSg(p.delta) + '</span>' : '') + '</div>';
+  if (p.ref === null) h += '<div class="f-nota" style="color:#b3261e">Escribe el saldo inicial del estado para llegar hasta el saldo del banco. <button type="button" class="b-ver" data-ba="editaedo" data-id="' + esc(u.id) + '">Editar saldos</button></div>';
+  else if (ok) h += '<div class="f-nota"><span class="f-ok" style="font-weight:600">El neto de Finanzas y el saldo del banco coinciden.</span></div>';
+  else h += '<div class="f-nota">El banco tiene ' + money(Math.abs(p.delta)) + (p.delta > 0 ? ' más' : ' menos') + ' que tu neto. Lo que más pesa: ' + p.pesos.slice(0, 3).map(function (x) { return esc(x[0].charAt(0).toLowerCase() + x[0].slice(1)) + ' (' + bSg(x[1]) + ')'; }).join('; ') + '.</div>';
+  h += '<div class="f-et" style="margin-top:14px">LO QUE CUENTA FINANZAS Y EL BANCO NO</div><div class="f-g" style="margin-top:6px">' + fila('Neto que te queda', p.N) +
+    (Math.abs(p.T) >= 0.005 ? fila('+ Impuestos del mes (estimados; se pagan el 17 del mes siguiente)', p.T, 0, 1) : '') +
+    (p.E ? fila('− Cobros en efectivo (no entran al banco)', -p.E, 0, 1) : '') + (p.SF ? fila('− Cobros sin forma de pago registrada', -p.SF, 0, 1) : '') +
+    (p.Pe ? fila('+ Gastos y sueldos pagados en efectivo (no salen del banco)', p.Pe, 0, 1) : '') + '<hr>' + fila('Lo que tus registros dicen que movió el banco', p.mRec, 1) + '</div>';
+  var cl = p.lin.filter(function (x) { return Math.abs(x[1]) >= 0.005; });
+  h += '<div class="f-et" style="margin-top:14px">LO QUE PASÓ EN EL BANCO Y TUS REGISTROS NO TIENEN</div><div class="f-g" style="margin-top:6px">' +
+    (cl.length ? cl.map(function (x) { return fila(esc(x[0]), x[1], 0, 1); }).join('') : '<span class="f-et">Nada: todo lo del banco está en tus registros</span><span class="v">$0.00</span>') +
+    (Math.abs(p.otros) >= 0.005 ? fila('Otras diferencias (fechas fuera del mes u otros)', p.otros, 0, 1) : '') + '<hr>' + fila('Movimiento real del banco en el periodo', p.mBank, 1) +
+    (p.ini !== null ? fila('+ Saldo con el que empezó el estado', p.ini, 0, 1) + '<hr>' + fila('Saldo calculado', p.calc, 1) + fila('Saldo final que dice el estado', p.fin === null ? 0 : p.fin) : '') + '</div>';
+  var notas = [];
+  if (p.E) notas.push('El cobro en efectivo cuenta como ingreso en Finanzas pero no aparece en el estado de cuenta, salvo que lo hayas depositado (eso sale como «Depósitos de efectivo al banco»).');
+  if (Math.abs(p.T) >= 0.005) notas.push('Los impuestos del mes son una estimación y se pagan el 17 del mes siguiente; lo que sí salió del banco este mes (normalmente los del mes anterior) aparece en «Pagos al SAT».');
+  if (p.ini !== null && p.fin !== null && Math.abs(p.calc - p.fin) >= 0.005) notas.push('El saldo calculado no llega al saldo final del estado (' + money(p.fin) + '): faltan o sobran movimientos en el estado; revisa «Conciliación» y «Buscar duplicados».');
+  if (String(u.desde || '').slice(0, 7) !== String(u.hasta || '').slice(0, 7)) notas.push('Este estado no es de un mes completo: el neto del Resumen es del mes de la fecha final.');
+  if (Math.abs(p.otros) >= 0.005) notas.push('«Otras diferencias»: movimientos de tus registros con fecha de otro mes o vinculaciones con importes distintos.');
+  return '<div id="b-puente">' + fMarcos(h + notas.map(function (x) { return '<div class="f-nota">' + esc(x) + '</div>'; }).join('')) + '</div>';
+}
+function bTarjetaBancoResumen() {
+  var u = bEstadosOrden().find(function (x) { return String(x.hasta || x.desde).slice(0, 7) === finMes; }); if (!u) return '';
+  var p = bPuente(u); if (p.ref === null) return '';
+  var ok = Math.abs(p.delta) < 0.5;
+  return fMarcos('<div class="f-th">Neto contra banco</div><div class="f-g" style="margin-top:10px"><span class="f-et">Neto que te queda</span><span class="v">' + money(p.N) + '</span><span class="f-et">Saldo en el banco al ' + esc(fechaLarga(u.hasta)) + '</span><span class="v">' + money(p.ref) + '</span><hr><span class="f-et">Diferencia</span><span class="v s ' + (ok ? 'f-ok' : 'f-pen') + '">' + bSg(p.delta) + '</span></div>' +
+    '<div class="f-nota">' + (ok ? 'Coinciden.' : 'No tienen por qué ser iguales: el neto cuenta el efectivo y los impuestos estimados, y el banco incluye con lo que empezó el mes y lo que no clasificaste. Ve el detalle línea por línea.') + '</div>' +
+    '<button type="button" class="f-btn" data-ba="irpuente" data-id="' + esc(u.id) + '">Ver por qué ' + (ok ? 'coinciden' : 'no coinciden') + '</button>');
+}
+
 /* ---- Banco como estado de cuenta: selector propio, gráficas, avisos y cuadre con el Resumen ---- */
 var bEdoSel = '';
 function bEstadosOrden() { return fTbl('Estados').slice().sort(function (a, b) { return String(a.hasta).localeCompare(String(b.hasta)); }); }
@@ -2576,6 +2650,8 @@ function bTarjetaQue(u, c, k, dups, pend) {
   if (dups.length) rec('r', 'Hay ' + dups.length + (dups.length === 1 ? ' posible duplicado' : ' posibles duplicados') + ' entre los movimientos.', bDupVer ? '' : 'Ver', 'duptoggle');
   if (Math.abs(k.difIng) >= 0.5) rec('r', 'Los ingresos del Resumen no cuadran con el banco por ' + esc(money(Math.abs(k.difIng))) + '.', '', '');
   if (Math.abs(k.difGas) >= 0.5) rec('r', 'Los gastos y pagos registrados no cuadran con los cargos del banco por ' + esc(money(Math.abs(k.difGas))) + '.', '', '');
+  var pu = bPuente(u);
+  if (pu.delta !== null && Math.abs(pu.delta) >= 0.5) rec('a', 'Tu neto de Finanzas (' + esc(money(pu.N)) + ') y el saldo del banco (' + esc(money(pu.ref)) + ') difieren en ' + esc(money(Math.abs(pu.delta))) + '.', 'Ver por qué', 'irpuente', ' data-id="' + esc(u.id) + '"');
   if (pend.length) rec('a', pend.length + (pend.length === 1 ? ' movimiento sin clasificar' : ' movimientos sin clasificar') + ' por ' + esc(money(fSuma(pend, 'monto'))) + '.', 'Clasificar', 'irpend');
   var otros = fTbl('Banco').filter(function (m) { return m.est === 'pend' && !bPendEn(m, u); });
   if (otros.length) rec('a', 'Hay ' + otros.length + (otros.length === 1 ? ' movimiento pendiente' : ' movimientos pendientes') + ' en otros estados de cuenta.', 'Ir', 'edopend');
@@ -2600,7 +2676,7 @@ function fVistaBanco() {
   var chip = c.ini === null || c.fin === null ? 'Falta un saldo para conciliar' : Math.abs(c.dif) < 0.005 ? 'Cuadra ✓' : 'No cuadra: ' + money(Math.abs(c.dif));
   h += '<div class="f-dark"><div class="et">SALDO EN EL BANCO</div><div class="n">' + (c.fin !== null ? fGrande(c.fin) : '$—') + '</div><p>Al ' + esc(fechaLarga(u.hasta)) + ' · Entró ' + money(c.ab) + ' · Salió ' + money(c.ca) + '</p><p style="margin-top:6px;font-weight:600">' + chip + '</p></div>' + up;
   var fila = function (m, texto) { return '<div>' + esc(bTxt(m)) + '<div class="m">' + esc(fFechaCorta(m.fecha) + ' · ' + (m.tipo === 'abono' ? 'abono' : 'cargo')) + '</div></div><span class="v' + (m.tipo === 'abono' ? ' f-ok' : '') + '">' + (m.tipo === 'abono' ? '+' : '-') + money(m.monto) + '</span><button type="button" class="f-mini" style="padding:6px 9px;font-size:12px" data-ba="clas" data-id="' + esc(m.id) + '">' + texto + '</button>'; };
-  h += bTarjetaSaldo(u, c) + bTarjetaSalidas(u) + bTarjetaQue(u, c, k, dups, pend) + bTarjetaCuadre(u, k) + '<div id="b-pend">' + bTarjetaPend(pend) + '</div>' + bTarjetaConc(u) + bTarjetaDup() + bTarjetaPropias();
+  h += bTarjetaPuente(u) + bTarjetaSaldo(u, c) + bTarjetaSalidas(u) + bTarjetaQue(u, c, k, dups, pend) + bTarjetaCuadre(u, k) + '<div id="b-pend">' + bTarjetaPend(pend) + '</div>' + bTarjetaConc(u) + bTarjetaDup() + bTarjetaPropias();
   var e = bEfectivo();
   h += fMarcos('<div class="f-th">Efectivo</div><div class="f-g">' +
     '<span class="f-et">Cobros en efectivo</span><span class="v">' + money(e.cob) + '</span>' +
