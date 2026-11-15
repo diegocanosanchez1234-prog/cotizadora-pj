@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="pj-build" content="584ffbe8f0">
-<meta name="pj-fecha" content="2026-11-14 16:44">
+<meta name="pj-build" content="9d5986e0fe">
+<meta name="pj-fecha" content="2026-11-14 17:59">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#1D2D3D">
 <meta name="mobile-web-app-capable" content="yes">
@@ -1675,7 +1675,7 @@ function fAbre() { fPinta(); }
 function fVistaResumen() {
   var c = fCalc(finMes), vacio = !c.fac.length && !c.cob.length && !c.gas.length && !c.pag.length;
   var h = '';
-  h += '<div class="f-dark"><div class="et">NETO QUE TE QUEDA</div><div class="n">' + fGrande(c.neto) + '</div><p>' + (c.ing > 0 ? Math.round(c.neto / c.ing * 100) + ' % de lo facturado sin IVA. ' : '') + 'Ya con gastos, sueldos e impuestos descontados.</p></div>';
+  h += '<div class="f-dark"><div class="et">GANADO EN EL MES</div><div class="n">' + fGrande(c.neto) + '</div><p>' + (c.ing > 0 ? Math.round(c.neto / c.ing * 100) + ' % de lo facturado sin IVA. ' : '') + 'Ya con gastos, sueldos e impuestos descontados.</p></div>';
   if (vacio) h += '<div class="f-vacio">Aún no hay movimientos en ' + esc(fMesTxt(finMes).toLowerCase()) + '. Aparecen cuando marcas un trabajo como terminado o registras un gasto.</div>';
   h += fMarcos('<div class="f-th">A dónde se fue el dinero</div><div class="f-g">' +
     '<span class="f-et">Entró a la cuenta</span><span class="v s">' + money(c.entro) + '</span><hr>' +
@@ -2617,7 +2617,7 @@ function cDetalle(k) {
   }, 'Cerrar');
 }
 
-/* ---- puente exacto: del «Neto que te queda» del Resumen al saldo del banco ---- */
+/* ---- puente exacto: del «Ganado en el mes» del Resumen al saldo del banco ---- */
 function bSg(v) { v = r2(v); return (v > 0.004 ? '+' : v < -0.004 ? '−' : '') + money(Math.abs(v)); }
 function bPuente(u) {
   var ym = String(u.hasta || u.desde).slice(0, 7), cc = fCalc(ym), c = bConcilia(u), ini = ym + '-01', fin = ym + '-31';
@@ -2658,12 +2658,12 @@ function bTarjetaPuente(u) {
   var p = bPuente(u), mes = fMesTxt(p.ym).split(' ')[0].toLowerCase();
   var fila = function (et, v, s, sg) { return '<span class="f-et">' + et + '</span><span class="v' + (s ? ' s' : '') + '">' + (sg ? bSg(v) : money(v)) + '</span>'; };
   var ok = p.delta !== null && Math.abs(p.delta) < 0.5;
-  var h = '<div class="f-th">Del neto de Finanzas al banco</div><div class="f-g" style="margin-top:10px">' + fila('Neto que te queda (Resumen de ' + esc(mes) + ')', p.N) +
+  var h = '<div class="f-th">Del neto de Finanzas al banco</div><div class="f-g" style="margin-top:10px">' + fila('Ganado en el mes (Resumen de ' + esc(mes) + ')', p.N) +
     (p.ref !== null ? fila(p.fin !== null ? 'Saldo en el banco' : 'Saldo calculado del banco', p.ref) + '<hr><span class="f-et">Diferencia</span><span class="v s ' + (ok ? 'f-ok' : 'f-pen') + '">' + bSg(p.delta) + '</span>' : '') + '</div>';
   if (p.ref === null) h += '<div class="f-nota" style="color:#b3261e">Escribe el saldo inicial del estado para llegar hasta el saldo del banco. <button type="button" class="b-ver" data-ba="editaedo" data-id="' + esc(u.id) + '">Editar saldos</button></div>';
   else if (ok) h += '<div class="f-nota"><span class="f-ok" style="font-weight:600">El neto de Finanzas y el saldo del banco coinciden.</span></div>';
   else h += '<div class="f-nota">El banco tiene ' + money(Math.abs(p.delta)) + (p.delta > 0 ? ' más' : ' menos') + ' que tu neto. Lo que más pesa: ' + p.pesos.slice(0, 3).map(function (x) { return esc(x[0].charAt(0).toLowerCase() + x[0].slice(1)) + ' (' + bSg(x[1]) + ')'; }).join('; ') + '.</div>';
-  h += '<div class="f-et" style="margin-top:14px">LO QUE CUENTA FINANZAS Y EL BANCO NO</div><div class="f-g" style="margin-top:6px">' + fila('Neto que te queda', p.N) +
+  h += '<div class="f-et" style="margin-top:14px">LO QUE CUENTA FINANZAS Y EL BANCO NO</div><div class="f-g" style="margin-top:6px">' + fila('Ganado en el mes', p.N) +
     (Math.abs(p.T) >= 0.005 ? fila('+ Impuestos del mes (estimados; se pagan el 17 del mes siguiente)', p.T, 0, 1) : '') +
     (p.E ? fila('− Cobros en efectivo (no entran al banco)', -p.E, 0, 1) : '') + (p.SF ? fila('− Cobros sin forma de pago registrada', -p.SF, 0, 1) : '') +
     (p.O ? fila('− Cobros que entraron a otra cuenta (no al BBVA)', -p.O, 0, 1) : '') + (p.PeEf ? fila('+ Gastos y sueldos pagados en efectivo (no salen del banco)', p.PeEf, 0, 1) : '') + (p.PeOt ? fila('+ Gastos y sueldos pagados desde otra cuenta (no salen del BBVA)', p.PeOt, 0, 1) : '') + '<hr>' + fila('Lo que tus registros dicen que movió el banco', p.mRec, 1) + '</div>';
@@ -2684,7 +2684,7 @@ function bTarjetaBancoResumen() {
   var u = bEstadosOrden().find(function (x) { return String(x.hasta || x.desde).slice(0, 7) === finMes; }); if (!u) return '';
   var p = bPuente(u); if (p.ref === null) return '';
   var ok = Math.abs(p.delta) < 0.5;
-  return fMarcos('<div class="f-th">Neto contra banco</div><div class="f-g" style="margin-top:10px"><span class="f-et">Neto que te queda</span><span class="v">' + money(p.N) + '</span><span class="f-et">Saldo en el banco al ' + esc(fechaLarga(u.hasta)) + '</span><span class="v">' + money(p.ref) + '</span><hr><span class="f-et">Diferencia</span><span class="v s ' + (ok ? 'f-ok' : 'f-pen') + '">' + bSg(p.delta) + '</span></div>' +
+  return fMarcos('<div class="f-th">Neto contra banco</div><div class="f-g" style="margin-top:10px"><span class="f-et">Ganado en el mes</span><span class="v">' + money(p.N) + '</span><span class="f-et">Saldo en el banco al ' + esc(fechaLarga(u.hasta)) + '</span><span class="v">' + money(p.ref) + '</span><hr><span class="f-et">Diferencia</span><span class="v s ' + (ok ? 'f-ok' : 'f-pen') + '">' + bSg(p.delta) + '</span></div>' +
     '<div class="f-nota">' + (ok ? 'Coinciden.' : 'No tienen por qué ser iguales: el neto cuenta el efectivo y los impuestos estimados, y el banco incluye con lo que empezó el mes y lo que no clasificaste. Ve el detalle línea por línea.') + '</div>' +
     '<button type="button" class="f-btn" data-ba="irpuente" data-id="' + esc(u.id) + '">Ver por qué ' + (ok ? 'coinciden' : 'no coinciden') + '</button>');
 }
